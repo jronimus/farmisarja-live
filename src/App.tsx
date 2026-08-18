@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Languages, Moon, Sun } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Languages, Moon, Sun } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { translations } from "./i18n";
@@ -91,15 +91,23 @@ function compactRank(value: number) {
 
 function BrandLogo({ isLive }: { isLive: boolean }) {
   return <div className={`brand-logo ${isLive ? "is-live" : "is-idle"}`} aria-label={isLive ? "Farmisarja Live" : "Farmisarja"}>
-    <svg viewBox={isLive ? "0 0 500 58" : "0 0 400 58"} role="img" aria-hidden="true">
-      <path className="brand-logo-base" d={isLive ? "M12 3h399l-17 52H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z" : "M12 3h376c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z"} />
+    <svg className="brand-logo-desktop" viewBox={isLive ? "0 0 475 58" : "0 0 375 58"} role="img" aria-hidden="true">
+      <path className="brand-logo-base" d={isLive ? "M12 3h374l-17 52H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z" : "M12 3h351c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z"} />
       {isLive && <>
-      <path className="brand-logo-live" d="M405 3h83c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H388l17-52Z" />
+      <path className="brand-logo-live" d="M380 3h83c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H363l17-52Z" />
       </>}
       <image href={`${import.meta.env.BASE_URL}branding/fantasy-logo.svg`} x="15" y="12" width="130" height="34" />
       <path className="brand-logo-divider" d="M157 12v34" />
       <text className="brand-logo-name" x="170" y="38">FARMISARJA</text>
-      {isLive && <><circle className="brand-logo-dot" cx="426" cy="29" r="6" /><text className="brand-logo-live-text" x="440" y="38">LIVE</text></>}
+      {isLive && <><circle className="brand-logo-dot" cx="401" cy="29" r="6" /><text className="brand-logo-live-text" x="415" y="38">LIVE</text></>}
+    </svg>
+    <svg className="brand-logo-mobile" viewBox={isLive ? "0 0 370 58" : "0 0 270 58"} role="img" aria-hidden="true">
+      <path className="brand-logo-base" d={isLive ? "M12 3h268l-17 52H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z" : "M12 3h246c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z"} />
+      {isLive && <path className="brand-logo-live" d="M274 3h83c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H257l17-52Z" />}
+      <svg x="17" y="9" width="30" height="40" viewBox="0 0 76 104" preserveAspectRatio="xMidYMid meet"><image href={`${import.meta.env.BASE_URL}branding/fantasy-logo.svg`} width="453" height="104" /></svg>
+      <path className="brand-logo-divider" d="M55 12v34" />
+      <text className="brand-logo-name" x="68" y="38">FARMISARJA</text>
+      {isLive && <><circle className="brand-logo-dot" cx="295" cy="29" r="6" /><text className="brand-logo-live-text" x="309" y="38">LIVE</text></>}
     </svg>
   </div>;
 }
@@ -207,13 +215,16 @@ export default function App() {
   const deadlineLabel = deadlineMs >= 86_400_000
     ? `${Math.ceil(deadlineMs / 86_400_000)} ${language === "fi" ? "pv deadlineen" : "days to deadline"}`
     : `${String(Math.floor(deadlineMs / 3_600_000)).padStart(2, "0")}:${String(Math.floor(deadlineMs % 3_600_000 / 60_000)).padStart(2, "0")}:${String(Math.floor(deadlineMs % 60_000 / 1000)).padStart(2, "0")}`;
+  const compactDeadlineLabel = deadlineMs >= 86_400_000
+    ? `${Math.ceil(deadlineMs / 86_400_000)} ${language === "fi" ? "pv" : "d"}`
+    : deadlineLabel;
   const updatedLabel = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { dateStyle: "short", timeStyle: "medium" }).format(new Date(data.updatedAt));
 
   return <div className="app-shell" data-theme={theme} data-mobile-details={mobileDetails ? "on" : "off"}>
     <header className="topbar">
       <BrandLogo isLive={gameweekIsLive} />
       <div className="top-actions">
-        <div className="gameweek-status"><b>GW&nbsp;{data.gameweek}</b>{!gameweekIsLive && <span className="deadline">{deadlineLabel}</span>}</div>
+        <div className="gameweek-status"><b>GW&nbsp;{data.gameweek}</b>{!gameweekIsLive && <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>}</div>
         <button className="theme-toggle" aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"} onClick={() => setTheme((value) => value === "dark" ? "light" : "dark")}>
           {theme === "dark" ? <Sun /> : <Moon />}
         </button>
