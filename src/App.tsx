@@ -244,7 +244,7 @@ export default function App() {
       <section className="league-table">
         <div className="table-head">{headers.map(([label, key], index) => <SortHeader key={`${label}-${index}`} label={label} sortKey={key} active={sort} direction={direction} onSort={handleSort} />)}</div>
         <div className="rows">
-          <div className="mobile-simple-head"><span /><span /><b>GW</b><b>{t.total}</b></div>
+          <div className="mobile-simple-head"><b>{t.position}</b><b>{t.manager}</b><b>GW</b><b>{t.total}</b></div>
           {managers.map((manager) => {
             const open = expanded === manager.id;
             const topScore = !data.rosterOnly && manager.gameweekPoints + manager.provisionalBonus - manager.hit === highest;
