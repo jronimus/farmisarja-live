@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Languages, Moon, Sun } from "lucide-react";
 import { demoData } from "./demoData";
+import { loadLiveDashboard } from "./services/liveDashboard";
 import { translations } from "./i18n";
-import type { Language, ManagerRow, SquadPlayer } from "./types";
+import type { DashboardData, Language, ManagerRow, SquadPlayer } from "./types";
 
 type SortKey = "position" | "gameweekPoints" | "totalPoints" | "overallRank" | "captainPoints" | "upcoming" | "form" | "teamValue" | "seasonTransfers" | "benchPointsBeforeGw";
 
@@ -21,7 +22,7 @@ function TransferCell({ manager, language }: { manager: ManagerRow; language: La
     return <div className="transfer-cell wildcard-transfer" data-label={t.transfers}>
       <strong>WC</strong><small>{t.oldTeam} {previous} → {t.currentTeam} {current}</small>
       <b className={current - previous >= 0 ? "positive" : "negative"}>{signed(current - previous)} {t.net}</b>
-      <em>{t.nextGw}: {manager.freeTransfersAfter} FT</em>
+      {manager.freeTransfersAfter !== undefined && <em>{t.nextGw}: {manager.freeTransfersAfter} FT</em>}
     </div>;
   }
   return <div className="transfer-cell" data-label={t.transfers}>
@@ -30,8 +31,8 @@ function TransferCell({ manager, language }: { manager: ManagerRow; language: La
       return <small key={index}><span className="desktop-transfer-row">{transfer.out} ({transfer.outPoints}) <i>→</i> {transfer.in} ({transfer.inPoints})</span><span className="mobile-transfer-row">{transfer.out} {transfer.outPoints} <i>→</i> {transfer.in} {transfer.inPoints}</span><b className={difference >= 0 ? "positive" : "negative"}>{signed(difference)}</b></small>;
     })}
     {!manager.transfers.length && <small className="muted">{t.noTransfers}</small>}
-    <div className="desktop-transfer-footer">{netSummary()}<span>GW{demoData.gameweek + 1}: {manager.freeTransfersAfter} FT</span></div>
-    <div className="mobile-transfer-footer">{netSummary()}<span>GW{demoData.gameweek + 1}: {manager.freeTransfersAfter} FT</span></div>
+    <div className="desktop-transfer-footer">{netSummary()}{manager.freeTransfersAfter !== undefined && <span>GW{demoData.gameweek + 1}: {manager.freeTransfersAfter} FT</span>}</div>
+    <div className="mobile-transfer-footer">{netSummary()}{manager.freeTransfersAfter !== undefined && <span>GW{demoData.gameweek + 1}: {manager.freeTransfersAfter} FT</span>}</div>
   </div>;
 }
 
@@ -171,12 +172,20 @@ export default function App() {
   const [sort, setSort] = useState<SortKey>("position");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [now, setNow] = useState(() => Date.now());
+  const [data, setData] = useState<DashboardData>(demoData);
   const t = translations(language);
-  const data = demoData;
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    loadLiveDashboard().then((liveData) => {
+      if (active && liveData) setData(liveData);
+    }).catch((error) => console.warn("Live FPL data is not ready; keeping preview data.", error));
+    return () => { active = false; };
   }, []);
 
   const managers = useMemo(() => [...data.managers].sort((a, b) => {

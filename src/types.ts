@@ -38,7 +38,7 @@ export interface ManagerRow {
   chip?: string;
   availableChips: string[];
   usedChips: string[];
-  freeTransfersAfter: number;
+  freeTransfersAfter?: number;
   wildcardPreviousTeamPoints?: number;
   seasonTransfers: number;
   seasonHitPoints: number;
