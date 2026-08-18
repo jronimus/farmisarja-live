@@ -15,6 +15,7 @@ main { max-width: 1540px; padding: 22px 30px 42px; margin: 0 auto; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }.view-tabs { display: flex; gap: 3px; padding: 4px; background: #101a16; border-radius: 10px; }.view-tabs button { border: 0; background: transparent; color: #7f948a; padding: 8px 15px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }.view-tabs button.active { background: #24372f; color: #edf8f2; }.autosub-toggle { display: flex; align-items: center; gap: 8px; color: #a9bbb2; font-size: 12px; }.autosub-toggle button { width: 34px; height: 19px; padding: 2px; border: 0; border-radius: 20px; background: #324039; cursor: pointer; }.autosub-toggle button i { display: block; width: 15px; height: 15px; border-radius: 50%; background: #98a79f; transition: .2s; }.autosub-toggle button.enabled { background: #187c4c; }.autosub-toggle button.enabled i { transform: translateX(15px); background: var(--green); }.autosub-toggle b { min-width: 28px; color: var(--green); font-size: 11px; }
 .period-select { min-width:150px; height:42px; padding:0 44px 0 14px; border:1px solid color-mix(in srgb,var(--faint) 32%,transparent); border-radius:9px; appearance:none; -webkit-appearance:none; background-color:var(--raised); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; color:var(--text); font:800 13px "Inter"; cursor:pointer; }
 .league-table { overflow-x:hidden; background:#0a120f; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25); }.table-head,.manager-row { min-width:1380px; display:grid; grid-template-columns:70px minmax(165px,1.1fr) 95px minmax(225px,1.4fr) 90px 130px 85px 75px 165px 105px 90px 65px; align-items:center; }
+.mobile-simple-head { display:none; }
 .table-head { min-height: 45px; padding: 0 16px; background: #101c17; }.sort-header { min-width: 0; border: 0; background: none; padding: 0 8px; display: flex; align-items: center; gap: 3px; color: #6f847a; text-transform: uppercase; letter-spacing: .07em; font-size: 9px; font-weight: 700; text-align: left; cursor: pointer; }.sort-header svg { width: 11px; opacity: 0; }.sort-header.active { color: #bac9c1; }.sort-header.active svg { opacity: 1; }.sort-header svg.rotate { transform: rotate(180deg); }
 .manager-block { background: #0c1511; }.manager-block:nth-child(even) { background: #0e1814; }.manager-block.open { background: #12221b; }.manager-row { min-height: 82px; padding: 0 16px; cursor: pointer; transition: background .16s; }.manager-row:hover { background: rgba(255,255,255,.018); }.manager-row > div { min-width: 0; padding: 10px 8px; }
 .squad-unavailable { min-width:0; color:var(--soft); font-size:13px; font-weight:700; text-align:center; }
@@ -97,7 +98,26 @@ footer { background:var(--header); color:var(--faint); }
   .player.player-finished .mobile-player-score { color:#c6a8ff; }.player.player-live .mobile-player-score { color:#58f09b; }.player.player-upcoming .mobile-player-score { color:#ffda55; }
   .app-shell[data-theme="light"] .player.player-finished .mobile-player-score { color:#5b21b6; }.app-shell[data-theme="light"] .player.player-live .mobile-player-score { color:#087443; }.app-shell[data-theme="light"] .player.player-upcoming .mobile-player-score { color:#805000; }
   .app-shell[data-mobile-details="off"] .transfer-cell,.app-shell[data-mobile-details="off"] .chips-cell,.app-shell[data-mobile-details="off"] .progress-cell,.app-shell[data-mobile-details="off"] .team-value-cell { display:none; }
-  .app-shell[data-mobile-details="off"] .manager-row { padding-top:10px; padding-bottom:10px; }
+  .app-shell[data-mobile-details="off"] .rows { gap:4px; }
+  .app-shell[data-mobile-details="off"] .mobile-simple-head { display:grid; grid-template-columns:34px minmax(0,1fr) 46px 54px; gap:0 5px; align-items:end; min-height:14px; padding:0 9px; color:var(--faint); }
+  .app-shell[data-mobile-details="off"] .mobile-simple-head b { grid-row:1; font-size:7px; line-height:1; text-align:left; text-transform:uppercase; letter-spacing:.06em; }
+  .app-shell[data-mobile-details="off"] .manager-row { min-height:48px; padding:3px 9px; grid-template-columns:34px minmax(0,1fr) 46px 54px; grid-template-rows:42px; gap:0 5px; align-items:center; }
+  .app-shell[data-mobile-details="off"] .manager-row > div { padding:1px 3px; }
+  .app-shell[data-mobile-details="off"] .position-cell { height:42px; align-content:center; }
+  .app-shell[data-mobile-details="off"] .position-cell > strong { font-size:16px; }
+  .app-shell[data-mobile-details="off"] .position-cell .movement { font-size:7px; }
+  .app-shell[data-mobile-details="off"] .position-cell .movement svg { width:7px; }
+  .app-shell[data-mobile-details="off"] .position-or { font-size:6px; }
+  .app-shell[data-mobile-details="off"] .manager-cell { height:42px; display:flex; justify-content:center; gap:1px; }
+  .app-shell[data-mobile-details="off"] .manager-cell a { font-size:11px; line-height:1.15; }
+  .app-shell[data-mobile-details="off"] .manager-cell > span:not(.mobile-captain) { align-self:auto; font-size:9px; line-height:1.15; }
+  .app-shell[data-mobile-details="off"] .mobile-captain { gap:3px; margin-top:1px; }
+  .app-shell[data-mobile-details="off"] .mobile-captain b { font-size:9px; }
+  .app-shell[data-mobile-details="off"] .mobile-captain strong,.app-shell[data-mobile-details="off"] .mobile-captain em { font-size:8px; }
+  .app-shell[data-mobile-details="off"] .points-cell,.app-shell[data-mobile-details="off"] .total-cell { height:42px; display:flex; justify-content:center; }
+  .app-shell[data-mobile-details="off"] .points-cell::before,.app-shell[data-mobile-details="off"] .total-cell::before,.app-shell[data-mobile-details="off"] .total-cell::after { display:none; }
+  .app-shell[data-mobile-details="off"] .points-cell > strong,.app-shell[data-mobile-details="off"] .total-cell > strong { align-self:auto; margin:0; padding:0; border:0; font-size:15px; line-height:1; }
+  .app-shell[data-mobile-details="off"] .points-formula { display:none; }
   .app-shell[data-mobile-details="off"] .manager-block.open .squad-panel { display:none; }
   .squad-unavailable { padding:18px 14px; font-size:11px; line-height:1.45; }
   .app-shell[data-mobile-details="off"] .mobile-active-chip { display:inline-grid; grid-column:1 / 3; justify-self:start; margin-top:3px; padding:2px 5px; border-radius:4px; background:var(--purple); color:#fff; font-size:7px; font-weight:900; }
