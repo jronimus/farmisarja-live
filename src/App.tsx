@@ -171,12 +171,13 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
 }
 
 export default function App() {
+  const demoMode = new URLSearchParams(window.location.search).has("demo");
   const [language, setLanguage] = useState<Language>(() => localStorage.getItem("farmisarja-language") === "en" ? "en" : "fi");
   const [theme, setTheme] = useState<"dark" | "light">(() => localStorage.getItem("farmisarja-theme") === "light" ? "light" : "dark");
   const [autosubs, setAutosubs] = useState(true);
   const [mobileDetails, setMobileDetails] = useState(true);
   const [period, setPeriod] = useState("total");
-  const [expanded, setExpanded] = useState<number | null>(101);
+  const [expanded, setExpanded] = useState<number | null>(demoMode ? null : 101);
   const [sort, setSort] = useState<SortKey>("position");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [now, setNow] = useState(() => Date.now());
@@ -197,6 +198,7 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    if (demoMode) return;
     let active = true;
     let refreshTimer: number | undefined;
     const refresh = async () => {
@@ -212,7 +214,7 @@ export default function App() {
     };
     void refresh();
     return () => { active = false; if (refreshTimer) window.clearTimeout(refreshTimer); };
-  }, []);
+  }, [demoMode]);
 
   const managers = useMemo(() => [...data.managers].sort((a, b) => {
     const aValue = sort === "form" ? a.form.reduce((sum, value) => sum + value, 0) / a.form.length : a[sort];
