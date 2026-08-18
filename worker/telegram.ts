@@ -10,6 +10,7 @@ export type TelegramEnv = Env & {
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
+  SCREENSHOT_PREVIEW_SECRET?: string;
 };
 
 async function fpl<T>(path: string): Promise<T> {
@@ -35,7 +36,7 @@ async function sendLinkMessage(env: TelegramEnv, chatId: number | string, text: 
   await telegramApi(env, "sendMessage", { chat_id: chatId, text, reply_markup: button(env), disable_web_page_preview: true });
 }
 
-async function captureTable(env: TelegramEnv): Promise<Blob> {
+export async function captureTable(env: TelegramEnv): Promise<Blob> {
   const response = await env.BROWSER.quickAction("screenshot", {
     url: env.PUBLIC_SITE_URL,
     selector: ".league-table",

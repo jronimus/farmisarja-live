@@ -1,4 +1,4 @@
-import { handleTelegramWebhook, runTelegramSchedule, type TelegramEnv } from "./telegram";
+import { captureTable, handleTelegramWebhook, runTelegramSchedule, type TelegramEnv } from "./telegram";
 
 const FPL_ORIGIN = "https://fantasy.premierleague.com";
 
@@ -51,6 +51,16 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/telegram/webhook") return handleTelegramWebhook(request, env as TelegramEnv, ctx);
+    if (request.method === "GET" && url.pathname === "/admin/table-screenshot") {
+      const telegramEnv = env as TelegramEnv;
+      if (!telegramEnv.SCREENSHOT_PREVIEW_SECRET || request.headers.get("Authorization") !== `Bearer ${telegramEnv.SCREENSHOT_PREVIEW_SECRET}`) return new Response("Unauthorized", { status: 401 });
+      try {
+        const screenshot = await captureTable(telegramEnv);
+        return new Response(screenshot, { headers: { "Content-Type": "image/png", "Cache-Control": "no-store" } });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, request, env, 502);
+      }
+    }
     if (request.method !== "GET") return json({ error: "Method not allowed" }, request, env, 405);
     if (url.pathname === "/health") return json({ ok: true, leagueId: env.FPL_LEAGUE_ID }, request, env);
     const route = upstreamPath(url.pathname, env);
