@@ -175,7 +175,7 @@ export default function App() {
   const demoMode = urlParams.has("demo");
   const screenshotMode = urlParams.has("screenshot");
   const [language, setLanguage] = useState<Language>(() => localStorage.getItem("farmisarja-language") === "en" ? "en" : "fi");
-  const [theme, setTheme] = useState<"dark" | "light">(() => localStorage.getItem("farmisarja-theme") === "light" ? "light" : "dark");
+  const [theme, setTheme] = useState<"dark" | "light">(() => urlParams.get("theme") === "light" || localStorage.getItem("farmisarja-theme") === "light" ? "light" : "dark");
   const [autosubs, setAutosubs] = useState(true);
   const [mobileDetails, setMobileDetails] = useState(true);
   const [period, setPeriod] = useState("total");

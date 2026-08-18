@@ -55,7 +55,7 @@ export default {
       const telegramEnv = env as TelegramEnv;
       if (!telegramEnv.SCREENSHOT_PREVIEW_SECRET || request.headers.get("Authorization") !== `Bearer ${telegramEnv.SCREENSHOT_PREVIEW_SECRET}`) return new Response("Unauthorized", { status: 401 });
       try {
-        const screenshot = await captureTable(telegramEnv, url.searchParams.get("demo") === "1");
+        const screenshot = await captureTable(telegramEnv, url.searchParams.get("demo") === "1", url.searchParams.get("theme") === "light");
         return new Response(screenshot, { headers: { "Content-Type": "image/png", "Cache-Control": "no-store" } });
       } catch (error) {
         return json({ error: error instanceof Error ? error.message : String(error) }, request, env, 502);

@@ -36,9 +36,12 @@ async function sendLinkMessage(env: TelegramEnv, chatId: number | string, text: 
   await telegramApi(env, "sendMessage", { chat_id: chatId, text, reply_markup: button(env), disable_web_page_preview: true });
 }
 
-export async function captureTable(env: TelegramEnv, demo = false): Promise<Blob> {
+export async function captureTable(env: TelegramEnv, demo = false, lightTheme = false): Promise<Blob> {
+  const query = new URLSearchParams({ screenshot: "1" });
+  if (demo) query.set("demo", "1");
+  if (lightTheme) query.set("theme", "light");
   const response = await env.BROWSER.quickAction("screenshot", {
-    url: `${env.PUBLIC_SITE_URL}?screenshot=1${demo ? "&demo=1" : ""}`,
+    url: `${env.PUBLIC_SITE_URL}?${query.toString()}`,
     selector: ".league-table",
     viewport: { width: 1340, height: 1200, deviceScaleFactor: 1 },
     gotoOptions: { waitUntil: "networkidle0", timeout: 45_000 },
