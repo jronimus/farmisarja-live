@@ -6,7 +6,18 @@
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "FPL_LEAGUE_ID": "200068",
-    "ALLOWED_ORIGIN": "https://jronimus.github.io"
+    "ALLOWED_ORIGIN": "https://jronimus.github.io",
+    "PUBLIC_SITE_URL": "https://jronimus.github.io/farmisarja-live/",
+    "TELEGRAM_NOTIFICATIONS_ENABLED": "false"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "TELEGRAM_STATE",
+      "id": "565ce503e0d041278d22d2d88c0527b8"
+    }
+  ],
+  "triggers": {
+    "crons": ["*/2 * * * *"]
   },
   "observability": {
     "enabled": true,

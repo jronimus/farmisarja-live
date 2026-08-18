@@ -1,3 +1,5 @@
+import { checkTableReadyNotification } from "./telegram";
+
 const FPL_ORIGIN = "https://fantasy.premierleague.com";
 
 function corsHeaders(request: Request, env: Env): HeadersInit {
@@ -58,5 +60,8 @@ export default {
       console.error(JSON.stringify({ event: "fpl_proxy_error", path: url.pathname, error: error instanceof Error ? error.message : String(error) }));
       return json({ error: "FPL service temporarily unavailable" }, request, env, 502);
     }
+  },
+  async scheduled(_controller, env, ctx): Promise<void> {
+    ctx.waitUntil(checkTableReadyNotification(env));
   },
 } satisfies ExportedHandler<Env>;

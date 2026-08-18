@@ -198,10 +198,20 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    loadLiveDashboard().then((liveData) => {
-      if (active && liveData) setData(liveData);
-    }).catch((error) => console.warn("Live FPL data is not ready; keeping preview data.", error));
-    return () => { active = false; };
+    let refreshTimer: number | undefined;
+    const refresh = async () => {
+      try {
+        const liveData = await loadLiveDashboard();
+        if (!active) return;
+        if (liveData) setData(liveData);
+        refreshTimer = window.setTimeout(refresh, liveData?.dataPending ? 15_000 : 60_000);
+      } catch (error) {
+        console.warn("Live FPL data is not ready; keeping the latest view.", error);
+        if (active) refreshTimer = window.setTimeout(refresh, 15_000);
+      }
+    };
+    void refresh();
+    return () => { active = false; if (refreshTimer) window.clearTimeout(refreshTimer); };
   }, []);
 
   const managers = useMemo(() => [...data.managers].sort((a, b) => {
@@ -249,7 +259,11 @@ export default function App() {
         <div className="toolbar-toggles"><label className="details-toggle"><span>{t.details}</span><button role="switch" aria-checked={mobileDetails} onClick={() => setMobileDetails((value) => !value)} className={mobileDetails ? "enabled" : ""}><i /></button></label><label className="autosub-toggle"><span>{t.autosubs}</span><button role="switch" aria-checked={autosubs} onClick={() => setAutosubs((value) => !value)} className={autosubs ? "enabled" : ""}><i /></button><b>{autosubs ? t.on : t.off}</b></label></div>
       </div>
 
-      <section className="league-table">
+      {data.dataPending ? <section className="data-pending" role="status">
+        <Clock3 />
+        <strong>{language === "fi" ? "Peliviikon joukkueita päivitetään" : "Gameweek teams are being updated"}</strong>
+        <span>{language === "fi" ? "Taulukko avautuu automaattisesti heti, kun FPL-data on saatavilla." : "The table will open automatically as soon as the FPL data is available."}</span>
+      </section> : <section className="league-table">
         <div className="table-head">{headers.map(([label, key], index) => <SortHeader key={`${label}-${index}`} label={label} sortKey={key} active={sort} direction={direction} onSort={handleSort} />)}</div>
         <div className="rows">
           <div className="mobile-simple-head"><b>{t.position}</b><b>{t.manager}</b><b>GW</b><b>{t.total}</b></div>
@@ -281,7 +295,7 @@ export default function App() {
             </div>;
           })}
         </div>
-      </section>
+      </section>}
     </main>
     <footer><span>Official FPL data</span><span>{t.updated}: {updatedLabel}</span></footer>
   </div>;

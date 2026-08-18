@@ -159,8 +159,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
   const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
   if (!event) return null;
   const completedMonths = [...new Set(bootstrap.events.filter((item) => item.finished).map((item) => item.deadline_time.slice(0, 7)))];
-  if (!league.standings.results.length && league.new_entries?.results.length) {
-    const managers: ManagerRow[] = league.new_entries.results.map((entry) => ({
+  const rosterManagers = (): ManagerRow[] => league.new_entries.results.map((entry) => ({
       id: entry.entry,
       position: 1,
       previousPosition: 1,
@@ -189,6 +188,9 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       formRankMovement: [],
       squad: [],
     }));
+  const deadlinePassed = Date.now() >= new Date(event.deadline_time).getTime();
+  if (!league.standings.results.length && league.new_entries?.results.length && !deadlinePassed) {
+    const managers = rosterManagers();
     return {
       leagueName: league.league.name,
       gameweek: event.id,
@@ -201,11 +203,31 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       managers,
     };
   }
-  if (!league.standings.results.length) return null;
+  if (!league.standings.results.length && !league.new_entries?.results.length) return null;
   const live = await api<{ elements: LiveElement[] }>(`/event/${event.id}/live`, `/event/${event.id}/live/`);
   const liveById = new Map(live.elements.map((element) => [element.id, element]));
-  const rows = await Promise.all(league.standings.results.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById)));
-  if (rows.some((row) => row === null)) return null;
+  const standings = league.standings.results.length ? league.standings.results : league.new_entries.results.map((entry) => ({
+    entry: entry.entry,
+    rank: 1,
+    last_rank: 1,
+    entry_name: entry.entry_name,
+    player_name: `${entry.player_first_name} ${entry.player_last_name}`.trim(),
+    total: 0,
+  }));
+  const rows = await Promise.all(standings.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById)));
+  if (rows.some((row) => row === null)) {
+    return {
+      leagueName: league.league.name,
+      gameweek: event.id,
+      deadline: event.deadline_time,
+      updatedAt: new Date().toISOString(),
+      isPreview: false,
+      dataPending: true,
+      pointsFinalized: false,
+      completedMonths,
+      managers: rosterManagers(),
+    };
+  }
   return {
     leagueName: league.league.name,
     gameweek: event.id,
