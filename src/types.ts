@@ -59,6 +59,7 @@ export interface DashboardData {
   deadline: string;
   updatedAt: string;
   isPreview: boolean;
+  rosterOnly?: boolean;
   pointsFinalized: boolean;
   completedMonths: string[];
   managers: ManagerRow[];

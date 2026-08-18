@@ -17,7 +17,12 @@ interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; }
 interface Fixture { id: number; event: number | null; team_h: number; team_a: number; started: boolean; finished: boolean; finished_provisional: boolean; }
 interface LiveElement { id: number; stats: { total_points: number; minutes: number; bonus: number }; explain: Array<{ fixture: number }>; }
 interface LeagueStanding { entry: number; rank: number; last_rank: number; entry_name: string; player_name: string; total: number; }
-interface LeagueResponse { league: { name: string }; standings: { results: LeagueStanding[]; has_next: boolean }; }
+interface NewEntry { entry: number; entry_name: string; player_first_name: string; player_last_name: string; }
+interface LeagueResponse {
+  league: { name: string };
+  standings: { results: LeagueStanding[]; has_next: boolean };
+  new_entries: { results: NewEntry[]; has_next: boolean };
+}
 interface EntryData { player_first_name: string; player_last_name: string; summary_overall_rank: number; }
 interface Pick { element: number; position: number; multiplier: number; is_captain: boolean; is_vice_captain: boolean; }
 interface EventHistory { event: number; points: number; total_points: number; overall_rank: number; value: number; event_transfers: number; event_transfers_cost: number; points_on_bench: number; }
@@ -149,16 +154,58 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
   const [bootstrap, fixtures, league] = await Promise.all([
     api<Bootstrap>("/bootstrap-static", "/bootstrap-static/"),
     api<Fixture[]>("/fixtures", "/fixtures/"),
-    api<LeagueResponse>("/league", `/leagues-classic/${leagueId}/standings/?page_standings=1`),
+    api<LeagueResponse>("/league", `/leagues-classic/${leagueId}/standings/?page_standings=1&page_new_entries=1`),
   ]);
-  if (!league.standings.results.length) return null;
   const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
   if (!event) return null;
+  const completedMonths = [...new Set(bootstrap.events.filter((item) => item.finished).map((item) => item.deadline_time.slice(0, 7)))];
+  if (!league.standings.results.length && league.new_entries?.results.length) {
+    const managers: ManagerRow[] = league.new_entries.results.map((entry) => ({
+      id: entry.entry,
+      position: 1,
+      previousPosition: 1,
+      teamName: entry.entry_name,
+      managerName: `${entry.player_first_name} ${entry.player_last_name}`.trim(),
+      gameweekPoints: 0,
+      provisionalBonus: 0,
+      totalPoints: 0,
+      overallRank: 0,
+      previousOverallRank: 0,
+      captain: "—",
+      captainPoints: 0,
+      transfers: [],
+      hit: 0,
+      availableChips: [],
+      usedChips: [],
+      seasonTransfers: 0,
+      seasonHitPoints: 0,
+      benchPointsBeforeGw: 0,
+      teamValue: 0,
+      previousTeamValue: 0,
+      finished: 0,
+      live: 0,
+      upcoming: 0,
+      form: [],
+      formRankMovement: [],
+      squad: [],
+    }));
+    return {
+      leagueName: league.league.name,
+      gameweek: event.id,
+      deadline: event.deadline_time,
+      updatedAt: new Date().toISOString(),
+      isPreview: true,
+      rosterOnly: true,
+      pointsFinalized: false,
+      completedMonths,
+      managers,
+    };
+  }
+  if (!league.standings.results.length) return null;
   const live = await api<{ elements: LiveElement[] }>(`/event/${event.id}/live`, `/event/${event.id}/live/`);
   const liveById = new Map(live.elements.map((element) => [element.id, element]));
   const rows = await Promise.all(league.standings.results.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById)));
   if (rows.some((row) => row === null)) return null;
-  const completedMonths = [...new Set(bootstrap.events.filter((item) => item.finished).map((item) => item.deadline_time.slice(0, 7)))];
   return {
     leagueName: league.league.name,
     gameweek: event.id,

@@ -235,15 +235,15 @@ export default function App() {
         <div className="rows">
           {managers.map((manager) => {
             const open = expanded === manager.id;
-            const topScore = manager.gameweekPoints + manager.provisionalBonus - manager.hit === highest;
+            const topScore = !data.rosterOnly && manager.gameweekPoints + manager.provisionalBonus - manager.hit === highest;
             const displayedGwPoints = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
             const captain = captainDisplay(manager, autosubs);
             const rankClass = manager.overallRank < manager.previousOverallRank ? "rank-up" : manager.overallRank > manager.previousOverallRank ? "rank-down" : "rank-neutral";
             const progress = weightedProgress(manager);
-            return <div className={`manager-block ${open ? "open" : ""}`} key={manager.id}>
+            return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
-                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong><Movement current={manager.position} previous={manager.previousPosition} /><small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>{manager.chip && <span className="mobile-active-chip">{manager.chip}</span>}</div>
-                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span><span className="mobile-captain"><b>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span><small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small></div>
+                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}{manager.chip && <span className="mobile-active-chip">{manager.chip}</span>}</div>
+                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
                 <div className="captain-cell" data-label={t.captain}><strong>{captain.name}</strong><span>{captain.points} pts</span></div>
                 <TransferCell manager={manager} language={language} />
                 <SeasonTransfersCell manager={manager} label={t.seasonTransfers} />
@@ -255,7 +255,9 @@ export default function App() {
                 <div className="progress-cell" data-label={t.progress}>{progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints - manager.hit)}</strong></div>
               </div>
-              {open && <Squad manager={manager} language={language} autosubs={autosubs} />}
+              {open && (data.rosterOnly
+                ? <div className="squad-panel squad-unavailable">{language === "fi" ? "Pelaajat tulevat näkyviin, kun peliviikon deadline on sulkeutunut." : "Players will appear after the gameweek deadline has passed."}</div>
+                : <Squad manager={manager} language={language} autosubs={autosubs} />)}
             </div>;
           })}
         </div>

@@ -18,7 +18,7 @@ function json(body: unknown, request: Request, env: Env, status = 200): Response
 function upstreamPath(pathname: string, env: Env): { path: string; ttl: number } | null {
   if (pathname === "/api/bootstrap-static") return { path: "/api/bootstrap-static/", ttl: 300 };
   if (pathname === "/api/fixtures") return { path: "/api/fixtures/", ttl: 60 };
-  if (pathname === "/api/league") return { path: `/api/leagues-classic/${env.FPL_LEAGUE_ID}/standings/?page_standings=1`, ttl: 60 };
+  if (pathname === "/api/league") return { path: `/api/leagues-classic/${env.FPL_LEAGUE_ID}/standings/?page_standings=1&page_new_entries=1`, ttl: 60 };
   const live = pathname.match(/^\/api\/event\/(\d+)\/live$/);
   if (live) return { path: `/api/event/${live[1]}/live/`, ttl: 30 };
   const entry = pathname.match(/^\/api\/entry\/(\d+)$/);
