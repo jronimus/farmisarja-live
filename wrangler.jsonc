@@ -8,6 +8,7 @@
     "FPL_LEAGUE_ID": "200068",
     "ALLOWED_ORIGIN": "https://jronimus.github.io",
     "PUBLIC_SITE_URL": "https://jronimus.github.io/farmisarja-live/",
+    "TELEGRAM_CHAT_ID": "-1001048034441",
     "TELEGRAM_NOTIFICATIONS_ENABLED": "false"
   },
   "kv_namespaces": [
