@@ -16,6 +16,9 @@
       "id": "565ce503e0d041278d22d2d88c0527b8"
     }
   ],
+  "browser": {
+    "binding": "BROWSER"
+  },
   "triggers": {
     "crons": ["*/2 * * * *"]
   },

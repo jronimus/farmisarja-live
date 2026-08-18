@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { checkTableReadyNotification } from "./telegram";
+import { deadlineRemaining, runTelegramSchedule, type TelegramEnv } from "./telegram";
 
 function testEnv(overrides: Record<string, unknown> = {}) {
   const state = new Map<string, string>();
@@ -13,8 +13,13 @@ function testEnv(overrides: Record<string, unknown> = {}) {
       get: vi.fn(async (key: string) => state.get(key) ?? null),
       put: vi.fn(async (key: string, value: string) => { state.set(key, value); }),
     },
+    BROWSER: {
+      quickAction: vi.fn(async () => {
+        return new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "Content-Type": "image/png" } });
+      }),
+    },
     ...overrides,
-  } as unknown as Env;
+  } as unknown as TelegramEnv;
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -24,7 +29,7 @@ describe("table-ready Telegram notification", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    await checkTableReadyNotification(testEnv());
+    await runTelegramSchedule(testEnv());
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -36,13 +41,19 @@ describe("table-ready Telegram notification", () => {
       .mockResolvedValueOnce(Response.json({ standings: { results: [] }, new_entries: { results: [{ entry: 11 }, { entry: 22 }] } }))
       .mockResolvedValueOnce(Response.json({ picks: [] }))
       .mockResolvedValueOnce(Response.json({ picks: [] }))
-      .mockResolvedValueOnce(Response.json({ ok: true }));
+      .mockResolvedValueOnce(Response.json({ ok: true }))
+      .mockResolvedValueOnce(Response.json([{ event: 1, finished: false }]));
     vi.stubGlobal("fetch", fetchMock);
     const env = testEnv({ TELEGRAM_NOTIFICATIONS_ENABLED: "true" });
 
-    await checkTableReadyNotification(env);
+    await runTelegramSchedule(env);
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     expect(env.TELEGRAM_STATE.put).toHaveBeenCalledWith("table-ready:gw:1", expect.any(String));
+  });
+
+  it("formats the remaining deadline without seconds", () => {
+    const now = Date.parse("2026-08-18T12:00:00Z");
+    expect(deadlineRemaining({ id: 1, deadline_time: "2026-08-19T14:30:00Z", is_current: false, is_next: true }, now)).toBe("1 päivä 2 tuntia");
   });
 });

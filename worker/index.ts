@@ -1,4 +1,4 @@
-import { checkTableReadyNotification } from "./telegram";
+import { handleTelegramWebhook, runTelegramSchedule, type TelegramEnv } from "./telegram";
 
 const FPL_ORIGIN = "https://fantasy.premierleague.com";
 
@@ -47,10 +47,11 @@ async function proxy(request: Request, env: Env, path: string, ttl: number): Pro
 }
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
-    if (request.method !== "GET") return json({ error: "Method not allowed" }, request, env, 405);
     const url = new URL(request.url);
+    if (request.method === "POST" && url.pathname === "/telegram/webhook") return handleTelegramWebhook(request, env as TelegramEnv, ctx);
+    if (request.method !== "GET") return json({ error: "Method not allowed" }, request, env, 405);
     if (url.pathname === "/health") return json({ ok: true, leagueId: env.FPL_LEAGUE_ID }, request, env);
     const route = upstreamPath(url.pathname, env);
     if (!route) return json({ error: "Not found" }, request, env, 404);
@@ -62,6 +63,6 @@ export default {
     }
   },
   async scheduled(_controller, env, ctx): Promise<void> {
-    ctx.waitUntil(checkTableReadyNotification(env));
+    ctx.waitUntil(runTelegramSchedule(env as TelegramEnv));
   },
 } satisfies ExportedHandler<Env>;
