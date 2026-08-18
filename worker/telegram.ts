@@ -38,9 +38,9 @@ async function sendLinkMessage(env: TelegramEnv, chatId: number | string, text: 
 
 export async function captureTable(env: TelegramEnv, demo = false): Promise<Blob> {
   const response = await env.BROWSER.quickAction("screenshot", {
-    url: demo ? `${env.PUBLIC_SITE_URL}?demo=1` : env.PUBLIC_SITE_URL,
+    url: `${env.PUBLIC_SITE_URL}?screenshot=1${demo ? "&demo=1" : ""}`,
     selector: ".league-table",
-    viewport: { width: 1600, height: 1200, deviceScaleFactor: 1 },
+    viewport: { width: 1340, height: 1200, deviceScaleFactor: 1 },
     gotoOptions: { waitUntil: "networkidle0", timeout: 45_000 },
     screenshotOptions: { type: "png" },
   });

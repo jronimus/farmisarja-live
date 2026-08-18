@@ -171,7 +171,9 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
 }
 
 export default function App() {
-  const demoMode = new URLSearchParams(window.location.search).has("demo");
+  const urlParams = new URLSearchParams(window.location.search);
+  const demoMode = urlParams.has("demo");
+  const screenshotMode = urlParams.has("screenshot");
   const [language, setLanguage] = useState<Language>(() => localStorage.getItem("farmisarja-language") === "en" ? "en" : "fi");
   const [theme, setTheme] = useState<"dark" | "light">(() => localStorage.getItem("farmisarja-theme") === "light" ? "light" : "dark");
   const [autosubs, setAutosubs] = useState(true);
@@ -240,7 +242,7 @@ export default function App() {
     : deadlineLabel;
   const updatedLabel = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { dateStyle: "short", timeStyle: "medium" }).format(new Date(data.updatedAt));
 
-  return <div className="app-shell" data-theme={theme} data-mobile-details={mobileDetails ? "on" : "off"}>
+  return <div className="app-shell" data-theme={theme} data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
     <header className="topbar">
       <BrandLogo isLive={gameweekIsLive} />
       <div className="top-actions">
