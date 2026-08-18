@@ -171,8 +171,8 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
 }
 
 export default function App() {
-  const [language, setLanguage] = useState<Language>("fi");
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [language, setLanguage] = useState<Language>(() => localStorage.getItem("farmisarja-language") === "en" ? "en" : "fi");
+  const [theme, setTheme] = useState<"dark" | "light">(() => localStorage.getItem("farmisarja-theme") === "light" ? "light" : "dark");
   const [autosubs, setAutosubs] = useState(true);
   const [mobileDetails, setMobileDetails] = useState(true);
   const [period, setPeriod] = useState("total");
@@ -187,6 +187,14 @@ export default function App() {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("farmisarja-language", language);
+  }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem("farmisarja-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     let active = true;
