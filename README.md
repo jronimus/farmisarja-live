@@ -41,3 +41,5 @@ npm run worker:check
 ```
 
 Production deployment requires an authenticated Cloudflare session (`npx wrangler login`) and then `npx wrangler deploy`.
+
+Production Worker: `https://farmisarja-fpl-api.vetoliiga.workers.dev`

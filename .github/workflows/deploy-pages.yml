@@ -30,6 +30,7 @@ jobs:
       - run: npm run build
         env:
           VITE_FPL_LEAGUE_ID: "200068"
+          VITE_FPL_API_URL: "https://farmisarja-fpl-api.vetoliiga.workers.dev/api"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
