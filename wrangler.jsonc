@@ -9,7 +9,7 @@
     "ALLOWED_ORIGIN": "https://jronimus.github.io",
     "PUBLIC_SITE_URL": "https://jronimus.github.io/farmisarja-live/",
     "TELEGRAM_CHAT_ID": "-1001048034441",
-    "TELEGRAM_NOTIFICATIONS_ENABLED": "false"
+    "TELEGRAM_NOTIFICATIONS_ENABLED": "true"
   },
   "kv_namespaces": [
     {

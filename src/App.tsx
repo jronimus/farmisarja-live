@@ -184,6 +184,7 @@ export default function App() {
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
   const [now, setNow] = useState(() => Date.now());
   const [data, setData] = useState<DashboardData>(demoData);
+  const [liveReady, setLiveReady] = useState(demoMode);
   const t = translations(language);
 
   useEffect(() => {
@@ -207,7 +208,10 @@ export default function App() {
       try {
         const liveData = await loadLiveDashboard();
         if (!active) return;
-        if (liveData) setData(liveData);
+        if (liveData) {
+          setData(liveData);
+          setLiveReady(true);
+        }
         refreshTimer = window.setTimeout(refresh, liveData?.dataPending ? 15_000 : 60_000);
       } catch (error) {
         console.warn("Live FPL data is not ready; keeping the latest view.", error);
@@ -243,9 +247,9 @@ export default function App() {
 
   return <div className="app-shell" data-theme={theme} data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
     <header className="topbar">
-      <BrandLogo isLive={gameweekIsLive} />
+      <BrandLogo isLive={liveReady && gameweekIsLive} />
       <div className="top-actions">
-        <div className="gameweek-status"><b>GW&nbsp;{data.gameweek}</b>{!gameweekIsLive && <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>}</div>
+        {liveReady && <div className="gameweek-status"><b>GW&nbsp;{data.gameweek}</b>{!gameweekIsLive && <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>}</div>}
         <button className="theme-toggle" aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"} onClick={() => setTheme((value) => value === "dark" ? "light" : "dark")}>
           {theme === "dark" ? <Sun /> : <Moon />}
         </button>
@@ -253,7 +257,7 @@ export default function App() {
       </div>
     </header>
 
-    <main>
+    <main>{!liveReady ? <div className="initial-loading" aria-label={language === "fi" ? "Ladataan FPL-dataa" : "Loading FPL data"} /> : <>
       <div className="toolbar">
         <select className="period-select" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label={language === "fi" ? "Valitse ajanjakso" : "Select period"}>
           <option value="total">Total</option>
@@ -298,7 +302,7 @@ export default function App() {
           })}
         </div>
       </section>}
-    </main>
-    <footer><span>Official FPL data</span><span>{t.updated}: {updatedLabel}</span></footer>
+    </>}</main>
+    <footer><span>Official FPL data</span>{liveReady && <span>{t.updated}: {updatedLabel}</span>}</footer>
   </div>;
 }
