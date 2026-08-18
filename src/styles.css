@@ -101,6 +101,8 @@ footer { background:var(--header); color:var(--faint); }
   .app-shell[data-mobile-details="off"] .rows { gap:4px; }
   .app-shell[data-mobile-details="off"] .mobile-simple-head { display:grid; grid-template-columns:34px minmax(0,1fr) 46px 54px; gap:0 5px; align-items:end; min-height:14px; padding:0 9px; color:var(--faint); }
   .app-shell[data-mobile-details="off"] .mobile-simple-head b { grid-row:1; font-size:7px; line-height:1; text-align:left; text-transform:uppercase; letter-spacing:.06em; }
+  .app-shell[data-mobile-details="off"] .mobile-simple-head b:first-of-type { grid-column:3; }
+  .app-shell[data-mobile-details="off"] .mobile-simple-head b:last-of-type { grid-column:4; }
   .app-shell[data-mobile-details="off"] .manager-row { min-height:48px; padding:3px 9px; grid-template-columns:34px minmax(0,1fr) 46px 54px; grid-template-rows:42px; gap:0 5px; align-items:center; }
   .app-shell[data-mobile-details="off"] .manager-row > div { padding:1px 3px; }
   .app-shell[data-mobile-details="off"] .position-cell { height:42px; align-content:center; }
