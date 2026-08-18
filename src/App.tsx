@@ -46,7 +46,7 @@ function TeamValueCell({ manager, label }: { manager: ManagerRow; label: string 
 }
 
 function SeasonTransfersCell({ manager, label }: { manager: ManagerRow; label: string }) {
-  return <div className="season-transfers-cell" data-label={label}><strong>{manager.seasonTransfers}</strong>{manager.seasonHitPoints > 0 && <span>(−{manager.seasonHitPoints} hit)</span>}</div>;
+  return <div className="season-transfers-cell" data-label={label}><strong>{manager.seasonTransfers}</strong>{manager.seasonHitPoints > 0 && <span>(−{manager.seasonHitPoints})</span>}</div>;
 }
 
 function BenchPointsCell({ manager, label }: { manager: ManagerRow; label: string }) {
@@ -229,7 +229,6 @@ export default function App() {
     else { setSort(key); setDirection(key === "overallRank" || key === "position" ? "asc" : "desc"); }
   };
 
-  const highest = Math.max(...data.managers.map((manager) => manager.gameweekPoints + manager.provisionalBonus - manager.hit));
   const monthFormatter = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { month: "long" });
   const headers: Array<[string, SortKey]> = [[t.position, "position"], [t.manager, "position"], [t.captain, "captainPoints"], [t.transfers, "position"], [t.seasonTransfers, "seasonTransfers"], [t.chips, "position"], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form"], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
   const gameweekIsLive = data.managers.some((manager) => manager.live > 0);
@@ -273,7 +272,6 @@ export default function App() {
           <div className="mobile-simple-head"><b>{t.position}</b><b>{t.manager}</b><b>GW</b><b>{t.total}</b></div>
           {managers.map((manager) => {
             const open = expanded === manager.id;
-            const topScore = !data.rosterOnly && manager.gameweekPoints + manager.provisionalBonus - manager.hit === highest;
             const displayedGwPoints = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
             const captain = captainDisplay(manager, autosubs);
             const rankClass = manager.overallRank < manager.previousOverallRank ? "rank-up" : manager.overallRank > manager.previousOverallRank ? "rank-down" : "rank-neutral";
@@ -289,7 +287,7 @@ export default function App() {
                 <TeamValueCell manager={manager} label={t.teamValue} />
                 <BenchPointsCell manager={manager} label={t.benchPoints} />
                 <div className="form-cell" data-label={t.form}>{manager.form.map((value, index) => <span key={index} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</span>)}</div>
-                <div className={`points-cell ${topScore ? "top-score" : ""}`} data-label={t.gwPoints}><strong>{displayedGwPoints}</strong><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span></div>
+                <div className="points-cell" data-label={t.gwPoints}><strong>{displayedGwPoints}</strong><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span></div>
                 <div className="progress-cell" data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints - manager.hit)}</strong></div>
               </div>
