@@ -1,6 +1,6 @@
 import type { DashboardData } from "../types";
 
-const API_BASE = import.meta.env.DEV ? "/fpl-api" : "./data";
+const API_BASE = import.meta.env.VITE_FPL_API_URL || (import.meta.env.DEV ? "/fpl-api" : "./data");
 
 export class FplApiError extends Error {}
 
@@ -24,12 +24,12 @@ interface LeagueStanding { entry: number; rank: number; last_rank: number; entry
 interface LeagueResponse { league: { name: string }; standings: { results: LeagueStanding[] }; }
 
 export async function inspectCurrentSeason(): Promise<{ event: BootstrapEvent; league?: LeagueResponse }> {
-  const bootstrap = await request<Bootstrap>("/bootstrap-static/");
+  const bootstrap = await request<Bootstrap>("/bootstrap-static");
   const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next) ?? bootstrap.events[0];
   if (!event) throw new FplApiError("The FPL season has no events");
   const leagueId = import.meta.env.VITE_FPL_LEAGUE_ID;
   if (!leagueId) return { event };
-  const league = await request<LeagueResponse>(`/leagues-classic/${leagueId}/standings/?page_standings=1`);
+  const league = await request<LeagueResponse>(API_BASE.includes("/api") ? "/league" : `/leagues-classic/${leagueId}/standings/?page_standings=1`);
   return { event, league };
 }
 

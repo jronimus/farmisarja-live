@@ -3,3 +3,7 @@ dist
 .env
 .env.local
 *.log
+.wrangler
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
