@@ -57,7 +57,7 @@ async function sendTablePhoto(env: TelegramEnv, chatId: number | string, caption
   form.set("chat_id", String(chatId));
   form.set("caption", caption);
   form.set("reply_markup", JSON.stringify(button(env)));
-  form.set("photo", await captureTable(env), "farmisarja-live.png");
+  form.set("photo", await captureTable(env, false, true), "farmisarja-live.png");
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: form });
   if (!response.ok) throw new Error(`Telegram sendPhoto failed: ${response.status} ${await response.text()}`);
 }
