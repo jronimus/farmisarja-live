@@ -3,7 +3,7 @@ import type { Language } from "./types";
 const copy = {
   fi: {
     live: "LIVE", preview: "ESIKATSELU", updated: "Päivitetty", position: "Sija", manager: "Joukkue / manageri",
-    gwPoints: "GW-pisteet", total: "Yhteensä", captain: "Kapteeni", transfers: "Siirrot", seasonTransfers: "Siirrot yht.", chips: "Chips", teamValue: "Arvo", benchPoints: "Penkki", progress: "Tilanne",
+    gwPoints: "GW-pisteet", total: "Yhteensä", captain: "Kapteeni", transfers: "Siirrot", seasonTransfers: "Siirrot yht.", chips: "Chips", teamValue: "Arvo", benchPoints: "Penkki", progress: "Pelattu",
     form: "Vire", finished: "valmis", finishedShort: "valmis", playing: "live", toPlay: "jäljellä", toPlayShort: "jäljellä", autosubs: "Aut. vaihdot", details: "Lisätiedot", on: "Päällä", off: "Pois",
     overall: "Kokonaiskilpailu", gameweek: "Kierros", month: "Kuukausi", allMonths: "Koko kausi", noTransfers: "Ei siirtoja",
     starting: "Avaus", squad: "Kokoonpano", bench: "Penkki", best: "Paras", worst: "Heikoin", provisional: "Alustava bonus",
