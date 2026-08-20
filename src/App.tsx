@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Languages, Moon, Sun } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Trophy } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { translations } from "./i18n";
@@ -10,12 +10,32 @@ type SortKey = "position" | "gameweekPoints" | "totalPoints" | "overallRank" | "
 const number = new Intl.NumberFormat("fi-FI");
 
 const signed = (value: number) => value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
+const chipClass = (chip: string) => `chip-${chip.toLowerCase()}`;
 
-function TransferCell({ manager, language }: { manager: ManagerRow; language: Language }) {
+function GitHubLogo() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+    <path d="M12 .7A11.3 11.3 0 0 0 8.4 22.8c.6.1.8-.3.8-.6v-2.4c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-5.6 0-1.2.4-2.2 1.2-3-.1-.3-.5-1.5.1-3 0 0 1-.3 3.1 1.1a10.8 10.8 0 0 1 5.7 0C16.9 5 18 5.3 18 5.3c.6 1.5.2 2.7.1 3 .7.8 1.2 1.8 1.2 3 0 4.3-2.7 5.3-5.3 5.6.4.4.8 1.1.8 2.2v3.2c0 .4.2.7.8.6A11.3 11.3 0 0 0 12 .7Z" />
+  </svg>;
+}
+
+type Award = { label?: string; level: 0 | 1 | 2 | 3; tone: "green" | "gold" | "red" | "blue" | "purple" };
+
+function AwardTag({ award }: { award?: Award }) {
+  if (!award) return null;
+  return <span className={`award-tag award-${award.tone} award-level-${award.level}`}><i aria-hidden="true" />{award.label && <b>{award.label}</b>}</span>;
+}
+
+const transferNet = (manager: ManagerRow) => manager.chip === "WC"
+  ? manager.gameweekPoints + manager.provisionalBonus - (manager.wildcardPreviousTeamPoints ?? manager.gameweekPoints + manager.provisionalBonus)
+  : manager.transfers.reduce((sum, transfer) => sum + transfer.inPoints - transfer.outPoints, 0) - manager.hit;
+
+const currentBenchPoints = (manager: ManagerRow) => manager.chip === "BB" ? 0 : manager.squad.filter((player) => !player.starter).reduce((sum, player) => sum + player.points + player.bonus, 0);
+
+function TransferCell({ manager, language, award }: { manager: ManagerRow; language: Language; award?: Award }) {
   const t = translations(language);
   const gain = manager.transfers.reduce((sum, transfer) => sum + transfer.inPoints - transfer.outPoints, 0);
   const net = gain - manager.hit;
-  const netSummary = () => manager.transfers.length > 0 && <span className="net-summary">{manager.hit > 0 && <><b className={gain >= 0 ? "positive" : "negative"}>{signed(gain)}</b><b className="negative">−{manager.hit}</b><i>→</i></>}<strong className={net >= 0 ? "positive" : "negative"}>{signed(net)} net</strong></span>;
+  const netSummary = () => manager.transfers.length > 0 && <span className="net-summary">{manager.hit > 0 && <><b className={gain >= 0 ? "positive" : "negative"}>{signed(gain)}</b><b className="negative">−{manager.hit}</b><i>→</i></>}<strong className={`${net >= 0 ? "positive" : "negative"} ${award ? `award-target award-${award.tone} award-level-${award.level}` : ""}`}>{signed(net)} net</strong></span>;
   if (manager.chip === "WC") {
     const current = manager.gameweekPoints + manager.provisionalBonus;
     const previous = manager.wildcardPreviousTeamPoints ?? current;
@@ -23,36 +43,40 @@ function TransferCell({ manager, language }: { manager: ManagerRow; language: La
       <strong>WC</strong><small>{t.oldTeam} {previous} → {t.currentTeam} {current}</small>
       <b className={current - previous >= 0 ? "positive" : "negative"}>{signed(current - previous)} {t.net}</b>
       {manager.freeTransfersAfter !== undefined && <em>{t.nextGw}: {manager.freeTransfersAfter} FT</em>}
+      <AwardTag award={award} />
     </div>;
   }
   return <div className="transfer-cell" data-label={t.transfers}>
     {manager.transfers.map((transfer, index) => {
       const difference = transfer.inPoints - transfer.outPoints;
-      return <small key={index}><span className="desktop-transfer-row">{transfer.out} ({transfer.outPoints}) <i>→</i> {transfer.in} ({transfer.inPoints})</span><span className="mobile-transfer-row">{transfer.out} {transfer.outPoints} <i>→</i> {transfer.in} {transfer.inPoints}</span><b className={difference >= 0 ? "positive" : "negative"}>{signed(difference)}</b></small>;
+      return <small key={index}><span className="desktop-transfer-row">{transfer.out} <b className="transfer-player-points">{transfer.outPoints}</b> <i>→</i> {transfer.in} <b className="transfer-player-points">{transfer.inPoints}</b></span><span className="mobile-transfer-row">{transfer.out} <b className="transfer-player-points">{transfer.outPoints}</b> <i>→</i> {transfer.in} <b className="transfer-player-points">{transfer.inPoints}</b></span><i className="transfer-equals">=</i><b className={difference >= 0 ? "positive" : "negative"}>{signed(difference)}</b></small>;
     })}
     {!manager.transfers.length && <small className="muted">{t.noTransfers}</small>}
-    <div className="desktop-transfer-footer">{netSummary()}{manager.freeTransfersAfter !== undefined && <span>GW{demoData.gameweek + 1}: {manager.freeTransfersAfter} FT</span>}</div>
-    <div className="mobile-transfer-footer">{netSummary()}{manager.freeTransfersAfter !== undefined && <span>GW{demoData.gameweek + 1}: {manager.freeTransfersAfter} FT</span>}</div>
+    <div className="desktop-transfer-footer">{netSummary()}{manager.freeTransfersAfter !== undefined && <span>{t.nextGw}: {manager.freeTransfersAfter} FT</span>}</div>
+    <div className="mobile-transfer-footer">{netSummary()}{manager.freeTransfersAfter !== undefined && <span>{t.nextGw}: {manager.freeTransfersAfter} FT</span>}</div>
+    <AwardTag award={award} />
   </div>;
 }
 
 function ChipsCell({ manager, label }: { manager: ManagerRow; label: string }) {
-  return <div className="chips-cell" data-label={label}>{manager.availableChips.map((chip) => <span className={manager.chip === chip ? "active" : manager.usedChips.includes(chip) ? "used" : ""} key={chip}>{chip}</span>)}</div>;
+  return <div className="chips-cell" data-label={label}>{manager.availableChips.map((chip) => <span className={`${chipClass(chip)} ${manager.chip === chip ? "active" : manager.usedChips.includes(chip) ? "used" : ""}`} key={chip}>{chip}</span>)}</div>;
 }
 
-function TeamValueCell({ manager, label }: { manager: ManagerRow; label: string }) {
+function TeamValueCell({ manager, label, award, available = true }: { manager: ManagerRow; label: string; award?: Award; available?: boolean }) {
+  if (!available) return <div className="team-value-cell unavailable" data-label={label}><strong>—</strong></div>;
   const change = Math.round((manager.teamValue - manager.previousTeamValue) * 10) / 10;
-  return <div className="team-value-cell" data-label={label}><strong>£{manager.teamValue.toFixed(1)}m</strong>{change !== 0 && <span className={change > 0 ? "positive" : "negative"}>{signed(change)}m</span>}</div>;
+  return <div className="team-value-cell" data-label={label}><strong className={award ? `award-target award-${award.tone} award-level-${award.level}` : ""}>£{manager.teamValue.toFixed(1)}m</strong>{change !== 0 && <span className={change > 0 ? "positive" : "negative"}>{signed(change)}m</span>}<AwardTag award={award} /></div>;
 }
 
 function SeasonTransfersCell({ manager, label }: { manager: ManagerRow; label: string }) {
   return <div className="season-transfers-cell" data-label={label}><strong>{manager.seasonTransfers}</strong>{manager.seasonHitPoints > 0 && <span>(−{manager.seasonHitPoints})</span>}</div>;
 }
 
-function BenchPointsCell({ manager, label }: { manager: ManagerRow; label: string }) {
-  const currentBenchPoints = manager.chip === "BB" ? 0 : manager.squad.filter((player) => !player.starter).reduce((sum, player) => sum + player.points + player.bonus, 0);
-  const total = manager.benchPointsBeforeGw + currentBenchPoints;
-  return <div className="bench-points-cell" data-label={label}><strong>{total}</strong><span>+{currentBenchPoints}</span></div>;
+function BenchPointsCell({ manager, label, award, available = true }: { manager: ManagerRow; label: string; award?: Award; available?: boolean }) {
+  if (!available) return <div className="bench-points-cell unavailable" data-label={label}><strong>—</strong></div>;
+  const current = currentBenchPoints(manager);
+  const total = manager.benchPointsBeforeGw + current;
+  return <div className="bench-points-cell" data-label={label}><strong className={award ? `award-target award-${award.tone} award-level-${award.level}` : ""}>{total}</strong><span>+{current}</span><AwardTag award={award} /></div>;
 }
 
 function captainDisplay(manager: ManagerRow, autosubs: boolean) {
@@ -61,14 +85,14 @@ function captainDisplay(manager: ManagerRow, autosubs: boolean) {
   const captainMissedOut = autosubs && captain?.state === "finished" && captain.minutes === 0;
   const viceCanTakeOver = vice && !(vice.state === "finished" && vice.minutes === 0);
   const effective = captainMissedOut && viceCanTakeOver ? vice : captain;
-  const multiplier = manager.chip === "3×C" ? 3 : 2;
+  const multiplier = manager.chip === "TC" ? 3 : 2;
   return effective ? { name: effective.name, points: (effective.points + effective.bonus) * multiplier } : { name: manager.captain, points: manager.captainPoints };
 }
 
 function weightedProgress(manager: ManagerRow) {
   const players = manager.chip === "BB" ? manager.squad : manager.squad.filter((player) => player.starter);
   return players.reduce((counts, player) => {
-    const weight = player.captain ? (manager.chip === "3×C" ? 3 : 2) : 1;
+    const weight = player.captain ? (manager.chip === "TC" ? 3 : 2) : 1;
     const fixtures = player.fixtures ?? [{ state: player.state }];
     fixtures.forEach((fixture) => {
       counts.total += weight;
@@ -91,24 +115,11 @@ function compactRank(value: number) {
 
 function BrandLogo({ isLive }: { isLive: boolean }) {
   return <div className={`brand-logo ${isLive ? "is-live" : "is-idle"}`} aria-label={isLive ? "Farmisarja Live" : "Farmisarja"}>
-    <svg className="brand-logo-desktop" viewBox={isLive ? "0 0 475 58" : "0 0 375 58"} role="img" aria-hidden="true">
-      <path className="brand-logo-base" d={isLive ? "M12 3h374l-17 52H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z" : "M12 3h351c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z"} />
-      {isLive && <>
-      <path className="brand-logo-live" d="M380 3h83c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H363l17-52Z" />
-      </>}
-      <image href={`${import.meta.env.BASE_URL}branding/fantasy-logo.svg`} x="15" y="12" width="130" height="34" />
-      <path className="brand-logo-divider" d="M157 12v34" />
-      <text className="brand-logo-name" x="170" y="38">FARMISARJA</text>
-      {isLive && <><circle className="brand-logo-dot" cx="401" cy="29" r="6" /><text className="brand-logo-live-text" x="415" y="38">LIVE</text></>}
-    </svg>
-    <svg className="brand-logo-mobile" viewBox={isLive ? "0 0 370 58" : "0 0 270 58"} role="img" aria-hidden="true">
-      <path className="brand-logo-base" d={isLive ? "M12 3h268l-17 52H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z" : "M12 3h246c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H12C5.4 55 2 51.6 2 45V13C2 6.4 5.4 3 12 3Z"} />
-      {isLive && <path className="brand-logo-live" d="M274 3h83c6.6 0 10 3.4 10 10v32c0 6.6-3.4 10-10 10H257l17-52Z" />}
-      <svg x="17" y="9" width="30" height="40" viewBox="0 0 76 104" preserveAspectRatio="xMidYMid meet"><image href={`${import.meta.env.BASE_URL}branding/fantasy-logo.svg`} width="453" height="104" /></svg>
-      <path className="brand-logo-divider" d="M55 12v34" />
-      <text className="brand-logo-name" x="68" y="38">FARMISARJA</text>
-      {isLive && <><circle className="brand-logo-dot" cx="295" cy="29" r="6" /><text className="brand-logo-live-text" x="309" y="38">LIVE</text></>}
-    </svg>
+    <span className="brand-logo-main">
+      <img src={`${import.meta.env.BASE_URL}branding/fs-logo-v8-5.svg`} alt="" />
+      <span className="brand-logo-name" data-text="FARMISARJA">FARMISARJA</span>
+    </span>
+    {isLive && <span className="brand-logo-live-panel"><b className="brand-logo-dot" /><span className="brand-logo-live-text">LIVE</span></span>}
   </div>;
 }
 
@@ -117,16 +128,16 @@ function SortHeader({ label, sortKey, active, direction, onSort }: { label: stri
 }
 
 function Shirt({ player }: { player: SquadPlayer }) {
-  const source = `${import.meta.env.BASE_URL}kits/optimized/${player.club.toLowerCase()}.webp`;
+  const source = `${import.meta.env.BASE_URL}kits/optimized/${player.club.toLowerCase()}.webp?v=20260820-3`;
   return <div className="shirt"><img className="shirt-image" src={source} alt="" /></div>;
 }
 
 function PlayerCard({ player, best, worst, language, tripleCaptain, scoreMultiplier, groupLabel, mobileGroupLabel, groupKind }: { player: SquadPlayer; best: boolean; worst: boolean; language: Language; tripleCaptain: boolean; scoreMultiplier: number; groupLabel?: string; mobileGroupLabel?: string; groupKind?: "position" | "bench" }) {
   const t = translations(language);
-  return <div className={`player player-${player.state} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${worst ? "player-worst" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
+  return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${worst ? "player-worst" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
     {groupLabel && <span className="player-group-label"><b className="desktop-squad-label">{groupLabel}</b><b className="mobile-squad-label">{mobileGroupLabel ?? groupLabel}</b></span>}
     <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /></div>
-    <div className="player-name">{player.name}</div>
+    <div className="player-name"><span>{player.name}</span></div>
     <div className="player-bottom"><span className={`player-fixture venue-${player.venue.toLowerCase()}`}><i className={`state-dot ${player.state}`} /><span className="desktop-fixture">vs. {player.opponent} {player.venue}</span><span className="mobile-opponent">{player.opponent}</span><b> · {player.position}</b></span><strong className="player-points"><span className="desktop-player-score">{(player.points + player.bonus) * scoreMultiplier}</span><span className="mobile-player-score">{(player.points + player.bonus) * scoreMultiplier}</span></strong></div>
   </div>;
 }
@@ -146,7 +157,7 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
   const active = originalOrder.filter((player) => player.starter);
   const bench = originalOrder.filter((player) => !player.starter);
   const scoringPlayers = manager.chip === "BB" ? originalOrder : active;
-  const scoreMultiplier = (player: SquadPlayer) => player.captain ? (manager.chip === "3×C" ? 3 : 2) : 1;
+  const scoreMultiplier = (player: SquadPlayer) => player.captain ? (manager.chip === "TC" ? 3 : 2) : 1;
   const totals = scoringPlayers.map((player) => (player.points + player.bonus) * scoreMultiplier(player));
   const best = Math.max(...totals);
   const worst = Math.min(...totals);
@@ -158,7 +169,7 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
     : { GK: "GK", DEF: "DEF", MID: "MID", FWD: "FWD" };
   const renderPlayer = (player: SquadPlayer, groupLabel?: string, mobileGroupLabel?: string, groupKind?: "position" | "bench") => {
     const liveScore = (player.points + player.bonus) * scoreMultiplier(player);
-    return <PlayerCard key={player.id} player={player} best={(player.starter || manager.chip === "BB") && liveScore === best} worst={(player.starter || manager.chip === "BB") && liveScore === worst} language={language} tripleCaptain={manager.chip === "3×C"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
+    return <PlayerCard key={player.id} player={player} best={(player.starter || manager.chip === "BB") && liveScore === best} worst={(player.starter || manager.chip === "BB") && liveScore === worst} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
   };
   return <div className="squad-panel">
     <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span><span className="legend-best"><i />{t.best}</span><span className="legend-worst"><i />{t.worst}</span></div></div>
@@ -175,7 +186,6 @@ export default function App() {
   const demoMode = urlParams.has("demo");
   const screenshotMode = urlParams.has("screenshot");
   const [language, setLanguage] = useState<Language>(() => localStorage.getItem("farmisarja-language") === "en" ? "en" : "fi");
-  const [theme, setTheme] = useState<"dark" | "light">(() => urlParams.get("theme") === "light" || localStorage.getItem("farmisarja-theme") === "light" ? "light" : "dark");
   const [autosubs, setAutosubs] = useState(true);
   const [mobileDetails, setMobileDetails] = useState(true);
   const [period, setPeriod] = useState("total");
@@ -195,10 +205,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("farmisarja-language", language);
   }, [language]);
-
-  useEffect(() => {
-    localStorage.setItem("farmisarja-theme", theme);
-  }, [theme]);
 
   useEffect(() => {
     if (demoMode) return;
@@ -228,6 +234,34 @@ export default function App() {
     return (aValue - bValue) * (direction === "asc" ? 1 : -1);
   }), [data.managers, direction, sort]);
 
+  const awardStats = useMemo(() => {
+    const captainScores = data.managers.map((manager) => captainDisplay(manager, autosubs).points);
+    const gwScores = data.managers.map((manager) => manager.gameweekPoints + manager.provisionalBonus - manager.hit);
+    const transferScores = data.managers.map(transferNet);
+    const benchScores = data.managers.map(currentBenchPoints);
+    const formAverages = data.managers.map((manager) => manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length));
+    const values = data.managers.map((manager) => manager.teamValue).sort((a, b) => a - b);
+    const middle = Math.floor(values.length / 2);
+    const medianValue = values.length % 2 ? values[middle] : ((values[middle - 1] ?? 0) + (values[middle] ?? 0)) / 2;
+    return {
+      bestCaptain: Math.max(...captainScores), bestGw: Math.max(...gwScores), bestTransfer: Math.max(...transferScores),
+      worstBench: Math.max(...benchScores), bestForm: Math.max(...formAverages), worstForm: Math.min(...formAverages),
+      bestValue: Math.max(...values), medianValue,
+    };
+  }, [autosubs, data.managers]);
+
+  const awardFor = (kind: "captain" | "gw" | "transfer" | "bench" | "formBest" | "formWorst" | "value", score: number): Award => {
+    const fi = language === "fi";
+    if (kind === "captain") return score >= 20 ? { label: fi ? "KAPTEENIMESTARI" : "CAPTAIN FANTASTIC", level: 3, tone: "purple" } : score >= 14 ? { label: fi ? "NAPPIOSUMA" : "NAILED IT", level: 2, tone: "purple" } : score >= 10 ? { label: fi ? "HYVÄ VALINTA" : "SOLID PICK", level: 1, tone: "purple" } : { level: 0, tone: "purple" };
+    if (kind === "gw") return score >= 90 ? { label: fi ? "MELAPISTEET" : "MONSTER GW", level: 3, tone: "purple" } : score >= 70 ? { label: fi ? "HUH HUH!" : "GW KING", level: 2, tone: "purple" } : score >= 50 ? { label: fi ? "ON KOVA!" : "STRONG GW", level: 1, tone: "purple" } : { level: 0, tone: "purple" };
+    if (kind === "transfer") return score >= 15 ? { label: fi ? "SIIRTOVELHO" : "TRANSFER WIZARD", level: 3, tone: "green" } : score >= 8 ? { label: fi ? "SIIRTOÄSSÄ" : "TRANSFER ACE", level: 2, tone: "green" } : score >= 3 ? { label: fi ? "HYVÄÄ BISNESTÄ" : "GOOD BUSINESS", level: 1, tone: "green" } : { level: 0, tone: "green" };
+    if (kind === "bench") return score >= 15 ? { label: fi ? "AI SAATANA" : "BENCH DISASTER", level: 3, tone: "red" } : score >= 10 ? { label: fi ? "AUTS" : "BENCH PAIN", level: 2, tone: "red" } : score >= 5 ? { label: fi ? "AIKA PAHA" : "THAT HURTS", level: 1, tone: "red" } : { level: 0, tone: "red" };
+    if (kind === "formBest") return score >= 70 ? { label: fi ? "PITELEMÄTÖN" : "UNSTOPPABLE", level: 3, tone: "green" } : score >= 60 ? { label: fi ? "LIEKEISSÄ" : "ON FIRE", level: 2, tone: "green" } : score >= 50 ? { label: fi ? "NOUSUSSA" : "RISING", level: 1, tone: "green" } : { level: 0, tone: "green" };
+    if (kind === "formWorst") return score < 30 ? { label: fi ? "SYÖKSYKIERRE" : "FREEFALL", level: 3, tone: "blue" } : score < 40 ? { label: fi ? "JÄÄSSÄ" : "ICE COLD", level: 2, tone: "blue" } : score < 50 ? { label: fi ? "TAHMEAA" : "SLUMPING", level: 1, tone: "blue" } : { level: 0, tone: "blue" };
+    const lead = score - awardStats.medianValue;
+    return lead >= 3 ? { label: fi ? "ÖLJYPOHATTA" : "OIL TYCOON", level: 3, tone: "purple" } : lead >= 1.5 ? { label: fi ? "RAHAMIES" : "MONEYBAGS", level: 2, tone: "purple" } : lead >= .5 ? { label: fi ? "BISNESMIES" : "THE TRADER", level: 1, tone: "purple" } : { level: 0, tone: "purple" };
+  };
+
   const handleSort = (key: SortKey) => {
     if (sort === key) setDirection((value) => value === "asc" ? "desc" : "asc");
     else { setSort(key); setDirection(key === "overallRank" || key === "position" ? "asc" : "desc"); }
@@ -237,23 +271,23 @@ export default function App() {
   const headers: Array<[string, SortKey]> = [[t.position, "position"], [t.manager, "position"], [t.captain, "captainPoints"], [t.transfers, "position"], [t.seasonTransfers, "seasonTransfers"], [t.chips, "position"], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form"], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
   const gameweekIsLive = data.managers.some((manager) => manager.live > 0);
   const deadlineMs = Math.max(0, new Date(data.deadline).getTime() - now);
+  const fullDaysToDeadline = Math.floor(deadlineMs / 86_400_000);
+  const remainingHoursToDeadline = Math.floor((deadlineMs % 86_400_000) / 3_600_000);
   const deadlineLabel = deadlineMs >= 86_400_000
-    ? `${Math.ceil(deadlineMs / 86_400_000)} ${language === "fi" ? "pv deadlineen" : "days to deadline"}`
+    ? `${fullDaysToDeadline} ${language === "fi" ? "pv" : "d"} ${remainingHoursToDeadline} h`
     : `${String(Math.floor(deadlineMs / 3_600_000)).padStart(2, "0")}:${String(Math.floor(deadlineMs % 3_600_000 / 60_000)).padStart(2, "0")}:${String(Math.floor(deadlineMs % 60_000 / 1000)).padStart(2, "0")}`;
-  const compactDeadlineLabel = deadlineMs >= 86_400_000
-    ? `${Math.ceil(deadlineMs / 86_400_000)} ${language === "fi" ? "pv" : "d"}`
-    : deadlineLabel;
+  const compactDeadlineLabel = deadlineLabel;
   const updatedLabel = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { dateStyle: "short", timeStyle: "medium" }).format(new Date(data.updatedAt));
 
-  return <div className="app-shell" data-theme={theme} data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
+  return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
     <header className="topbar">
       <BrandLogo isLive={liveReady && gameweekIsLive} />
       <div className="top-actions">
         {liveReady && <div className="gameweek-status"><b>GW&nbsp;{data.gameweek}</b>{!gameweekIsLive && <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>}</div>}
-        <button className="theme-toggle" aria-label={theme === "dark" ? "Use light theme" : "Use dark theme"} onClick={() => setTheme((value) => value === "dark" ? "light" : "dark")}>
-          {theme === "dark" ? <Sun /> : <Moon />}
+        <button className="language-switch" type="button" onClick={() => setLanguage((value) => value === "fi" ? "en" : "fi")} aria-label={language === "fi" ? "Vaihda kieli englanniksi" : "Switch language to Finnish"}>
+          <span className={`language-option ${language === "fi" ? "active" : ""}`}>FI</span>
+          <span className={`language-option ${language === "en" ? "active" : ""}`}>EN</span>
         </button>
-        <button className="language" onClick={() => setLanguage((value) => value === "fi" ? "en" : "fi")}><Languages />{language === "fi" ? "EN" : "FI"}</button>
       </div>
     </header>
 
@@ -263,7 +297,7 @@ export default function App() {
           <option value="total">Total</option>
           {data.completedMonths.map((month) => <option value={month} key={month}>{monthFormatter.format(new Date(`${month}-01T12:00:00Z`))}</option>)}
         </select>
-        <div className="toolbar-toggles"><label className="details-toggle"><span>{t.details}</span><button role="switch" aria-checked={mobileDetails} onClick={() => setMobileDetails((value) => !value)} className={mobileDetails ? "enabled" : ""}><i /></button></label><label className="autosub-toggle"><span>{t.autosubs}</span><button role="switch" aria-checked={autosubs} onClick={() => setAutosubs((value) => !value)} className={autosubs ? "enabled" : ""}><i /></button><b>{autosubs ? t.on : t.off}</b></label></div>
+        <div className="toolbar-toggles"><label className="details-toggle"><span>{t.details}</span><button role="switch" aria-checked={mobileDetails} onClick={() => setMobileDetails((value) => !value)} className={mobileDetails ? "enabled" : ""}><i /></button></label><label className="autosub-toggle"><span>{t.autosubs}</span><button role="switch" aria-checked={autosubs} onClick={() => setAutosubs((value) => !value)} className={autosubs ? "enabled" : ""}><i /></button></label></div>
       </div>
 
       {data.dataPending ? <section className="data-pending" role="status">
@@ -280,18 +314,30 @@ export default function App() {
             const captain = captainDisplay(manager, autosubs);
             const rankClass = manager.overallRank < manager.previousOverallRank ? "rank-up" : manager.overallRank > manager.previousOverallRank ? "rank-down" : "rank-neutral";
             const progress = weightedProgress(manager);
+            const transferScore = transferNet(manager);
+            const benchScore = currentBenchPoints(manager);
+            const formAverage = manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length);
+            const awardsAvailable = !data.rosterOnly;
+            const captainAward = awardsAvailable && captain.points === awardStats.bestCaptain ? awardFor("captain", captain.points) : undefined;
+            const transferAward = awardsAvailable && manager.transfers.length > 0 && transferScore === awardStats.bestTransfer ? awardFor("transfer", transferScore) : undefined;
+            const benchAward = awardsAvailable && benchScore === awardStats.worstBench ? awardFor("bench", benchScore) : undefined;
+            const valueAward = awardsAvailable && manager.teamValue === awardStats.bestValue ? awardFor("value", manager.teamValue) : undefined;
+            const formAward = awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.bestForm
+              ? awardFor("formBest", formAverage)
+              : awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.worstForm ? awardFor("formWorst", formAverage) : undefined;
+            const gwAward = awardsAvailable && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
-                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}{manager.chip && <span className="mobile-active-chip">{manager.chip}</span>}</div>
-                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
-                <div className="captain-cell" data-label={t.captain}><strong>{captain.name}</strong><span>{captain.points} pts</span></div>
-                <TransferCell manager={manager} language={language} />
+                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
+                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
+                <div className={`captain-cell ${captainAward ? "award-cell" : ""}`} data-label={t.captain}><strong>{captain.name}</strong><span className={captainAward ? `award-target award-${captainAward.tone} award-level-${captainAward.level}` : ""}>{captain.points} pts</span><AwardTag award={captainAward} /></div>
+                <TransferCell manager={manager} language={language} award={transferAward} />
                 <SeasonTransfersCell manager={manager} label={t.seasonTransfers} />
                 <ChipsCell manager={manager} label={t.chips} />
-                <TeamValueCell manager={manager} label={t.teamValue} />
-                <BenchPointsCell manager={manager} label={t.benchPoints} />
-                <div className="form-cell" data-label={t.form}>{manager.form.map((value, index) => <span key={index} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</span>)}</div>
-                <div className="points-cell" data-label={t.gwPoints}><strong>{displayedGwPoints}</strong><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span></div>
+                <TeamValueCell manager={manager} label={t.teamValue} award={valueAward} available={!data.rosterOnly} />
+                <BenchPointsCell manager={manager} label={t.benchPoints} award={benchAward} available={!data.rosterOnly} />
+                <div className={`form-cell ${formAward ? "award-cell" : ""}`} data-label={t.form}><span className="form-values">{manager.form.map((value, index) => <b key={index} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span><span className="form-meta"><strong className="form-average">{language === "fi" ? "KA" : "AVG"} {formAverage.toFixed(1)}</strong><AwardTag award={formAward} /></span></div>
+                <div className={`points-cell ${gwAward ? "award-cell" : ""}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwAward ? "is-best" : ""}`}>{gwAward && <Trophy aria-label={language === "fi" ? "Kierroksen paras" : "Gameweek best"} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span><AwardTag award={gwAward} /></div>
                 <div className="progress-cell" data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints - manager.hit)}</strong></div>
               </div>
@@ -303,6 +349,14 @@ export default function App() {
         </div>
       </section>}
     </>}</main>
-    <footer><span>Official FPL data</span>{liveReady && <span>{t.updated}: {updatedLabel}</span>}</footer>
+    <footer>
+      <span>Official FPL data</span>
+      {liveReady && <span>{t.updated}: {updatedLabel}</span>}
+      <span className="footer-separator" aria-hidden="true">•</span>
+      <a className="footer-repository" href="https://github.com/jronimus/farmisarja-live" target="_blank" rel="noreferrer">
+        <GitHubLogo />
+        <span>farmisarja-live</span>
+      </a>
+    </footer>
   </div>;
 }

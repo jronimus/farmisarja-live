@@ -30,7 +30,7 @@ interface PicksResponse { active_chip: string | null; entry_history: EventHistor
 interface HistoryResponse { current: EventHistory[]; chips: Array<{ name: string; event: number }>; }
 interface Transfer { element_in: number; element_out: number; event: number; time: string; }
 
-const chipName = (name: string | null | undefined) => ({ wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "3×C" }[name ?? ""]);
+const chipName = (name: string | null | undefined) => ({ wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "TC" }[name ?? ""]);
 const positionName = (type: number): SquadPlayer["position"] => (["GK", "DEF", "MID", "FWD"] as const)[type - 1] ?? "MID";
 
 function fixtureState(fixture: Fixture): PlayerState {
@@ -134,7 +134,7 @@ async function managerRow(
     transfers: transferRows,
     hit,
     chip: activeChip,
-    availableChips: ["WC", "FH", "BB", "3×C"],
+    availableChips: ["WC", "FH", "BB", "TC"],
     usedChips,
     seasonTransfers: history.current.reduce((sum, row) => sum + row.event_transfers, 0),
     seasonHitPoints: history.current.reduce((sum, row) => sum + row.event_transfers_cost, 0),
