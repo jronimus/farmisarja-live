@@ -582,44 +582,16 @@ footer a { color:#c4c6d8; }
   background-color:#071c17;
   background-image:linear-gradient(145deg,#061914 0%,#0a2d22 48%,#10253a 100%);
 }
-.app-shell::before {
-  content:"";
+.background-pattern {
   position:fixed;
   inset:0;
   z-index:0;
   pointer-events:none;
-  background-image:
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg"),
-    url("../public/branding/fs-logo-v8-5.svg");
-  background-repeat:no-repeat;
-  background-position:
-    3% 9%, 17% 72%, 29% 31%, 42% 88%,
-    55% 12%, 67% 61%, 79% 35%, 93% 82%,
-    38% 55%, 88% 5%, 8% 94%, 73% 96%,
-    12% 43%, 24% 6%, 49% 73%, 62% 38%,
-    82% 69%, 97% 48%;
-  background-size:
-    68px, 124px, 52px, 148px,
-    88px, 61px, 136px, 94px,
-    47px, 112px, 82px, 56px,
-    76px, 49px, 103px, 58px,
-    121px, 72px;
+  overflow:hidden;
+}
+.background-pattern img {
+  position:absolute;
+  height:auto;
   opacity:.035;
 }
 .app-shell > header,

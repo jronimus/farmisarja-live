@@ -96,12 +96,17 @@ async function sendOnce(env: TelegramEnv, key: string, task: () => Promise<void>
   return true;
 }
 
+export function reminderIsDue(remaining: number, target: number): boolean {
+  return remaining <= target && remaining > target - 5 * 60_000;
+}
+
 async function checkDeadlineReminders(env: TelegramEnv, events: FplEvent[], now: number): Promise<void> {
   const event = nextDeadline(events, now);
   if (!event || !env.TELEGRAM_CHAT_ID) return;
   const remaining = new Date(event.deadline_time).getTime() - now;
   for (const reminder of [{ hours: 24, label: "huomenna" }, { hours: 2, label: "2 tunnin päästä" }]) {
-    if (Math.abs(remaining - reminder.hours * 3_600_000) > 3 * 60_000) continue;
+    const target = reminder.hours * 3_600_000;
+    if (!reminderIsDue(remaining, target)) continue;
     await sendOnce(env, `deadline:${event.id}:${reminder.hours}h`, () => sendLinkMessage(
       env, env.TELEGRAM_CHAT_ID!,
       `${reminder.hours === 24 ? "⏰" : "🚨"} GW${event.id}-deadline ${reminder.label} — klo ${deadlineClock(event)}`,
