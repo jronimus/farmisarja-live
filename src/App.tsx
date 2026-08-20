@@ -46,7 +46,6 @@ function TransferCell({ manager, language, award }: { manager: ManagerRow; langu
     return <div className="transfer-cell wildcard-transfer" data-label={t.transfers}>
       <strong>{manager.chip}</strong><small>{previousLabel} {previous ?? "ERROR"} → {currentLabel} {current}</small>
       {previous !== undefined ? <b className={current - previous >= 0 ? "positive" : "negative"}>{signed(current - previous)} {t.net}</b> : <b className="negative">ERROR</b>}
-      {isFreeHit && <em>{language === "fi" ? "FH vain tämä GW · normaali joukkue palaa seuraavalle GW:lle" : "FH for this GW only · regular squad returns next GW"}</em>}
       {manager.freeTransfersAfter !== undefined && <em>{t.nextGw}: {manager.freeTransfersAfter} FT</em>}
       <AwardTag award={award} />
     </div>;
