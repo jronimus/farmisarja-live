@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Trophy } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Medal } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { translations } from "./i18n";
@@ -250,6 +250,13 @@ export default function App() {
     };
   }, [autosubs, data.managers]);
 
+  const gwMedalRanks = useMemo(() => new Map(
+    [...data.managers]
+      .sort((a, b) => (b.gameweekPoints + b.provisionalBonus - b.hit) - (a.gameweekPoints + a.provisionalBonus - a.hit) || a.position - b.position)
+      .slice(0, 3)
+      .map((manager, index) => [manager.id, index + 1]),
+  ), [data.managers]);
+
   const awardFor = (kind: "captain" | "gw" | "transfer" | "bench" | "formBest" | "formWorst" | "value", score: number): Award => {
     const fi = language === "fi";
     if (kind === "captain") return score >= 20 ? { label: fi ? "KAPTEENIMESTARI" : "CAPTAIN FANTASTIC", level: 3, tone: "purple" } : score >= 14 ? { label: fi ? "NAPPIOSUMA" : "NAILED IT", level: 2, tone: "purple" } : score >= 10 ? { label: fi ? "HYVÄ VALINTA" : "SOLID PICK", level: 1, tone: "purple" } : { level: 0, tone: "purple" };
@@ -326,6 +333,7 @@ export default function App() {
               ? awardFor("formBest", formAverage)
               : awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.worstForm ? awardFor("formWorst", formAverage) : undefined;
             const gwAward = awardsAvailable && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
+            const gwMedalRank = awardsAvailable ? gwMedalRanks.get(manager.id) : undefined;
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
                 <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
@@ -337,7 +345,7 @@ export default function App() {
                 <TeamValueCell manager={manager} label={t.teamValue} award={valueAward} available={!data.rosterOnly} />
                 <BenchPointsCell manager={manager} label={t.benchPoints} award={benchAward} available={!data.rosterOnly} />
                 <div className={`form-cell ${formAward ? "award-cell" : ""}`} data-label={t.form}><span className="form-values">{manager.form.map((value, index) => <b key={index} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span><span className="form-meta"><strong className="form-average">{language === "fi" ? "KA" : "AVG"} {formAverage.toFixed(1)}</strong><AwardTag award={formAward} /></span></div>
-                <div className={`points-cell ${gwAward ? "award-cell" : ""}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwAward ? "is-best" : ""}`}>{gwAward && <Trophy aria-label={language === "fi" ? "Kierroksen paras" : "Gameweek best"} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span><AwardTag award={gwAward} /></div>
+                <div className={`points-cell ${gwAward ? "award-cell" : ""}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwMedalRank ? `has-medal medal-rank-${gwMedalRank}` : ""}`}>{gwMedalRank && <Medal aria-label={language === "fi" ? `Kierroksen ${gwMedalRank}. paras` : `Gameweek rank ${gwMedalRank}`} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span><AwardTag award={gwAward} /></div>
                 <div className="progress-cell" data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints - manager.hit)}</strong></div>
               </div>
