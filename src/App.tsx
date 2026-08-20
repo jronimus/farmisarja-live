@@ -250,12 +250,14 @@ export default function App() {
     };
   }, [autosubs, data.managers]);
 
-  const gwMedalRanks = useMemo(() => new Map(
-    [...data.managers]
-      .sort((a, b) => (b.gameweekPoints + b.provisionalBonus - b.hit) - (a.gameweekPoints + a.provisionalBonus - a.hit) || a.position - b.position)
-      .slice(0, 3)
-      .map((manager, index) => [manager.id, index + 1]),
-  ), [data.managers]);
+  const gwMedalRanks = useMemo(() => {
+    const scores = data.managers.map((manager) => manager.gameweekPoints + manager.provisionalBonus - manager.hit);
+    return new Map(data.managers.flatMap((manager) => {
+      const score = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
+      const rank = 1 + scores.filter((otherScore) => otherScore > score).length;
+      return rank <= 3 ? [[manager.id, rank] as const] : [];
+    }));
+  }, [data.managers]);
 
   const awardFor = (kind: "captain" | "gw" | "transfer" | "bench" | "formBest" | "formWorst" | "value", score: number): Award => {
     const fi = language === "fi";
