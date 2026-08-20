@@ -862,11 +862,37 @@ footer a { color:#c4c6d8; }
 }
 
 @media (max-width:800px) {
+  .manager-row {
+    grid-template-rows:auto auto auto auto;
+  }
+  .points-cell,
+  .total-cell {
+    height:auto;
+    min-height:64px;
+    grid-template-rows:12px auto auto auto;
+    align-content:start;
+  }
+  .points-cell::before,
+  .total-cell::before {
+    grid-row:1;
+  }
+  .points-cell > .gw-score,
+  .total-cell > strong {
+    grid-row:2;
+    align-self:start;
+    margin-top:0;
+  }
+  .points-cell > .points-formula {
+    grid-row:3;
+  }
+  .points-cell > .award-tag {
+    grid-row:4;
+  }
   .progress-cell {
     display:flex;
     flex-direction:column;
-    align-items:flex-end;
-    grid-column:4;
+    align-items:flex-start;
+    grid-column:3;
     grid-row:2;
     width:100%;
     box-sizing:border-box;
@@ -874,7 +900,7 @@ footer a { color:#c4c6d8; }
     gap:1px;
     margin-top:1px;
     padding:2px 4px 0 !important;
-    text-align:right;
+    text-align:left;
   }
   .progress-cell::before {
     margin-bottom:0;
