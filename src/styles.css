@@ -717,7 +717,7 @@ footer a { color:#c4c6d8; }
 .gw-score.chip-fh { --chip-color:#d66b19; }
 .gw-score.chip-bb { --chip-color:#087d68; }
 .gw-score.chip-tc { --chip-color:#6b4fe0; }
-.gw-score.is-best > svg { position:absolute; top:50%; right:-15px; width:12px; height:12px; color:#d99b00; fill:#ffd23f; stroke-width:2.2; transform:translateY(-50%); }
+.gw-score.is-best > svg { position:absolute; top:50%; right:-16px; width:13px; height:13px; color:#9a7200; fill:none; stroke-width:2.4; transform:translateY(-50%); }
 .gw-score.is-best.has-chip > svg { top:9px; }
 .gw-score.is-best > strong { padding:0; color:var(--text); background:none; }
 
@@ -859,6 +859,28 @@ footer a { color:#c4c6d8; }
 }
 
 @media (max-width:800px) {
+  .progress-cell {
+    grid-column:4;
+    grid-row:2;
+    width:100%;
+    box-sizing:border-box;
+    justify-self:stretch;
+    margin-top:2px;
+    padding:5px 4px 0 !important;
+    border-top:1px solid rgba(85,90,112,.22);
+  }
+  .progress-cell::before {
+    margin-bottom:1px;
+  }
+  .progress-cell .progress-summary,
+  .progress-cell > small {
+    line-height:1.05;
+  }
+  .gw-score.is-best > svg {
+    right:-15px;
+    width:12px;
+    height:12px;
+  }
   .manager-row .form-cell { display:none !important; }
   .app-shell[data-mobile-details="off"] .manager-row {
     grid-template-rows:42px !important;
