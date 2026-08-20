@@ -1,4 +1,5 @@
 import type { DashboardData, ManagerRow, PlayerState, SquadPlayer } from "../types";
+import { nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
 
 const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");
 const leagueId = import.meta.env.VITE_FPL_LEAGUE_ID || "200068";
@@ -103,7 +104,7 @@ async function managerRow(
   });
 
   const activeChip = chipName(picks.active_chip);
-  const usedChips = history.chips.map((chip) => chipName(chip.name)).filter((chip): chip is string => Boolean(chip));
+  const usedChips = usedChipsForHalf(history.chips, event.id);
   const currentHistory = history.current.find((row) => row.event === event.id) ?? picks.entry_history;
   const earlierHistory = history.current.filter((row) => row.event < event.id);
   const formRows = history.current.slice(-5);
@@ -117,6 +118,17 @@ async function managerRow(
   }));
   const previousHistory = history.current.filter((row) => row.event < event.id).at(-1);
   const hit = currentHistory.event_transfers_cost ?? 0;
+  let wildcardPreviousTeamPoints: number | undefined;
+  if ((activeChip === "WC" || activeChip === "FH") && event.id > 1) {
+    try {
+      const previousPicks = await api<PicksResponse>(`/entry/${id}/event/${event.id - 1}/picks`, `/entry/${id}/event/${event.id - 1}/picks/`);
+      wildcardPreviousTeamPoints = previousPicks.picks
+        .filter((pick) => pick.multiplier > 0)
+        .reduce((sum, pick) => sum + (liveById.get(pick.element)?.stats.total_points ?? 0) * pick.multiplier, 0);
+    } catch {
+      wildcardPreviousTeamPoints = undefined;
+    }
+  }
 
   return {
     id,
@@ -136,6 +148,8 @@ async function managerRow(
     chip: activeChip,
     availableChips: ["WC", "FH", "BB", "TC"],
     usedChips,
+    freeTransfersAfter: nextGameweekFreeTransfers(history.current, history.chips, event.id),
+    wildcardPreviousTeamPoints,
     seasonTransfers: history.current.reduce((sum, row) => sum + row.event_transfers, 0),
     seasonHitPoints: history.current.reduce((sum, row) => sum + row.event_transfers_cost, 0),
     benchPointsBeforeGw: earlierHistory.reduce((sum, row) => sum + row.points_on_bench, 0),

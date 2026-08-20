@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Medal } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
+import { provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
 import type { DashboardData, Language, ManagerRow, SquadPlayer } from "./types";
 
@@ -25,23 +26,27 @@ function AwardTag({ award }: { award?: Award }) {
   return <span className={`award-tag award-${award.tone} award-level-${award.level}`}><i aria-hidden="true" />{award.label && <b>{award.label}</b>}</span>;
 }
 
-const transferNet = (manager: ManagerRow) => manager.chip === "WC"
-  ? manager.gameweekPoints + manager.provisionalBonus - (manager.wildcardPreviousTeamPoints ?? manager.gameweekPoints + manager.provisionalBonus)
+const transferNet = (manager: ManagerRow) => manager.chip === "WC" || manager.chip === "FH"
+  ? manager.wildcardPreviousTeamPoints === undefined ? Number.NaN : manager.gameweekPoints + manager.provisionalBonus - manager.wildcardPreviousTeamPoints
   : manager.transfers.reduce((sum, transfer) => sum + transfer.inPoints - transfer.outPoints, 0) - manager.hit;
 
-const currentBenchPoints = (manager: ManagerRow) => manager.chip === "BB" ? 0 : manager.squad.filter((player) => !player.starter).reduce((sum, player) => sum + player.points + player.bonus, 0);
+const currentBenchPoints = (manager: ManagerRow, autosubs = false) => manager.chip === "BB" ? 0 : provisionalAutosubSquad(manager.squad, autosubs).filter((player) => !player.starter).reduce((sum, player) => sum + player.points + player.bonus, 0);
 
 function TransferCell({ manager, language, award }: { manager: ManagerRow; language: Language; award?: Award }) {
   const t = translations(language);
   const gain = manager.transfers.reduce((sum, transfer) => sum + transfer.inPoints - transfer.outPoints, 0);
   const net = gain - manager.hit;
   const netSummary = () => manager.transfers.length > 0 && <span className="net-summary">{manager.hit > 0 && <><b className={gain >= 0 ? "positive" : "negative"}>{signed(gain)}</b><b className="negative">−{manager.hit}</b><i>→</i></>}<strong className={`${net >= 0 ? "positive" : "negative"} ${award ? `award-target award-${award.tone} award-level-${award.level}` : ""}`}>{signed(net)} net</strong></span>;
-  if (manager.chip === "WC") {
+  if (manager.chip === "WC" || manager.chip === "FH") {
     const current = manager.gameweekPoints + manager.provisionalBonus;
-    const previous = manager.wildcardPreviousTeamPoints ?? current;
+    const previous = manager.wildcardPreviousTeamPoints;
+    const isFreeHit = manager.chip === "FH";
+    const previousLabel = isFreeHit ? (language === "fi" ? "Normaali" : "Regular") : t.oldTeam;
+    const currentLabel = isFreeHit ? "FH" : t.currentTeam;
     return <div className="transfer-cell wildcard-transfer" data-label={t.transfers}>
-      <strong>WC</strong><small>{t.oldTeam} {previous} → {t.currentTeam} {current}</small>
-      <b className={current - previous >= 0 ? "positive" : "negative"}>{signed(current - previous)} {t.net}</b>
+      <strong>{manager.chip}</strong><small>{previousLabel} {previous ?? "ERROR"} → {currentLabel} {current}</small>
+      {previous !== undefined ? <b className={current - previous >= 0 ? "positive" : "negative"}>{signed(current - previous)} {t.net}</b> : <b className="negative">ERROR</b>}
+      {isFreeHit && <em>{language === "fi" ? "FH vain tämä GW · normaali joukkue palaa seuraavalle GW:lle" : "FH for this GW only · regular squad returns next GW"}</em>}
       {manager.freeTransfersAfter !== undefined && <em>{t.nextGw}: {manager.freeTransfersAfter} FT</em>}
       <AwardTag award={award} />
     </div>;
@@ -72,25 +77,22 @@ function SeasonTransfersCell({ manager, label }: { manager: ManagerRow; label: s
   return <div className="season-transfers-cell" data-label={label}><strong>{manager.seasonTransfers}</strong>{manager.seasonHitPoints > 0 && <span>(−{manager.seasonHitPoints})</span>}</div>;
 }
 
-function BenchPointsCell({ manager, label, award, available = true }: { manager: ManagerRow; label: string; award?: Award; available?: boolean }) {
+function BenchPointsCell({ manager, label, award, available = true, autosubs = false }: { manager: ManagerRow; label: string; award?: Award; available?: boolean; autosubs?: boolean }) {
   if (!available) return <div className="bench-points-cell unavailable" data-label={label}><strong>—</strong></div>;
-  const current = currentBenchPoints(manager);
+  const current = currentBenchPoints(manager, autosubs);
   const total = manager.benchPointsBeforeGw + current;
   return <div className="bench-points-cell" data-label={label}><strong className={award ? `award-target award-${award.tone} award-level-${award.level}` : ""}>{total}</strong><span>+{current}</span><AwardTag award={award} /></div>;
 }
 
 function captainDisplay(manager: ManagerRow, autosubs: boolean) {
-  const captain = manager.squad.find((player) => player.captain);
-  const vice = manager.squad.find((player) => player.viceCaptain);
-  const captainMissedOut = autosubs && captain?.state === "finished" && captain.minutes === 0;
-  const viceCanTakeOver = vice && !(vice.state === "finished" && vice.minutes === 0);
-  const effective = captainMissedOut && viceCanTakeOver ? vice : captain;
+  const effective = provisionalAutosubSquad(manager.squad, autosubs).find((player) => player.captain);
   const multiplier = manager.chip === "TC" ? 3 : 2;
   return effective ? { name: effective.name, points: (effective.points + effective.bonus) * multiplier } : { name: manager.captain, points: manager.captainPoints };
 }
 
-function weightedProgress(manager: ManagerRow) {
-  const players = manager.chip === "BB" ? manager.squad : manager.squad.filter((player) => player.starter);
+function weightedProgress(manager: ManagerRow, autosubs: boolean) {
+  const effectiveSquad = provisionalAutosubSquad(manager.squad, autosubs);
+  const players = manager.chip === "BB" ? effectiveSquad : effectiveSquad.filter((player) => player.starter);
   return players.reduce((counts, player) => {
     const weight = player.captain ? (manager.chip === "TC" ? 3 : 2) : 1;
     const fixtures = player.fixtures ?? [{ state: player.state }];
@@ -123,6 +125,19 @@ function BrandLogo({ isLive }: { isLive: boolean }) {
   </div>;
 }
 
+const backgroundBallLayout = [
+  [3, 9, 68], [17, 72, 124], [29, 31, 52], [42, 88, 148], [55, 12, 88], [67, 61, 61],
+  [79, 35, 136], [93, 82, 94], [38, 55, 47], [88, 5, 112], [8, 94, 82], [73, 96, 56],
+  [12, 43, 76], [24, 6, 49], [49, 73, 103], [62, 38, 58], [82, 69, 121], [97, 48, 72],
+] as const;
+
+function BackgroundPattern() {
+  const rotations = useMemo(() => backgroundBallLayout.map(() => Math.round(Math.random() * 359)), []);
+  return <div className="background-pattern" aria-hidden="true">{backgroundBallLayout.map(([left, top, size], index) =>
+    <img key={index} src={`${import.meta.env.BASE_URL}branding/fs-logo-v8-5.svg`} alt="" style={{ left: `${left}%`, top: `${top}%`, width: size, transform: `translate(-50%, -50%) rotate(${rotations[index]}deg)` }} />,
+  )}</div>;
+}
+
 function SortHeader({ label, sortKey, active, direction, onSort }: { label: string; sortKey: SortKey; active: SortKey; direction: "asc" | "desc"; onSort: (key: SortKey) => void }) {
   return <button className={`sort-header ${active === sortKey ? "active" : ""}`} onClick={() => onSort(sortKey)}>{label}<ChevronDown className={active === sortKey && direction === "asc" ? "rotate" : ""} /></button>;
 }
@@ -144,16 +159,7 @@ function PlayerCard({ player, best, worst, language, tripleCaptain, scoreMultipl
 
 function Squad({ manager, language, autosubs }: { manager: ManagerRow; language: Language; autosubs: boolean }) {
   const t = translations(language);
-  const originalCaptain = manager.squad.find((player) => player.captain);
-  const originalVice = manager.squad.find((player) => player.viceCaptain);
-  const captainMissedOut = autosubs && originalCaptain?.state === "finished" && originalCaptain.minutes === 0;
-  const viceCanTakeOver = originalVice && !(originalVice.state === "finished" && originalVice.minutes === 0);
-  const promotedViceId = captainMissedOut && viceCanTakeOver ? originalVice.id : undefined;
-  const originalOrder = manager.squad.map((player) => promotedViceId ? {
-    ...player,
-    captain: player.id === promotedViceId,
-    viceCaptain: player.id === originalCaptain?.id,
-  } : player).sort((a, b) => a.squadPosition - b.squadPosition);
+  const originalOrder = provisionalAutosubSquad(manager.squad, autosubs);
   const active = originalOrder.filter((player) => player.starter);
   const bench = originalOrder.filter((player) => !player.starter);
   const scoringPlayers = manager.chip === "BB" ? originalOrder : active;
@@ -195,6 +201,7 @@ export default function App() {
   const [now, setNow] = useState(() => Date.now());
   const [data, setData] = useState<DashboardData>(demoData);
   const [liveReady, setLiveReady] = useState(demoMode);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const t = translations(language);
 
   useEffect(() => {
@@ -217,11 +224,19 @@ export default function App() {
         if (liveData) {
           setData(liveData);
           setLiveReady(true);
+          setLiveError(null);
+        } else {
+          setLiveReady(false);
+          setLiveError("FPL API returned no dashboard data");
         }
         refreshTimer = window.setTimeout(refresh, liveData?.dataPending ? 15_000 : 60_000);
       } catch (error) {
-        console.warn("Live FPL data is not ready; keeping the latest view.", error);
-        if (active) refreshTimer = window.setTimeout(refresh, 15_000);
+        console.warn("Live FPL data request failed.", error);
+        if (active) {
+          setLiveReady(false);
+          setLiveError(error instanceof Error ? error.message : "Unknown FPL API error");
+          refreshTimer = window.setTimeout(refresh, 15_000);
+        }
       }
     };
     void refresh();
@@ -237,14 +252,14 @@ export default function App() {
   const awardStats = useMemo(() => {
     const captainScores = data.managers.map((manager) => captainDisplay(manager, autosubs).points);
     const gwScores = data.managers.map((manager) => manager.gameweekPoints + manager.provisionalBonus - manager.hit);
-    const transferScores = data.managers.map(transferNet);
-    const benchScores = data.managers.map(currentBenchPoints);
+    const transferScores = data.managers.map(transferNet).filter(Number.isFinite);
+    const benchScores = data.managers.map((manager) => currentBenchPoints(manager, autosubs));
     const formAverages = data.managers.map((manager) => manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length));
     const values = data.managers.map((manager) => manager.teamValue).sort((a, b) => a - b);
     const middle = Math.floor(values.length / 2);
     const medianValue = values.length % 2 ? values[middle] : ((values[middle - 1] ?? 0) + (values[middle] ?? 0)) / 2;
     return {
-      bestCaptain: Math.max(...captainScores), bestGw: Math.max(...gwScores), bestTransfer: Math.max(...transferScores),
+      bestCaptain: Math.max(...captainScores), bestGw: Math.max(...gwScores), bestTransfer: transferScores.length ? Math.max(...transferScores) : Number.NaN,
       worstBench: Math.max(...benchScores), bestForm: Math.max(...formAverages), worstForm: Math.min(...formAverages),
       bestValue: Math.max(...values), medianValue,
     };
@@ -264,7 +279,7 @@ export default function App() {
     if (kind === "captain") return score >= 20 ? { label: fi ? "KAPTEENIMESTARI" : "CAPTAIN FANTASTIC", level: 3, tone: "purple" } : score >= 14 ? { label: fi ? "NAPPIOSUMA" : "NAILED IT", level: 2, tone: "purple" } : score >= 10 ? { label: fi ? "HYVÄ VALINTA" : "SOLID PICK", level: 1, tone: "purple" } : { level: 0, tone: "purple" };
     if (kind === "gw") return score >= 90 ? { label: fi ? "MELAPISTEET" : "MONSTER GW", level: 3, tone: "purple" } : score >= 70 ? { label: fi ? "HUH HUH!" : "GW KING", level: 2, tone: "purple" } : score >= 50 ? { label: fi ? "ON KOVA!" : "STRONG GW", level: 1, tone: "purple" } : { level: 0, tone: "purple" };
     if (kind === "transfer") return score >= 15 ? { label: fi ? "SIIRTOVELHO" : "TRANSFER WIZARD", level: 3, tone: "green" } : score >= 8 ? { label: fi ? "SIIRTOÄSSÄ" : "TRANSFER ACE", level: 2, tone: "green" } : score >= 3 ? { label: fi ? "HYVÄÄ BISNESTÄ" : "GOOD BUSINESS", level: 1, tone: "green" } : { level: 0, tone: "green" };
-    if (kind === "bench") return score >= 15 ? { label: fi ? "AI SAATANA" : "BENCH DISASTER", level: 3, tone: "red" } : score >= 10 ? { label: fi ? "AUTS" : "BENCH PAIN", level: 2, tone: "red" } : score >= 5 ? { label: fi ? "AIKA PAHA" : "THAT HURTS", level: 1, tone: "red" } : { level: 0, tone: "red" };
+    if (kind === "bench") return score >= 15 ? { label: fi ? "EI SAATANA" : "BENCH DISASTER", level: 3, tone: "red" } : score >= 10 ? { label: fi ? "AUTS" : "BENCH PAIN", level: 2, tone: "red" } : score >= 5 ? { label: fi ? "AIKA PAHA" : "THAT HURTS", level: 1, tone: "red" } : { level: 0, tone: "red" };
     if (kind === "formBest") return score >= 70 ? { label: fi ? "PITELEMÄTÖN" : "UNSTOPPABLE", level: 3, tone: "green" } : score >= 60 ? { label: fi ? "LIEKEISSÄ" : "ON FIRE", level: 2, tone: "green" } : score >= 50 ? { label: fi ? "NOUSUSSA" : "RISING", level: 1, tone: "green" } : { level: 0, tone: "green" };
     if (kind === "formWorst") return score < 30 ? { label: fi ? "SYÖKSYKIERRE" : "FREEFALL", level: 3, tone: "blue" } : score < 40 ? { label: fi ? "JÄÄSSÄ" : "ICE COLD", level: 2, tone: "blue" } : score < 50 ? { label: fi ? "TAHMEAA" : "SLUMPING", level: 1, tone: "blue" } : { level: 0, tone: "blue" };
     const lead = score - awardStats.medianValue;
@@ -289,6 +304,7 @@ export default function App() {
   const updatedLabel = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { dateStyle: "short", timeStyle: "medium" }).format(new Date(data.updatedAt));
 
   return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
+    <BackgroundPattern />
     <header className="topbar">
       <BrandLogo isLive={liveReady && gameweekIsLive} />
       <div className="top-actions">
@@ -300,7 +316,11 @@ export default function App() {
       </div>
     </header>
 
-    <main>{!liveReady ? <div className="initial-loading" aria-label={language === "fi" ? "Ladataan FPL-dataa" : "Loading FPL data"} /> : <>
+    <main>{liveError ? <section className="data-pending data-error" role="alert">
+      <strong>FPL DATA ERROR</strong>
+      <span>{liveError}</span>
+      <small>{language === "fi" ? "Uutta yritystä tehdään automaattisesti. Vanhentunutta tai demodataa ei näytetä." : "Retrying automatically. Stale or demo data is not shown."}</small>
+    </section> : !liveReady ? <div className="initial-loading" aria-label={language === "fi" ? "Ladataan FPL-dataa" : "Loading FPL data"} /> : <>
       <div className="toolbar">
         <select className="period-select" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label={language === "fi" ? "Valitse ajanjakso" : "Select period"}>
           <option value="total">Total</option>
@@ -322,13 +342,13 @@ export default function App() {
             const displayedGwPoints = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
             const captain = captainDisplay(manager, autosubs);
             const rankClass = manager.overallRank < manager.previousOverallRank ? "rank-up" : manager.overallRank > manager.previousOverallRank ? "rank-down" : "rank-neutral";
-            const progress = weightedProgress(manager);
+            const progress = weightedProgress(manager, autosubs);
             const transferScore = transferNet(manager);
-            const benchScore = currentBenchPoints(manager);
+            const benchScore = currentBenchPoints(manager, autosubs);
             const formAverage = manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length);
             const awardsAvailable = !data.rosterOnly;
             const captainAward = awardsAvailable && captain.points === awardStats.bestCaptain ? awardFor("captain", captain.points) : undefined;
-            const transferAward = awardsAvailable && manager.transfers.length > 0 && transferScore === awardStats.bestTransfer ? awardFor("transfer", transferScore) : undefined;
+            const transferAward = awardsAvailable && manager.transfers.length > 0 && Number.isFinite(transferScore) && transferScore === awardStats.bestTransfer ? awardFor("transfer", transferScore) : undefined;
             const benchAward = awardsAvailable && benchScore === awardStats.worstBench ? awardFor("bench", benchScore) : undefined;
             const valueAward = awardsAvailable && manager.teamValue === awardStats.bestValue ? awardFor("value", manager.teamValue) : undefined;
             const formAward = awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.bestForm
@@ -345,7 +365,7 @@ export default function App() {
                 <SeasonTransfersCell manager={manager} label={t.seasonTransfers} />
                 <ChipsCell manager={manager} label={t.chips} />
                 <TeamValueCell manager={manager} label={t.teamValue} award={valueAward} available={!data.rosterOnly} />
-                <BenchPointsCell manager={manager} label={t.benchPoints} award={benchAward} available={!data.rosterOnly} />
+                <BenchPointsCell manager={manager} label={t.benchPoints} award={benchAward} available={!data.rosterOnly} autosubs={autosubs} />
                 <div className={`form-cell ${formAward ? "award-cell" : ""}`} data-label={t.form}><span className="form-values">{manager.form.map((value, index) => <b key={index} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span><span className="form-meta"><strong className="form-average">{language === "fi" ? "KA" : "AVG"} {formAverage.toFixed(1)}</strong><AwardTag award={formAward} /></span></div>
                 <div className={`points-cell ${gwAward ? "award-cell" : ""}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwMedalRank ? `has-medal medal-rank-${gwMedalRank}` : ""}`}>{gwMedalRank && <Medal aria-label={language === "fi" ? `Kierroksen ${gwMedalRank}. paras` : `Gameweek rank ${gwMedalRank}`} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span><AwardTag award={gwAward} /></div>
                 <div className="progress-cell" data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>

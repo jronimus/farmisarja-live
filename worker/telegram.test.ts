@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { deadlineRemaining, runTelegramSchedule, type TelegramEnv } from "./telegram";
+import { deadlineRemaining, reminderIsDue, runTelegramSchedule, type TelegramEnv } from "./telegram";
 
 function testEnv(overrides: Record<string, unknown> = {}) {
   const state = new Map<string, string>();
@@ -23,6 +23,15 @@ function testEnv(overrides: Record<string, unknown> = {}) {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("deadline reminder timing", () => {
+  it("never sends before the target", () => {
+    const target = 2 * 3_600_000;
+    expect(reminderIsDue(target + 1, target)).toBe(false);
+    expect(reminderIsDue(target, target)).toBe(true);
+    expect(reminderIsDue(target - 2 * 60_000, target)).toBe(true);
+  });
+});
 
 describe("table-ready Telegram notification", () => {
   it("does not call external services while notifications are disabled", async () => {
