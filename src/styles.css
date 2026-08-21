@@ -1222,3 +1222,10 @@ footer a { color:#c4c6d8; }
     opacity:.8;
   }
 }
+
+/* The native option list paints its own light background, so options need their own colours. */
+.period-select option {
+  background:#ffffff;
+  color:#17192b;
+  font-weight:700;
+}
