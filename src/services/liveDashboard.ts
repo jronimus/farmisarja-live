@@ -1,5 +1,5 @@
 import type { DashboardData, FixtureStatus, GameweekFixture, ManagerRow, PlayerState, SquadPlayer } from "../types";
-import { bonusFromBps, nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
+import { nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
 
 const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");
 const leagueId = import.meta.env.VITE_FPL_LEAGUE_ID || "200068";
@@ -65,24 +65,6 @@ function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>): Gamewe
     }));
 }
 
-// Bonus is only estimated while a fixture is running and its official bonus has not been published yet,
-// so confirmed bonus already inside live total_points is never counted twice.
-function provisionalBonusByPlayer(fixtures: Fixture[]): Map<number, number> {
-  const totals = new Map<number, number>();
-  for (const fixture of fixtures) {
-    if (!fixture.started) continue;
-    const stats = fixture.stats ?? [];
-    const confirmed = stats.find((stat) => stat.identifier === "bonus");
-    if (confirmed && (confirmed.h.length > 0 || confirmed.a.length > 0)) continue;
-    const bps = stats.find((stat) => stat.identifier === "bps");
-    if (!bps) continue;
-    for (const [element, points] of bonusFromBps([...bps.h, ...bps.a])) {
-      totals.set(element, (totals.get(element) ?? 0) + points);
-    }
-  }
-  return totals;
-}
-
 function rankMovement(rows: EventHistory[]): number[] {
   return rows.map((row, index) => {
     if (index === 0) return 0;
@@ -97,7 +79,6 @@ async function managerRow(
   bootstrap: Bootstrap,
   fixtures: Fixture[],
   liveById: Map<number, LiveElement>,
-  provisionalBonus: Map<number, number>,
 ): Promise<ManagerRow | null> {
   const id = standing.entry;
   let entry: EntryData;
@@ -137,8 +118,8 @@ async function managerRow(
       venue: isHome ? "H" : "A",
       position: positionName(element.element_type),
       points: live?.stats.total_points ?? 0,
-      // A player whose official bonus is already inside total_points must not receive an estimate on top of it.
-      bonus: (live?.stats.bonus ?? 0) > 0 ? 0 : provisionalBonus.get(element.id) ?? 0,
+      // Live scores already carry the bonus FPL has published for the fixture.
+      bonus: 0,
       minutes: live?.stats.minutes ?? 0,
       state,
       fixtures: states.length ? states : undefined,
@@ -188,7 +169,7 @@ async function managerRow(
     teamName: standing.entry_name,
     managerName: standing.player_name || `${entry.player_first_name} ${entry.player_last_name}`.trim(),
     gameweekPoints,
-    provisionalBonus: squad.reduce((sum, player) => sum + player.bonus * (picks.picks.find((pick) => pick.element === player.id)?.multiplier ?? 0), 0),
+    provisionalBonus: 0,
     totalPoints: Math.max(currentHistory.total_points + hit, pointsBeforeGameweek + gameweekPoints),
     overallRank: entry.summary_overall_rank || currentHistory.overall_rank || 0,
     previousOverallRank: previousHistory?.overall_rank ?? currentHistory.overall_rank ?? 0,
@@ -300,8 +281,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     player_name: `${entry.player_first_name} ${entry.player_last_name}`.trim(),
     total: 0,
   }));
-  const eventBonus = provisionalBonusByPlayer(eventFixtures);
-  const rows = await Promise.all(standings.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById, eventBonus)));
+  const rows = await Promise.all(standings.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById)));
   if (rows.some((row) => row === null)) return pendingDashboard();
   return {
     leagueName: league.league.name,

@@ -35,28 +35,6 @@ export function nextGameweekFreeTransfers(history: HistoryEvent[], chips: ChipUs
   return bank;
 }
 
-export interface BpsEntry {
-  element: number;
-  value: number;
-}
-
-// Provisional bonus follows the official 3/2/1 rule with shared places:
-// two players tied on top take 3 each and the next takes 1, three tied on top take 3 each and nothing else is awarded.
-export function bonusFromBps(entries: BpsEntry[]): Map<number, number> {
-  const awarded = new Map<number, number>();
-  const points = [3, 2, 1];
-  const ranked = [...entries].sort((a, b) => b.value - a.value);
-  const places = [...new Set(ranked.map((entry) => entry.value))];
-  let place = 0;
-  for (const value of places) {
-    if (place > 2) break;
-    const tied = ranked.filter((entry) => entry.value === value);
-    for (const entry of tied) awarded.set(entry.element, points[place]);
-    place += tied.length;
-  }
-  return awarded;
-}
-
 const minimums = { DEF: 3, FWD: 1 } as const;
 
 function unavailable(player: SquadPlayer): boolean {
