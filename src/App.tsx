@@ -197,11 +197,13 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
   const bench = originalOrder.filter((player) => !player.starter);
   const scoringPlayers = manager.chip === "BB" ? originalOrder : active;
   const scoreMultiplier = (player: SquadPlayer) => player.captain ? (manager.chip === "TC" ? 3 : 2) : 1;
-  const totals = scoringPlayers.map((player) => (player.points + player.bonus) * scoreMultiplier(player));
-  const best = Math.max(...totals);
-  const worst = Math.min(...totals);
-  // Nothing is best or worst while every player is still on the same score.
-  const hasSpread = best > worst;
+  // Only settled fixtures are comparable: an unplayed zero is not a low score, and a score from a
+  // match still running is not finished with.
+  const settled = (player: SquadPlayer) => player.state === "finished";
+  const totals = scoringPlayers.filter(settled).map((player) => (player.points + player.bonus) * scoreMultiplier(player));
+  const best = totals.length ? Math.max(...totals) : 0;
+  const worst = totals.length ? Math.min(...totals) : 0;
+  const hasSpread = totals.length > 1 && best > worst;
   const positionLabels = language === "fi"
     ? { GK: "MAALIVAHTI", DEF: "PUOLUSTUS", MID: "KESKIKENTTÄ", FWD: "HYÖKKÄYS" }
     : { GK: "GOALKEEPER", DEF: "DEFENCE", MID: "MIDFIELD", FWD: "FORWARDS" };
@@ -210,7 +212,7 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
     : { GK: "GK", DEF: "DEF", MID: "MID", FWD: "FWD" };
   const renderPlayer = (player: SquadPlayer, groupLabel?: string, mobileGroupLabel?: string, groupKind?: "position" | "bench") => {
     const liveScore = (player.points + player.bonus) * scoreMultiplier(player);
-    return <PlayerCard key={player.id} player={player} best={hasSpread && (player.starter || manager.chip === "BB") && liveScore === best} worst={hasSpread && (player.starter || manager.chip === "BB") && liveScore === worst} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
+    return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} worst={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === worst} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
   };
   return <div className="squad-panel">
     <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span>{hasSpread && <><span className="legend-best"><i />{t.best}</span><span className="legend-worst"><i />{t.worst}</span></>}</div></div>
