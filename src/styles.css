@@ -1102,3 +1102,64 @@ footer a { color:#c4c6d8; }
   opacity:1;
   box-shadow:0 1px 2px rgba(10,20,30,.08);
 }
+
+
+/* Player scores read by state: finished is settled ink, live is green, still to play is muted. */
+.player-points {
+  background:transparent;
+  transition:background-color .2s ease;
+}
+.player.player-finished .player-points { background:rgba(23,32,56,.08); }
+.player.player-live .player-points { background:rgba(0,150,84,.16); }
+.player.player-upcoming .player-points { background:transparent; }
+.player.player-finished .mobile-player-score,
+.player.player-finished .desktop-player-score { color:#141d33 !important; }
+.player.player-live .mobile-player-score,
+.player.player-live .desktop-player-score { color:#00814a !important; }
+.player.player-upcoming .mobile-player-score,
+.player.player-upcoming .desktop-player-score { color:#98a1b2 !important; }
+.squad-legend .legend-finished { color:#141d33; }
+.squad-legend .legend-live { color:#00814a; }
+.squad-legend .legend-upcoming { color:#98a1b2; }
+.squad-legend .legend-live i { background:#00814a; }
+.squad-legend .legend-finished i { background:rgba(23,32,56,.14); }
+/* Best and worst sit outside the score box so they stay visible over the live tint. */
+.player-best .player-points { border-color:transparent; box-shadow:0 0 0 2px #00b866,0 0 11px rgba(0,184,102,.4); }
+.player-worst .player-points { border-color:transparent; box-shadow:0 0 0 2px #e04a63,0 0 11px rgba(224,74,99,.36); }
+.squad-legend .legend-best { color:#00b866; }
+.squad-legend .legend-worst { color:#e04a63; }
+
+
+/* The header owns the fixture panel, so it has to outrank the `.app-shell > header` stacking rule. */
+.app-shell > .topbar {
+  position:relative;
+  z-index:30;
+}
+
+@media (max-width:800px) {
+  /* On a phone the wordmark sits under the ball and the countdown keeps its label. */
+  .brand-logo-main {
+    height:auto;
+    flex-direction:column;
+    align-items:center;
+    gap:1px;
+  }
+  .brand-logo-name {
+    margin-left:0;
+    transform:none;
+    font-size:15px;
+    letter-spacing:.4px;
+  }
+  .gameweek-status .deadline small {
+    display:inline;
+    font-size:7px;
+    letter-spacing:.08em;
+  }
+  .gameweek-status .deadline {
+    gap:4px;
+    font-size:10px;
+  }
+  .gameweek-status .deadline i {
+    font-size:10px;
+  }
+}

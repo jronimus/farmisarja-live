@@ -200,6 +200,8 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
   const totals = scoringPlayers.map((player) => (player.points + player.bonus) * scoreMultiplier(player));
   const best = Math.max(...totals);
   const worst = Math.min(...totals);
+  // Nothing is best or worst while every player is still on the same score.
+  const hasSpread = best > worst;
   const positionLabels = language === "fi"
     ? { GK: "MAALIVAHTI", DEF: "PUOLUSTUS", MID: "KESKIKENTTÄ", FWD: "HYÖKKÄYS" }
     : { GK: "GOALKEEPER", DEF: "DEFENCE", MID: "MIDFIELD", FWD: "FORWARDS" };
@@ -208,10 +210,10 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
     : { GK: "GK", DEF: "DEF", MID: "MID", FWD: "FWD" };
   const renderPlayer = (player: SquadPlayer, groupLabel?: string, mobileGroupLabel?: string, groupKind?: "position" | "bench") => {
     const liveScore = (player.points + player.bonus) * scoreMultiplier(player);
-    return <PlayerCard key={player.id} player={player} best={(player.starter || manager.chip === "BB") && liveScore === best} worst={(player.starter || manager.chip === "BB") && liveScore === worst} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
+    return <PlayerCard key={player.id} player={player} best={hasSpread && (player.starter || manager.chip === "BB") && liveScore === best} worst={hasSpread && (player.starter || manager.chip === "BB") && liveScore === worst} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
   };
   return <div className="squad-panel">
-    <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span><span className="legend-best"><i />{t.best}</span><span className="legend-worst"><i />{t.worst}</span></div></div>
+    <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span>{hasSpread && <><span className="legend-best"><i />{t.best}</span><span className="legend-worst"><i />{t.worst}</span></>}</div></div>
     <div className="squad-players">
       <div className="squad-grid starters">{active.map((player, index) => renderPlayer(player, index === 0 || active[index - 1].position !== player.position ? positionLabels[player.position] : undefined, index === 0 || active[index - 1].position !== player.position ? mobilePositionLabels[player.position] : undefined, "position"))}</div>
       <div className="squad-heading bench-heading"><span>{t.bench}</span></div>
