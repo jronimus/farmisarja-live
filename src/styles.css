@@ -1229,3 +1229,9 @@ footer a { color:#c4c6d8; }
   color:#17192b;
   font-weight:700;
 }
+
+/* The name reserves two lines to keep first lines aligned, so the card needs height for it. */
+.player { height:162px; }
+@media (max-width:800px) {
+  .player { height:104px; }
+}
