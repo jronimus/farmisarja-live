@@ -301,9 +301,12 @@ export default function App() {
     const middle = Math.floor(values.length / 2);
     const medianValue = values.length % 2 ? values[middle] : ((values[middle - 1] ?? 0) + (values[middle] ?? 0)) / 2;
     return {
-      bestCaptain: Math.max(...captainScores), bestGw: Math.max(...gwScores), bestTransfer: transferScores.length ? Math.max(...transferScores) : Number.NaN,
-      worstBench: Math.max(...benchScores), bestForm: Math.max(...formAverages), worstForm: Math.min(...formAverages),
-      bestValue: Math.max(...values), medianValue,
+      bestCaptain: Math.max(...captainScores), lowestCaptain: Math.min(...captainScores),
+      bestGw: Math.max(...gwScores), lowestGw: Math.min(...gwScores),
+      bestTransfer: transferScores.length ? Math.max(...transferScores) : Number.NaN, lowestTransfer: transferScores.length ? Math.min(...transferScores) : Number.NaN,
+      worstBench: Math.max(...benchScores), lowestBench: Math.min(...benchScores),
+      bestForm: Math.max(...formAverages), worstForm: Math.min(...formAverages),
+      bestValue: Math.max(...values), lowestValue: Math.min(...values), medianValue,
     };
   }, [autosubs, data.managers]);
 
@@ -345,6 +348,8 @@ export default function App() {
   const deadlineLabel = countdownLabel(deadlineMs, language);
   const compactDeadlineLabel = deadlineLabel;
   const nextKickoffLabel = nextFixture ? countdownLabel(Math.max(0, new Date(nextFixture.kickoff).getTime() - now), language) : "";
+  // Awards are decided once every match has been played, which is before the points turn final.
+  const gameweekComplete = demoMode || (gameweekFixtures.length > 0 && gameweekFixtures.every((fixture) => fixture.status === "provisional" || fixture.status === "final"));
   const updatedLabel = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { dateStyle: "short", timeStyle: "medium" }).format(new Date(data.updatedAt));
 
   return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
@@ -400,27 +405,27 @@ export default function App() {
             const transferScore = transferNet(manager);
             const benchScore = currentBenchPoints(manager, autosubs);
             const formAverage = manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length);
-            const awardsAvailable = !data.rosterOnly;
-            const captainAward = awardsAvailable && captain.points === awardStats.bestCaptain ? awardFor("captain", captain.points) : undefined;
-            const transferAward = awardsAvailable && manager.transfers.length > 0 && Number.isFinite(transferScore) && transferScore === awardStats.bestTransfer ? awardFor("transfer", transferScore) : undefined;
-            const benchAward = awardsAvailable && benchScore === awardStats.worstBench ? awardFor("bench", benchScore) : undefined;
-            const valueAward = awardsAvailable && manager.teamValue === awardStats.bestValue ? awardFor("value", manager.teamValue) : undefined;
+            const awardsAvailable = !data.rosterOnly && gameweekComplete;
+            const captainAward = awardsAvailable && awardStats.bestCaptain > awardStats.lowestCaptain && captain.points === awardStats.bestCaptain ? awardFor("captain", captain.points) : undefined;
+            const transferAward = awardsAvailable && manager.transfers.length > 0 && Number.isFinite(transferScore) && awardStats.bestTransfer > awardStats.lowestTransfer && transferScore === awardStats.bestTransfer ? awardFor("transfer", transferScore) : undefined;
+            const benchAward = awardsAvailable && awardStats.worstBench > awardStats.lowestBench && benchScore === awardStats.worstBench ? awardFor("bench", benchScore) : undefined;
+            const valueAward = awardsAvailable && awardStats.bestValue > awardStats.lowestValue && manager.teamValue === awardStats.bestValue ? awardFor("value", manager.teamValue) : undefined;
             const formAward = awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.bestForm
               ? awardFor("formBest", formAverage)
               : awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.worstForm ? awardFor("formWorst", formAverage) : undefined;
-            const gwAward = awardsAvailable && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
+            const gwAward = awardsAvailable && awardStats.bestGw > awardStats.lowestGw && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
             const gwMedalRank = awardsAvailable ? gwMedalRanks.get(manager.id) : undefined;
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
-                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
-                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
+                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && manager.overallRank > 0 && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
+                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && manager.overallRank > 0 && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
                 <div className={`captain-cell ${captainAward ? "award-cell" : ""}`} data-label={t.captain}><strong>{captain.name}</strong><span className={captainAward ? `award-target award-${captainAward.tone} award-level-${captainAward.level}` : ""}>{captain.points} pts</span><AwardTag award={captainAward} /></div>
                 <TransferCell manager={manager} language={language} award={transferAward} />
                 <SeasonTransfersCell manager={manager} label={t.seasonTransfers} />
                 <ChipsCell manager={manager} label={t.chips} />
                 <TeamValueCell manager={manager} label={t.teamValue} award={valueAward} available={!data.rosterOnly} />
                 <BenchPointsCell manager={manager} label={t.benchPoints} award={benchAward} available={!data.rosterOnly} autosubs={autosubs} />
-                <div className={`form-cell ${formAward ? "award-cell" : ""}`} data-label={t.form}><span className="form-values">{manager.form.map((value, index) => <b key={index} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span><span className="form-meta"><strong className="form-average">{language === "fi" ? "KA" : "AVG"} {formAverage.toFixed(1)}</strong><AwardTag award={formAward} /></span></div>
+                <div className={`form-cell ${formAward ? "award-cell" : ""}`} data-label={t.form}><span className="form-values">{manager.form.map((value, index) => <b key={index} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span><span className="form-meta">{manager.form.length > 0 && <strong className="form-average">{language === "fi" ? "KA" : "AVG"} {formAverage.toFixed(1)}</strong>}<AwardTag award={formAward} /></span></div>
                 <div className={`points-cell ${gwAward ? "award-cell" : ""}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwMedalRank ? `has-medal medal-rank-${gwMedalRank}` : ""}`}>{gwMedalRank && <Medal aria-label={language === "fi" ? `Kierroksen ${gwMedalRank}. paras` : `Gameweek rank ${gwMedalRank}`} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span><AwardTag award={gwAward} /></div>
                 <div className="progress-cell" data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints - manager.hit)}</strong></div>
