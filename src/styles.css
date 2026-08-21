@@ -1235,3 +1235,32 @@ footer a { color:#c4c6d8; }
 @media (max-width:800px) {
   .player { height:104px; }
 }
+
+
+/* Positions are already grouped by their headings and dividers, so the cards stay neutral and the
+   gold of the best finished player is the only colour competing for attention. */
+.player.position-gk,
+.player.position-def,
+.player.position-mid,
+.player.position-fwd {
+  background:linear-gradient(155deg,rgba(248,249,253,.94),rgba(225,229,241,.92));
+}
+.player.player-best {
+  background:
+    linear-gradient(118deg,rgba(255,255,255,0) 33%,rgba(255,255,255,.6) 47%,rgba(255,255,255,0) 61%),
+    linear-gradient(155deg,#fff8e0 0%,#ffeaa9 46%,#f2cf7f 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.9),
+    0 0 0 1px rgba(190,144,38,.42),
+    0 7px 20px rgba(172,126,20,.26);
+}
+.player.player-best .player-points { background:rgba(120,84,6,.1); }
+.player.player-best .player-name,
+.player.player-best .mobile-player-score,
+.player.player-best .desktop-player-score { color:#3a2a04 !important; }
+.player.player-best .player-fixture { color:rgba(90,68,16,.78); }
+/* The score box carries the fixture state, so best is shown by the card rather than a second ring. */
+.player-best .player-points,
+.player-worst .player-points { border-color:transparent; box-shadow:none; }
+.squad-legend .legend-best { color:#a97f16; }
+.squad-legend .legend-best i { background:linear-gradient(140deg,#ffeaa9,#e0bb63); }

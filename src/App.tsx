@@ -180,9 +180,9 @@ function Shirt({ player }: { player: SquadPlayer }) {
   return <div className="shirt"><img className="shirt-image" src={source} alt="" /></div>;
 }
 
-function PlayerCard({ player, best, worst, language, tripleCaptain, scoreMultiplier, groupLabel, mobileGroupLabel, groupKind }: { player: SquadPlayer; best: boolean; worst: boolean; language: Language; tripleCaptain: boolean; scoreMultiplier: number; groupLabel?: string; mobileGroupLabel?: string; groupKind?: "position" | "bench" }) {
+function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, groupLabel, mobileGroupLabel, groupKind }: { player: SquadPlayer; best: boolean; language: Language; tripleCaptain: boolean; scoreMultiplier: number; groupLabel?: string; mobileGroupLabel?: string; groupKind?: "position" | "bench" }) {
   const t = translations(language);
-  return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${worst ? "player-worst" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
+  return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
     {groupLabel && <span className="player-group-label"><b className="desktop-squad-label">{groupLabel}</b><b className="mobile-squad-label">{mobileGroupLabel ?? groupLabel}</b></span>}
     <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /></div>
     <div className="player-name"><span>{player.name}</span></div>
@@ -212,10 +212,10 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
     : { GK: "GK", DEF: "DEF", MID: "MID", FWD: "FWD" };
   const renderPlayer = (player: SquadPlayer, groupLabel?: string, mobileGroupLabel?: string, groupKind?: "position" | "bench") => {
     const liveScore = (player.points + player.bonus) * scoreMultiplier(player);
-    return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} worst={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === worst} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
+    return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
   };
   return <div className="squad-panel">
-    <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span>{hasSpread && <><span className="legend-best"><i />{t.best}</span><span className="legend-worst"><i />{t.worst}</span></>}</div></div>
+    <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span>{hasSpread && <><span className="legend-best"><i />{t.best}</span></>}</div></div>
     <div className="squad-players">
       <div className="squad-grid starters">{active.map((player, index) => renderPlayer(player, index === 0 || active[index - 1].position !== player.position ? positionLabels[player.position] : undefined, index === 0 || active[index - 1].position !== player.position ? mobilePositionLabels[player.position] : undefined, "position"))}</div>
       <div className="squad-heading bench-heading"><span>{t.bench}</span></div>
