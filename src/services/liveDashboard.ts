@@ -218,8 +218,25 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     };
   }
   if (!league.standings.results.length && !league.new_entries?.results.length) return null;
-  const live = await api<{ elements: LiveElement[] }>(`/event/${event.id}/live`, `/event/${event.id}/live/`);
-  const liveById = new Map(live.elements.map((element) => [element.id, element]));
+  const pendingDashboard = (): DashboardData => ({
+    leagueName: league.league.name,
+    gameweek: event.id,
+    deadline: event.deadline_time,
+    updatedAt: new Date().toISOString(),
+    isPreview: false,
+    dataPending: true,
+    pointsFinalized: false,
+    completedMonths,
+    managers: rosterManagers(),
+  });
+  let liveById: Map<number, LiveElement>;
+  try {
+    const live = await api<{ elements: LiveElement[] }>(`/event/${event.id}/live`, `/event/${event.id}/live/`);
+    liveById = new Map(live.elements.map((element) => [element.id, element]));
+  } catch {
+    // FPL answers 5xx while it rebuilds the gameweek around the deadline. Wait instead of failing.
+    return pendingDashboard();
+  }
   const standings = league.standings.results.length ? league.standings.results : league.new_entries.results.map((entry) => ({
     entry: entry.entry,
     rank: 1,
@@ -229,19 +246,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     total: 0,
   }));
   const rows = await Promise.all(standings.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById)));
-  if (rows.some((row) => row === null)) {
-    return {
-      leagueName: league.league.name,
-      gameweek: event.id,
-      deadline: event.deadline_time,
-      updatedAt: new Date().toISOString(),
-      isPreview: false,
-      dataPending: true,
-      pointsFinalized: false,
-      completedMonths,
-      managers: rosterManagers(),
-    };
-  }
+  if (rows.some((row) => row === null)) return pendingDashboard();
   return {
     leagueName: league.league.name,
     gameweek: event.id,

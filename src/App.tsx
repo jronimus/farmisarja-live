@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Medal } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
@@ -202,6 +202,8 @@ export default function App() {
   const [data, setData] = useState<DashboardData>(demoData);
   const [liveReady, setLiveReady] = useState(demoMode);
   const [liveError, setLiveError] = useState<string | null>(null);
+  // FPL answers 5xx for a while around the deadline; only surface an error once it keeps failing.
+  const failureCount = useRef(0);
   const t = translations(language);
 
   useEffect(() => {
@@ -217,24 +219,31 @@ export default function App() {
     if (demoMode) return;
     let active = true;
     let refreshTimer: number | undefined;
+    const fail = (message: string) => {
+      failureCount.current += 1;
+      // Keep the calm waiting view for short FPL outages; escalate only after roughly two minutes.
+      if (failureCount.current < 8) return;
+      setLiveReady(false);
+      setLiveError(message);
+    };
     const refresh = async () => {
       try {
         const liveData = await loadLiveDashboard();
         if (!active) return;
         if (liveData) {
+          failureCount.current = 0;
           setData(liveData);
           setLiveReady(true);
           setLiveError(null);
+          refreshTimer = window.setTimeout(refresh, liveData.dataPending ? 15_000 : 60_000);
         } else {
-          setLiveReady(false);
-          setLiveError("FPL API returned no dashboard data");
+          fail("FPL API returned no dashboard data");
+          refreshTimer = window.setTimeout(refresh, 15_000);
         }
-        refreshTimer = window.setTimeout(refresh, liveData?.dataPending ? 15_000 : 60_000);
       } catch (error) {
         console.warn("Live FPL data request failed.", error);
         if (active) {
-          setLiveReady(false);
-          setLiveError(error instanceof Error ? error.message : "Unknown FPL API error");
+          fail(error instanceof Error ? error.message : "Unknown FPL API error");
           refreshTimer = window.setTimeout(refresh, 15_000);
         }
       }
