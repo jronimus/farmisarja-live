@@ -75,7 +75,7 @@ export interface DashboardData {
   rosterOnly?: boolean;
   dataPending?: boolean;
   pointsFinalized: boolean;
-  completedMonths: string[];
+  activeMonths: string[];
   fixtures?: GameweekFixture[];
   managers: ManagerRow[];
 }

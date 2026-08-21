@@ -217,7 +217,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
   ]);
   const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
   if (!event) return null;
-  const completedMonths = [...new Set(bootstrap.events.filter((item) => item.finished).map((item) => item.deadline_time.slice(0, 7)))];
+  const startedMonths = [...new Set(bootstrap.events.filter((item) => item.finished || Date.now() >= new Date(item.deadline_time).getTime()).map((item) => item.deadline_time.slice(0, 7)))];
   const eventFixtures = fixtures.filter((fixture) => fixture.event === event.id);
   const fixtureList = gameweekFixtures(eventFixtures, new Map(bootstrap.teams.map((team) => [team.id, team])));
   const rosterManagers = (): ManagerRow[] => league.new_entries.results.map((entry) => ({
@@ -260,7 +260,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       isPreview: true,
       rosterOnly: true,
       pointsFinalized: false,
-      completedMonths,
+      activeMonths: startedMonths,
       fixtures: fixtureList,
       managers,
     };
@@ -274,7 +274,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     isPreview: false,
     dataPending: true,
     pointsFinalized: false,
-    completedMonths,
+    activeMonths: startedMonths,
     fixtures: fixtureList,
     managers: rosterManagers(),
   });
@@ -304,7 +304,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     updatedAt: new Date().toISOString(),
     isPreview: false,
     pointsFinalized: event.data_checked,
-    completedMonths,
+    activeMonths: startedMonths,
     fixtures: fixtureList,
     managers: rows.filter((row): row is ManagerRow => row !== null),
   };

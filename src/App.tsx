@@ -138,7 +138,7 @@ function weightedProgress(manager: ManagerRow, autosubs: boolean) {
 }
 
 function Movement({ current, previous }: { current: number; previous: number }) {
-  if (current === previous) return <span className="movement neutral">—</span>;
+  if (current === previous || !previous) return <span className="movement neutral">—</span>;
   const improved = current < previous;
   return <span className={`movement ${improved ? "up" : "down"}`}>{improved ? <ArrowUp /> : <ArrowDown />}{Math.abs(previous - current)}</span>;
 }
@@ -339,6 +339,8 @@ export default function App() {
   };
 
   const monthFormatter = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { month: "long" });
+  // Finnish month names are lower case, but they read better capitalised beside the other menu labels.
+  const monthLabel = (month: string) => { const name = monthFormatter.format(new Date(`${month}-01T12:00:00Z`)); return name.charAt(0).toUpperCase() + name.slice(1); };
   const headers: Array<[string, SortKey | null]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form"], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
   const gameweekFixtures = data.fixtures ?? [];
   const liveFixtures = gameweekFixtures.filter((fixture) => fixture.status === "live");
@@ -385,7 +387,7 @@ export default function App() {
       <div className="toolbar">
         <select className="period-select" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label={language === "fi" ? "Valitse ajanjakso" : "Select period"}>
           <option value="total">Total</option>
-          {data.completedMonths.map((month) => <option value={month} key={month}>{monthFormatter.format(new Date(`${month}-01T12:00:00Z`))}</option>)}
+          {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
         </select>
         <div className="toolbar-toggles"><label className="details-toggle"><span>{t.details}</span><button role="switch" aria-checked={mobileDetails} onClick={() => setMobileDetails((value) => !value)} className={mobileDetails ? "enabled" : ""}><i /></button></label><label className="autosub-toggle"><span>{t.autosubs}</span><button role="switch" aria-checked={autosubs} onClick={() => setAutosubs((value) => !value)} className={autosubs ? "enabled" : ""}><i /></button></label></div>
       </div>
@@ -408,6 +410,7 @@ export default function App() {
             const benchScore = currentBenchPoints(manager, autosubs);
             const formAverage = manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length);
             const awardsAvailable = !data.rosterOnly && gameweekComplete;
+            const hasSeasonPoints = manager.totalPoints !== 0 || manager.gameweekPoints !== 0;
             const captainAward = awardsAvailable && awardStats.bestCaptain > awardStats.lowestCaptain && captain.points === awardStats.bestCaptain ? awardFor("captain", captain.points) : undefined;
             const transferAward = awardsAvailable && manager.transfers.length > 0 && Number.isFinite(transferScore) && awardStats.bestTransfer > awardStats.lowestTransfer && transferScore === awardStats.bestTransfer ? awardFor("transfer", transferScore) : undefined;
             const benchAward = awardsAvailable && awardStats.worstBench > awardStats.lowestBench && benchScore === awardStats.worstBench ? awardFor("bench", benchScore) : undefined;
@@ -419,8 +422,8 @@ export default function App() {
             const gwMedalRank = awardsAvailable ? gwMedalRanks.get(manager.id) : undefined;
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
-                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && manager.overallRank > 0 && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
-                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && manager.overallRank > 0 && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
+                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
+                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
                 <div className={`captain-cell ${captainAward ? "award-cell" : ""}`} data-label={t.captain}><strong>{captain.name}</strong><span className={captainAward ? `award-target award-${captainAward.tone} award-level-${captainAward.level}` : ""}>{captain.points} pts</span><AwardTag award={captainAward} /></div>
                 <TransferCell manager={manager} language={language} award={transferAward} />
                 <SeasonTransfersCell manager={manager} label={t.seasonTransfers} />

@@ -68,6 +68,6 @@ const demoFixtures: GameweekFixture[] = [
 ];
 
 export const demoData: DashboardData = {
-  leagueName: "Farmisarja", gameweek: 1, deadline: "2026-08-21T17:30:00Z", updatedAt: new Date().toISOString(), isPreview: true, pointsFinalized: false, completedMonths: [], fixtures: demoFixtures,
+  leagueName: "Farmisarja", gameweek: 1, deadline: "2026-08-21T17:30:00Z", updatedAt: new Date().toISOString(), isPreview: true, pointsFinalized: false, activeMonths: ["2026-08"], fixtures: demoFixtures,
   managers: managers.map((manager, index) => ({ ...manager, squad: makeSquad(index + 1, [5, 9, 7, 6, 10, 1, 6, 7, 9, 5][index]) })),
 };
