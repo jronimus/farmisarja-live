@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextGameweekFreeTransfers, provisionalAutosubSquad, usedChipsForHalf } from "./fplRules";
+import { bonusFromBps, nextGameweekFreeTransfers, provisionalAutosubSquad, usedChipsForHalf } from "./fplRules";
 import type { SquadPlayer } from "../types";
 
 const player = (id: number, position: SquadPlayer["position"], squadPosition: number, starter: boolean, state: SquadPlayer["state"] = "upcoming", minutes = 0): SquadPlayer => ({
@@ -18,6 +18,15 @@ describe("FPL rules", () => {
     expect(nextGameweekFreeTransfers([], [], 1)).toBe(1);
     expect(nextGameweekFreeTransfers([{ event: 2, event_transfers: 0 }, { event: 3, event_transfers: 0 }, { event: 4, event_transfers: 0 }, { event: 5, event_transfers: 0 }, { event: 6, event_transfers: 0 }], [], 6)).toBe(5);
     expect(nextGameweekFreeTransfers([{ event: 2, event_transfers: 0 }, { event: 3, event_transfers: 9 }], [{ name: "wildcard", event: 3 }], 3)).toBe(2);
+  });
+
+  it("awards provisional bonus with shared places", () => {
+    const award = (entries: Array<[number, number]>) => Object.fromEntries(bonusFromBps(entries.map(([element, value]) => ({ element, value }))));
+    expect(award([[1, 30], [2, 25], [3, 20], [4, 10]])).toEqual({ 1: 3, 2: 2, 3: 1 });
+    expect(award([[1, 30], [2, 30], [3, 20], [4, 10]])).toEqual({ 1: 3, 2: 3, 3: 1 });
+    expect(award([[1, 30], [2, 30], [3, 30], [4, 10]])).toEqual({ 1: 3, 2: 3, 3: 3 });
+    expect(award([[1, 30], [2, 25], [3, 25], [4, 10]])).toEqual({ 1: 3, 2: 2, 3: 2 });
+    expect(award([[1, 30], [2, 25], [3, 20], [4, 20]])).toEqual({ 1: 3, 2: 2, 3: 1, 4: 1 });
   });
 
   it("uses the first legal bench player and restores the original when the starter appears", () => {
