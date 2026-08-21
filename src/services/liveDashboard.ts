@@ -163,6 +163,12 @@ async function managerRow(
   }));
   const previousHistory = history.current.filter((row) => row.event < event.id).at(-1);
   const hit = currentHistory.event_transfers_cost ?? 0;
+  // FPL leaves the stored entry points at their last processed value during live matches, so the
+  // gameweek total is composed from the live element scores and the stored value is used only
+  // once it catches up, which is when it also carries autosubs and confirmed bonus.
+  const livePicksPoints = picks.picks.reduce((sum, pick) => sum + (liveById.get(pick.element)?.stats.total_points ?? 0) * pick.multiplier, 0);
+  const gameweekPoints = Math.max(currentHistory.points + hit, livePicksPoints);
+  const pointsBeforeGameweek = earlierHistory.reduce((sum, row) => sum + row.points, 0);
   let wildcardPreviousTeamPoints: number | undefined;
   if ((activeChip === "WC" || activeChip === "FH") && event.id > 1) {
     try {
@@ -181,9 +187,9 @@ async function managerRow(
     previousPosition: standing.last_rank,
     teamName: standing.entry_name,
     managerName: standing.player_name || `${entry.player_first_name} ${entry.player_last_name}`.trim(),
-    gameweekPoints: currentHistory.points + hit,
+    gameweekPoints,
     provisionalBonus: squad.reduce((sum, player) => sum + player.bonus * (picks.picks.find((pick) => pick.element === player.id)?.multiplier ?? 0), 0),
-    totalPoints: currentHistory.total_points + hit,
+    totalPoints: Math.max(currentHistory.total_points + hit, pointsBeforeGameweek + gameweekPoints),
     overallRank: entry.summary_overall_rank || currentHistory.overall_rank || 0,
     previousOverallRank: previousHistory?.overall_rank ?? currentHistory.overall_rank ?? 0,
     captain: captain?.name ?? "—",
