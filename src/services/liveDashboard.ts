@@ -15,8 +15,7 @@ interface EventData { id: number; deadline_time: string; finished: boolean; data
 interface Element { id: number; web_name: string; team: number; element_type: number; }
 interface Team { id: number; short_name: string; }
 interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; }
-interface FixtureStat { identifier: string; h: Array<{ element: number; value: number }>; a: Array<{ element: number; value: number }> }
-interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; stats?: FixtureStat[]; }
+interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; }
 interface LiveElement { id: number; stats: { total_points: number; minutes: number; bonus: number }; explain: Array<{ fixture: number }>; }
 interface LeagueStanding { entry: number; rank: number; last_rank: number; entry_name: string; player_name: string; total: number; }
 interface NewEntry { entry: number; entry_name: string; player_first_name: string; player_last_name: string; }
@@ -36,18 +35,18 @@ const chipName = (name: string | null | undefined) => ({ wildcard: "WC", freehit
 const positionName = (type: number): SquadPlayer["position"] => (["GK", "DEF", "MID", "FWD"] as const)[type - 1] ?? "MID";
 
 function fixtureState(fixture: Fixture): PlayerState {
-  if (fixture.finished) return "finished";
+  // finished_provisional marks full time; finished follows later when FPL confirms the data.
+  if (fixture.finished || fixture.finished_provisional) return "finished";
   if (fixture.started) return "live";
   return "upcoming";
 }
 
-// A finished fixture stays provisional until its official bonus is published, which is the same
-// signal that stops the bonus estimate below.
+// FPL publishes bonus while a match is still running, so only its own flags say whether a result
+// is settled: finished_provisional is full time, finished is the confirmed result.
 function fixtureStatus(fixture: Fixture): FixtureStatus {
   if (!fixture.started) return "upcoming";
-  if (!fixture.finished && !fixture.finished_provisional) return "live";
-  const bonus = (fixture.stats ?? []).find((stat) => stat.identifier === "bonus");
-  return bonus && (bonus.h.length > 0 || bonus.a.length > 0) ? "final" : "provisional";
+  if (!fixture.finished_provisional) return "live";
+  return fixture.finished ? "final" : "provisional";
 }
 
 function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>): GameweekFixture[] {
