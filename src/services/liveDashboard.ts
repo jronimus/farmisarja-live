@@ -1,4 +1,4 @@
-import type { DashboardData, ManagerRow, PlayerState, SquadPlayer } from "../types";
+import type { DashboardData, FixtureStatus, GameweekFixture, ManagerRow, PlayerState, SquadPlayer } from "../types";
 import { bonusFromBps, nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
 
 const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");
@@ -16,7 +16,7 @@ interface Element { id: number; web_name: string; team: number; element_type: nu
 interface Team { id: number; short_name: string; }
 interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; }
 interface FixtureStat { identifier: string; h: Array<{ element: number; value: number }>; a: Array<{ element: number; value: number }> }
-interface Fixture { id: number; event: number | null; team_h: number; team_a: number; started: boolean; finished: boolean; finished_provisional: boolean; stats?: FixtureStat[]; }
+interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; stats?: FixtureStat[]; }
 interface LiveElement { id: number; stats: { total_points: number; minutes: number; bonus: number }; explain: Array<{ fixture: number }>; }
 interface LeagueStanding { entry: number; rank: number; last_rank: number; entry_name: string; player_name: string; total: number; }
 interface NewEntry { entry: number; entry_name: string; player_first_name: string; player_last_name: string; }
@@ -39,6 +39,30 @@ function fixtureState(fixture: Fixture): PlayerState {
   if (fixture.finished) return "finished";
   if (fixture.started) return "live";
   return "upcoming";
+}
+
+// A finished fixture stays provisional until its official bonus is published, which is the same
+// signal that stops the bonus estimate below.
+function fixtureStatus(fixture: Fixture): FixtureStatus {
+  if (!fixture.started) return "upcoming";
+  if (!fixture.finished && !fixture.finished_provisional) return "live";
+  const bonus = (fixture.stats ?? []).find((stat) => stat.identifier === "bonus");
+  return bonus && (bonus.h.length > 0 || bonus.a.length > 0) ? "final" : "provisional";
+}
+
+function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>): GameweekFixture[] {
+  return [...fixtures]
+    .sort((a, b) => (a.kickoff_time ?? "").localeCompare(b.kickoff_time ?? ""))
+    .map((fixture) => ({
+      id: fixture.id,
+      kickoff: fixture.kickoff_time,
+      home: teams.get(fixture.team_h)?.short_name ?? "UNK",
+      away: teams.get(fixture.team_a)?.short_name ?? "UNK",
+      homeScore: fixture.team_h_score,
+      awayScore: fixture.team_a_score,
+      minutes: fixture.minutes,
+      status: fixtureStatus(fixture),
+    }));
 }
 
 // Bonus is only estimated while a fixture is running and its official bonus has not been published yet,
@@ -194,6 +218,8 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
   const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
   if (!event) return null;
   const completedMonths = [...new Set(bootstrap.events.filter((item) => item.finished).map((item) => item.deadline_time.slice(0, 7)))];
+  const eventFixtures = fixtures.filter((fixture) => fixture.event === event.id);
+  const fixtureList = gameweekFixtures(eventFixtures, new Map(bootstrap.teams.map((team) => [team.id, team])));
   const rosterManagers = (): ManagerRow[] => league.new_entries.results.map((entry) => ({
       id: entry.entry,
       position: 1,
@@ -235,6 +261,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       rosterOnly: true,
       pointsFinalized: false,
       completedMonths,
+      fixtures: fixtureList,
       managers,
     };
   }
@@ -248,6 +275,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     dataPending: true,
     pointsFinalized: false,
     completedMonths,
+    fixtures: fixtureList,
     managers: rosterManagers(),
   });
   let liveById: Map<number, LiveElement>;
@@ -266,7 +294,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     player_name: `${entry.player_first_name} ${entry.player_last_name}`.trim(),
     total: 0,
   }));
-  const eventBonus = provisionalBonusByPlayer(fixtures.filter((fixture) => fixture.event === event.id));
+  const eventBonus = provisionalBonusByPlayer(eventFixtures);
   const rows = await Promise.all(standings.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById, eventBonus)));
   if (rows.some((row) => row === null)) return pendingDashboard();
   return {
@@ -277,6 +305,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     isPreview: false,
     pointsFinalized: event.data_checked,
     completedMonths,
+    fixtures: fixtureList,
     managers: rows.filter((row): row is ManagerRow => row !== null),
   };
 }

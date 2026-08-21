@@ -4,7 +4,7 @@ import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
-import type { DashboardData, Language, ManagerRow, SquadPlayer } from "./types";
+import type { DashboardData, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
 
 type SortKey = "position" | "gameweekPoints" | "totalPoints" | "overallRank" | "captainPoints" | "upcoming" | "form" | "teamValue" | "seasonTransfers" | "benchPointsBeforeGw";
 
@@ -12,6 +12,39 @@ const number = new Intl.NumberFormat("fi-FI");
 
 const signed = (value: number) => value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
 const chipClass = (chip: string) => `chip-${chip.toLowerCase()}`;
+const pad = (value: number) => String(Math.floor(value)).padStart(2, "0");
+
+function countdownLabel(ms: number, language: Language) {
+  if (ms >= 86_400_000) return `${Math.floor(ms / 86_400_000)} ${language === "fi" ? "pv" : "d"} ${Math.floor((ms % 86_400_000) / 3_600_000)} h`;
+  return `${pad(ms / 3_600_000)}:${pad(ms % 3_600_000 / 60_000)}:${pad(ms % 60_000 / 1000)}`;
+}
+
+function FixtureMenu({ fixtures, played, language }: { fixtures: GameweekFixture[]; played: number; language: Language }) {
+  const t = translations(language);
+  const [open, setOpen] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent) => { if (!container.current?.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  const kickoffFormat = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  const stateLabels = { upcoming: t.fixtureUpcoming, live: t.fixtureLive, provisional: t.fixtureProvisional, final: t.fixtureFinal };
+  return <div className="fixture-menu" ref={container}>
+    <button type="button" className={`fixture-button ${open ? "open" : ""}`} aria-expanded={open} aria-label={t.fixtures} onClick={() => setOpen((value) => !value)}>
+      <span>{played}/{fixtures.length}</span><ChevronDown />
+    </button>
+    {open && <div className="fixture-panel">
+      <div className="fixture-panel-head"><b>{t.fixtures}</b><span>{played}/{fixtures.length} {t.fixturesPlayed}</span></div>
+      {fixtures.map((fixture) => <div className={`fixture-row fixture-${fixture.status}`} key={fixture.id}>
+        <span className="fixture-kickoff">{fixture.status === "upcoming" ? kickoffFormat.format(new Date(fixture.kickoff)) : <b>{fixture.homeScore ?? 0}–{fixture.awayScore ?? 0}</b>}</span>
+        <span className="fixture-teams"><b>{fixture.home}</b><i>–</i><b>{fixture.away}</b></span>
+        <span className="fixture-state">{fixture.status === "live" && <i className="fixture-dot" />}{stateLabels[fixture.status]}</span>
+      </div>)}
+    </div>}
+  </div>;
+}
 
 function GitHubLogo() {
   return <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
@@ -302,14 +335,16 @@ export default function App() {
 
   const monthFormatter = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { month: "long" });
   const headers: Array<[string, SortKey | null]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form"], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
-  const gameweekIsLive = data.managers.some((manager) => manager.live > 0);
+  const gameweekFixtures = data.fixtures ?? [];
+  const liveFixtures = gameweekFixtures.filter((fixture) => fixture.status === "live");
+  const playedFixtures = gameweekFixtures.filter((fixture) => fixture.status === "provisional" || fixture.status === "final");
+  const nextFixture = gameweekFixtures.find((fixture) => fixture.status === "upcoming");
+  // Fixture data tells whether the gameweek is running even before any picks are published.
+  const gameweekIsLive = gameweekFixtures.length ? liveFixtures.length > 0 : data.managers.some((manager) => manager.live > 0);
   const deadlineMs = Math.max(0, new Date(data.deadline).getTime() - now);
-  const fullDaysToDeadline = Math.floor(deadlineMs / 86_400_000);
-  const remainingHoursToDeadline = Math.floor((deadlineMs % 86_400_000) / 3_600_000);
-  const deadlineLabel = deadlineMs >= 86_400_000
-    ? `${fullDaysToDeadline} ${language === "fi" ? "pv" : "d"} ${remainingHoursToDeadline} h`
-    : `${String(Math.floor(deadlineMs / 3_600_000)).padStart(2, "0")}:${String(Math.floor(deadlineMs % 3_600_000 / 60_000)).padStart(2, "0")}:${String(Math.floor(deadlineMs % 60_000 / 1000)).padStart(2, "0")}`;
+  const deadlineLabel = countdownLabel(deadlineMs, language);
   const compactDeadlineLabel = deadlineLabel;
+  const nextKickoffLabel = nextFixture ? countdownLabel(Math.max(0, new Date(nextFixture.kickoff).getTime() - now), language) : "";
   const updatedLabel = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { dateStyle: "short", timeStyle: "medium" }).format(new Date(data.updatedAt));
 
   return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
@@ -317,7 +352,17 @@ export default function App() {
     <header className="topbar">
       <BrandLogo />
       <div className="top-actions">
-        {liveReady && <div className="gameweek-status"><b>GW&nbsp;{data.gameweek}</b>{gameweekIsLive ? <span className="gameweek-live"><i>LIVE</i></span> : <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>}</div>}
+        {liveReady && <div className="gameweek-status">
+          <b>GW&nbsp;{data.gameweek}</b>
+          {deadlineMs > 0
+            ? <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>
+            : gameweekIsLive
+              ? <span className="gameweek-live"><i>{t.live}</i>{liveFixtures.length > 0 && <b>{liveFixtures.length}</b>}</span>
+              : nextFixture
+                ? <span className="deadline next-kickoff"><Clock3 /><small>{t.nextMatch}</small><i>{nextKickoffLabel}</i></span>
+                : <span className={`gameweek-state ${data.pointsFinalized ? "is-final" : "is-provisional"}`}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</span>}
+          {gameweekFixtures.length > 0 && <FixtureMenu fixtures={gameweekFixtures} played={playedFixtures.length} language={language} />}
+        </div>}
         <button className="language-switch" type="button" onClick={() => setLanguage((value) => value === "fi" ? "en" : "fi")} aria-label={language === "fi" ? "Vaihda kieli englanniksi" : "Switch language to Finnish"}>
           <span className={`language-option ${language === "fi" ? "active" : ""}`}>FI</span>
           <span className={`language-option ${language === "en" ? "active" : ""}`}>EN</span>

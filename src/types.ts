@@ -20,6 +20,19 @@ export interface SquadPlayer {
   viceCaptain?: boolean;
 }
 
+export type FixtureStatus = "upcoming" | "live" | "provisional" | "final";
+
+export interface GameweekFixture {
+  id: number;
+  kickoff: string;
+  home: string;
+  away: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  minutes: number;
+  status: FixtureStatus;
+}
+
 export interface ManagerRow {
   id: number;
   position: number;
@@ -63,5 +76,6 @@ export interface DashboardData {
   dataPending?: boolean;
   pointsFinalized: boolean;
   completedMonths: string[];
+  fixtures?: GameweekFixture[];
   managers: ManagerRow[];
 }

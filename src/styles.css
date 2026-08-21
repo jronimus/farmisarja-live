@@ -1057,3 +1057,39 @@ footer a { color:#c4c6d8; }
   .gw-score.has-chip > strong { padding:0; }
   .gw-score.has-chip > b { min-width:20px; height:10px; padding:0 3px; font-size:7px; line-height:1; }
 }
+
+
+/* Gameweek fixture status and the header fixture menu. */
+.topbar { position:relative; z-index:20; }
+.gameweek-status .deadline small { font:800 9px/1 "Inter",sans-serif; letter-spacing:.1em; opacity:.7; }
+.gameweek-live b { margin-left:6px; min-width:15px; height:15px; padding:0 4px; display:inline-grid; place-items:center; border-radius:4px; background:rgba(0,0,0,.26); font:900 10px/1 "Inter",sans-serif; }
+.gameweek-status .gameweek-state { display:inline-flex; align-items:center; padding:6px 8px; border-radius:5px; font:900 10px/1 "Inter",sans-serif; letter-spacing:.08em; }
+.gameweek-status .gameweek-state.is-provisional { color:#ffd166; background:rgba(255,209,102,.15); }
+.gameweek-status .gameweek-state.is-final { color:#42f5a1; background:rgba(15,118,76,.38); }
+.fixture-menu { position:relative; display:flex; }
+.fixture-button { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 8px; border:0; border-radius:7px; background:rgba(255,255,255,.11); box-shadow:inset 0 1px 0 rgba(255,255,255,.12); color:#fff; font:800 11px/1 "Inter",sans-serif; cursor:pointer; }
+.fixture-button:hover { background:rgba(255,255,255,.17); }
+.fixture-button span { padding:0; }
+.fixture-button svg { width:13px; height:13px; transition:transform .16s ease; }
+.fixture-button.open svg { transform:rotate(180deg); }
+.fixture-panel { position:absolute; top:calc(100% + 9px); right:0; z-index:60; width:274px; max-height:min(64vh,430px); overflow-y:auto; padding:7px; border-radius:11px; background:rgba(241,246,243,.98); box-shadow:0 22px 54px rgba(0,0,0,.34); color:#16202a; }
+.fixture-panel span { padding:0; border-radius:0; }
+.fixture-panel-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:5px 7px 8px; font:900 10px/1 "Inter",sans-serif; letter-spacing:.09em; text-transform:uppercase; color:#5d6a75; }
+.fixture-panel-head b { color:#16202a; }
+.fixture-row { display:grid; grid-template-columns:56px 1fr auto; align-items:center; gap:8px; padding:6px 7px; border-radius:7px; font:600 11px/1.2 "Inter",sans-serif; }
+.fixture-row:nth-child(odd) { background:rgba(0,0,0,.035); }
+.fixture-kickoff { color:#5d6a75; font-size:10px; white-space:nowrap; }
+.fixture-kickoff b { color:#16202a; font:400 13px/1 "Archivo Black","Inter",sans-serif; }
+.fixture-teams { display:flex; align-items:center; gap:5px; font-weight:800; letter-spacing:.02em; }
+.fixture-teams i { color:#96a2ac; font-style:normal; }
+.fixture-state { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; font:800 9px/1 "Inter",sans-serif; letter-spacing:.06em; text-transform:uppercase; color:#6c7883; }
+.fixture-live .fixture-state { color:#d51f3e; }
+.fixture-provisional .fixture-state { color:#b07a10; }
+.fixture-final .fixture-state { color:#0d7a49; }
+.fixture-dot { width:6px; height:6px; border-radius:50%; background:currentColor; animation:live-text-pulse 2.4s ease-in-out infinite; }
+@media (max-width:800px) {
+  .gameweek-status .deadline small { display:none; }
+  .fixture-button { height:28px; padding:0 6px; font-size:10px; }
+  .fixture-panel { width:min(86vw,274px); }
+  .fixture-row { grid-template-columns:50px 1fr auto; }
+}

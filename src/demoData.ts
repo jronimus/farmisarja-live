@@ -1,4 +1,4 @@
-import type { DashboardData, ManagerRow, SquadPlayer } from "./types";
+import type { DashboardData, GameweekFixture, ManagerRow, SquadPlayer } from "./types";
 
 const playerPool = [
   ["Raya", "ARS", 1, "GK"], ["Pickford", "EVE", 9, "GK"],
@@ -53,7 +53,21 @@ const managers: Omit<ManagerRow, "squad">[] = [
   { id: 110, position: 10, previousPosition: 9, teamName: "Karjarannan Hurjat", managerName: "Santeri Aijo", gameweekPoints: 35, provisionalBonus: 2, totalPoints: 1576, overallRank: 812407, previousOverallRank: 790310, captain: "Salah", captainPoints: 12, transfers: [], hit: 0, availableChips: ["WC", "FH", "BB", "TC"], usedChips: ["BB", "TC"], freeTransfersAfter: 3, seasonTransfers: 17, seasonHitPoints: 4, benchPointsBeforeGw: 65, teamValue: 97.9, previousTeamValue: 97.9, finished: 5, live: 3, upcoming: 3, form: [25, 28, 22, 26, 24], formRankMovement: [-1, -1, -1, -1, -1] },
 ];
 
+// Demo fixtures cover every fixture state so the header status and the fixture menu can be reviewed.
+const demoFixtures: GameweekFixture[] = [
+  { id: 1, kickoff: "2026-08-21T19:00:00Z", home: "ARS", away: "COV", homeScore: 2, awayScore: 1, minutes: 90, status: "final" },
+  { id: 2, kickoff: "2026-08-22T11:30:00Z", home: "HUL", away: "MUN", homeScore: 0, awayScore: 3, minutes: 90, status: "final" },
+  { id: 3, kickoff: "2026-08-22T14:00:00Z", home: "EVE", away: "CRY", homeScore: 1, awayScore: 1, minutes: 90, status: "final" },
+  { id: 4, kickoff: "2026-08-22T14:00:00Z", home: "IPS", away: "SUN", homeScore: 2, awayScore: 0, minutes: 90, status: "provisional" },
+  { id: 5, kickoff: "2026-08-22T16:30:00Z", home: "NFO", away: "LEE", homeScore: 1, awayScore: 0, minutes: 67, status: "live" },
+  { id: 6, kickoff: "2026-08-22T16:30:00Z", home: "BRE", away: "TOT", homeScore: 0, awayScore: 2, minutes: 61, status: "live" },
+  { id: 7, kickoff: "2026-08-23T13:00:00Z", home: "BHA", away: "AVL", homeScore: null, awayScore: null, minutes: 0, status: "upcoming" },
+  { id: 8, kickoff: "2026-08-23T13:00:00Z", home: "MCI", away: "BOU", homeScore: null, awayScore: null, minutes: 0, status: "upcoming" },
+  { id: 9, kickoff: "2026-08-23T15:30:00Z", home: "NEW", away: "LIV", homeScore: null, awayScore: null, minutes: 0, status: "upcoming" },
+  { id: 10, kickoff: "2026-08-24T19:00:00Z", home: "FUL", away: "CHE", homeScore: null, awayScore: null, minutes: 0, status: "upcoming" },
+];
+
 export const demoData: DashboardData = {
-  leagueName: "Farmisarja", gameweek: 1, deadline: "2026-08-21T17:30:00Z", updatedAt: new Date().toISOString(), isPreview: true, pointsFinalized: false, completedMonths: [],
+  leagueName: "Farmisarja", gameweek: 1, deadline: "2026-08-21T17:30:00Z", updatedAt: new Date().toISOString(), isPreview: true, pointsFinalized: false, completedMonths: [], fixtures: demoFixtures,
   managers: managers.map((manager, index) => ({ ...manager, squad: makeSquad(index + 1, [5, 9, 7, 6, 10, 1, 6, 7, 9, 5][index]) })),
 };
