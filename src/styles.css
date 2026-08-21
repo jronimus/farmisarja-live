@@ -1142,7 +1142,7 @@ footer a { color:#c4c6d8; }
     height:auto;
     flex-direction:column;
     align-items:center;
-    gap:1px;
+    gap:5px;
   }
   .brand-logo-name {
     margin-left:0;
@@ -1162,4 +1162,39 @@ footer a { color:#c4c6d8; }
   .gameweek-status .deadline i {
     font-size:10px;
   }
+}
+
+
+/* The gameweek number rides in the fixture button and the globe appears only where the header is tight. */
+.fixture-gw,
+.language-globe { display:none; }
+.fixture-button em { font-style:normal; }
+
+@media (max-width:800px) {
+  /* Stack the countdown label over the clock so the pill stops eating the row. */
+  .gameweek-status .deadline {
+    flex-direction:column;
+    align-items:center;
+    gap:0;
+    padding:3px 7px;
+    line-height:1.15;
+  }
+  .gameweek-status .deadline svg { display:none; }
+  .gameweek-status .deadline small { display:block; }
+  .gameweek-status.has-fixture-menu > b { display:none; }
+  .fixture-gw {
+    display:inline;
+    margin-right:1px;
+    opacity:.72;
+    font-weight:900;
+  }
+  .language-globe {
+    display:block;
+    width:12px;
+    height:12px;
+    margin-left:4px;
+    opacity:.66;
+  }
+  .language-switch { gap:2px; padding:2px 5px 2px 2px; }
+  .language-switch .language-option:not(.active) { display:none; }
 }

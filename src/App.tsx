@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Medal } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Globe, Medal } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { provisionalAutosubSquad } from "./services/fplRules";
@@ -19,7 +19,7 @@ function countdownLabel(ms: number, language: Language) {
   return `${pad(ms / 3_600_000)}:${pad(ms % 3_600_000 / 60_000)}:${pad(ms % 60_000 / 1000)}`;
 }
 
-function FixtureMenu({ fixtures, played, language }: { fixtures: GameweekFixture[]; played: number; language: Language }) {
+function FixtureMenu({ fixtures, played, gameweek, language }: { fixtures: GameweekFixture[]; played: number; gameweek: number; language: Language }) {
   const t = translations(language);
   const [open, setOpen] = useState(false);
   const container = useRef<HTMLDivElement>(null);
@@ -33,7 +33,7 @@ function FixtureMenu({ fixtures, played, language }: { fixtures: GameweekFixture
   const stateLabels = { upcoming: t.fixtureUpcoming, live: t.fixtureLive, provisional: t.fixtureProvisional, final: t.fixtureFinal };
   return <div className="fixture-menu" ref={container}>
     <button type="button" className={`fixture-button ${open ? "open" : ""}`} aria-expanded={open} aria-label={t.fixtures} onClick={() => setOpen((value) => !value)}>
-      <span>{played}/{fixtures.length}</span><ChevronDown />
+      <em className="fixture-gw">GW{gameweek}</em><span>{played}/{fixtures.length}</span><ChevronDown />
     </button>
     {open && <div className="fixture-panel">
       <div className="fixture-panel-head"><b>{t.fixtures}</b><span>{played}/{fixtures.length} {t.fixturesPlayed}</span></div>
@@ -361,7 +361,7 @@ export default function App() {
     <header className="topbar">
       <BrandLogo />
       <div className="top-actions">
-        {liveReady && <div className="gameweek-status">
+        {liveReady && <div className={`gameweek-status ${gameweekFixtures.length > 0 ? "has-fixture-menu" : ""}`}>
           <b>GW&nbsp;{data.gameweek}</b>
           {deadlineMs > 0
             ? <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>
@@ -370,9 +370,10 @@ export default function App() {
               : nextFixture
                 ? <span className="deadline next-kickoff"><Clock3 /><small>{t.nextMatch}</small><i>{nextKickoffLabel}</i></span>
                 : <span className={`gameweek-state ${data.pointsFinalized ? "is-final" : "is-provisional"}`}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</span>}
-          {gameweekFixtures.length > 0 && <FixtureMenu fixtures={gameweekFixtures} played={playedFixtures.length} language={language} />}
+          {gameweekFixtures.length > 0 && <FixtureMenu fixtures={gameweekFixtures} played={playedFixtures.length} gameweek={data.gameweek} language={language} />}
         </div>}
         <button className="language-switch" type="button" onClick={() => setLanguage((value) => value === "fi" ? "en" : "fi")} aria-label={language === "fi" ? "Vaihda kieli englanniksi" : "Switch language to Finnish"}>
+          <Globe className="language-globe" aria-hidden="true" />
           <span className={`language-option ${language === "fi" ? "active" : ""}`}>FI</span>
           <span className={`language-option ${language === "en" ? "active" : ""}`}>EN</span>
         </button>
