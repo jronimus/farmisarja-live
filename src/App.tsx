@@ -117,7 +117,7 @@ function compactRank(value: number) {
 function BrandLogo() {
   return <div className="brand-logo" aria-label="Farmisarja">
     <span className="brand-logo-main">
-      <img src={`${import.meta.env.BASE_URL}branding/fs-logo-v9-6.svg`} alt="" />
+      <img src={`${import.meta.env.BASE_URL}branding/fs-logo-v9-7.svg`} alt="" />
       <span className="brand-logo-name" data-text="FARMISARJA">FARMISARJA</span>
     </span>
   </div>;
@@ -132,7 +132,7 @@ const backgroundBallLayout = [
 function BackgroundPattern() {
   const rotations = useMemo(() => backgroundBallLayout.map(() => Math.round(Math.random() * 359)), []);
   return <div className="background-pattern" aria-hidden="true">{backgroundBallLayout.map(([left, top, size], index) =>
-    <img key={index} src={`${import.meta.env.BASE_URL}branding/fs-logo-v9-6.svg`} alt="" style={{ left: `${left}%`, top: `${top}%`, width: size, transform: `translate(-50%, -50%) rotate(${rotations[index]}deg)` }} />,
+    <img key={index} src={`${import.meta.env.BASE_URL}branding/fs-logo-v9-7.svg`} alt="" style={{ left: `${left}%`, top: `${top}%`, width: size, transform: `translate(-50%, -50%) rotate(${rotations[index]}deg)` }} />,
   )}</div>;
 }
 
