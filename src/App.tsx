@@ -114,13 +114,12 @@ function compactRank(value: number) {
   return value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}m` : value >= 1_000 ? `${Math.round(value / 1_000)}k` : String(value);
 }
 
-function BrandLogo({ isLive }: { isLive: boolean }) {
-  return <div className={`brand-logo ${isLive ? "is-live" : "is-idle"}`} aria-label={isLive ? "Farmisarja Live" : "Farmisarja"}>
+function BrandLogo() {
+  return <div className="brand-logo" aria-label="Farmisarja">
     <span className="brand-logo-main">
       <img src={`${import.meta.env.BASE_URL}branding/fs-logo-v8-5.svg`} alt="" />
       <span className="brand-logo-name" data-text="FARMISARJA">FARMISARJA</span>
     </span>
-    {isLive && <span className="brand-logo-live-panel"><b className="brand-logo-dot" /><span className="brand-logo-live-text">LIVE</span></span>}
   </div>;
 }
 
@@ -137,8 +136,10 @@ function BackgroundPattern() {
   )}</div>;
 }
 
-function SortHeader({ label, sortKey, active, direction, onSort }: { label: string; sortKey: SortKey; active: SortKey; direction: "asc" | "desc"; onSort: (key: SortKey) => void }) {
-  return <button className={`sort-header ${active === sortKey ? "active" : ""}`} onClick={() => onSort(sortKey)}>{label}<ChevronDown className={active === sortKey && direction === "asc" ? "rotate" : ""} /></button>;
+function SortHeader({ label, sortKey, active, direction, onSort }: { label: string; sortKey: SortKey | null; active: SortKey; direction: "asc" | "desc"; onSort: (key: SortKey) => void }) {
+  if (!sortKey) return <span className="sort-header sort-header-static">{label}</span>;
+  const isActive = active === sortKey;
+  return <button className={`sort-header ${isActive ? "active" : ""}`} onClick={() => onSort(sortKey)}>{label}{isActive && <ChevronDown className={direction === "asc" ? "rotate" : ""} />}</button>;
 }
 
 function Shirt({ player }: { player: SquadPlayer }) {
@@ -291,7 +292,7 @@ export default function App() {
   };
 
   const monthFormatter = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { month: "long" });
-  const headers: Array<[string, SortKey]> = [[t.position, "position"], [t.manager, "position"], [t.captain, "captainPoints"], [t.transfers, "position"], [t.seasonTransfers, "seasonTransfers"], [t.chips, "position"], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form"], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
+  const headers: Array<[string, SortKey | null]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form"], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
   const gameweekIsLive = data.managers.some((manager) => manager.live > 0);
   const deadlineMs = Math.max(0, new Date(data.deadline).getTime() - now);
   const fullDaysToDeadline = Math.floor(deadlineMs / 86_400_000);
@@ -305,9 +306,9 @@ export default function App() {
   return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
     <BackgroundPattern />
     <header className="topbar">
-      <BrandLogo isLive={liveReady && gameweekIsLive} />
+      <BrandLogo />
       <div className="top-actions">
-        {liveReady && <div className="gameweek-status"><b>GW&nbsp;{data.gameweek}</b>{!gameweekIsLive && <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>}</div>}
+        {liveReady && <div className="gameweek-status"><b>GW&nbsp;{data.gameweek}</b>{gameweekIsLive ? <span className="gameweek-live"><i>LIVE</i></span> : <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>}</div>}
         <button className="language-switch" type="button" onClick={() => setLanguage((value) => value === "fi" ? "en" : "fi")} aria-label={language === "fi" ? "Vaihda kieli englanniksi" : "Switch language to Finnish"}>
           <span className={`language-option ${language === "fi" ? "active" : ""}`}>FI</span>
           <span className={`language-option ${language === "en" ? "active" : ""}`}>EN</span>
