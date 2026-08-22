@@ -68,25 +68,67 @@ export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt
  * than three. Albums carry no inline keyboard, so the link rides in the caption and the
  * card itself prints the address.
  */
-async function sendCardAlbum(env: TelegramEnv, chatId: number | string, caption: string): Promise<void> {
+interface AlbumJob {
+  chat: string;
+  caption: string;
+  done: ShareCardKind[];
+}
+
+const ALBUM_KINDS: ShareCardKind[] = ["round", "total", "awards"];
+const ALBUM_TTL = 3 * 3600;
+
+/**
+ * A capture takes about nine seconds and Browser Rendering rate limits back to back
+ * calls, so three of them cannot fit inside one invocation: spacing them enough to
+ * avoid the 429 runs past the thirty second limit and the whole album is cancelled.
+ * The job is therefore spread across cron ticks, one card each, with the PNGs parked
+ * in KV until the set is complete.
+ */
+export async function queueAlbum(env: TelegramEnv, key: string, chat: string, caption: string): Promise<void> {
+  const job: AlbumJob = { chat, caption, done: [] };
+  await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
+}
+
+async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
-  const kinds: ShareCardKind[] = ["round", "total", "awards"];
   const form = new FormData();
-  form.set("chat_id", String(chatId));
+  form.set("chat_id", job.chat);
   const media: Array<Record<string, string>> = [];
-  for (const [index, kind] of kinds.entries()) {
-    if (index > 0) await wait(12_000);
-    form.set(`file${index}`, await captureCard(env, kind), `${kind}.png`);
-    console.log(JSON.stringify({ event: "card_captured", kind }));
+  for (const [index, kind] of ALBUM_KINDS.entries()) {
+    const bytes = await env.TELEGRAM_STATE.get(`${key}:${kind}`, "arrayBuffer");
+    if (!bytes) throw new Error(`Album part missing: ${kind}`);
+    form.set(`file${index}`, new Blob([bytes], { type: "image/png" }), `${kind}.png`);
     media.push(index === 0
-      ? { type: "photo", media: `attach://file${index}`, caption }
+      ? { type: "photo", media: `attach://file${index}`, caption: job.caption }
       : { type: "photo", media: `attach://file${index}` });
   }
   form.set("media", JSON.stringify(media));
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMediaGroup`, { method: "POST", body: form });
   if (!response.ok) throw new Error(`Telegram sendMediaGroup failed: ${response.status} ${await response.text()}`);
+  await Promise.all([
+    env.TELEGRAM_STATE.delete(key),
+    ...ALBUM_KINDS.map((kind) => env.TELEGRAM_STATE.delete(`${key}:${kind}`)),
+  ]);
 }
 
+/** Does one unit of work for a queued album and reports whether anything happened. */
+export async function advanceAlbum(env: TelegramEnv, key: string): Promise<boolean> {
+  const stored = await env.TELEGRAM_STATE.get(key);
+  if (!stored) return false;
+  const job = JSON.parse(stored) as AlbumJob;
+  const next = ALBUM_KINDS.find((kind) => !job.done.includes(kind));
+  if (next) {
+    const blob = await captureCard(env, next);
+    await env.TELEGRAM_STATE.put(`${key}:${next}`, await blob.arrayBuffer(), { expirationTtl: ALBUM_TTL });
+    job.done.push(next);
+    await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
+    console.log(JSON.stringify({ event: "album_card_ready", key, kind: next, done: job.done.length }));
+    return true;
+  }
+  await sendQueuedAlbum(env, key, job);
+  console.log(JSON.stringify({ event: "album_sent", key }));
+  return true;
+}
 export async function captureTable(env: TelegramEnv, demo = false, lightTheme = false): Promise<Blob> {
   const query = new URLSearchParams({ screenshot: "1" });
   if (demo) query.set("demo", "1");
@@ -187,8 +229,8 @@ async function checkPostGame(env: TelegramEnv, event: FplEvent, now: number): Pr
     return;
   }
   if (now - new Date(detected).getTime() < 30 * 60_000) return;
-  await sendOnce(env, sentKey, () => sendCardAlbum(
-    env, env.TELEGRAM_CHAT_ID!,
+  await sendOnce(env, sentKey, () => queueAlbum(
+    env, `album:gw:${event.id}`, env.TELEGRAM_CHAT_ID!,
     `🏁 GW${event.id}:n pelit on pelattu!
 ${env.PUBLIC_SITE_URL}`,
   ));
@@ -202,6 +244,9 @@ export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): P
   if (!current) return;
   await checkTableReady(env, current, now);
   await checkPostGame(env, current, now);
+  // One capture per tick keeps every invocation well inside its time budget.
+  if (await advanceAlbum(env, "album:preview")) return;
+  await advanceAlbum(env, `album:gw:${current.id}`);
 }
 
 export async function handleTelegramWebhook(request: Request, env: TelegramEnv, ctx: ExecutionContext): Promise<Response> {
@@ -218,12 +263,14 @@ export async function handleTelegramWebhook(request: Request, env: TelegramEnv, 
     // becomes addressable without anyone reading the token.
     ctx.waitUntil(telegramApi(env, "sendMessage", { chat_id: chatId, text: `Tämän chatin tunnus: ${chatId}` }).then(() => undefined));
   } else if (command === "/kortit") {
-    // Sends the post-gameweek album to the asker, exactly as the group would receive it.
+    // Queues the album for the asker. The cron builds it one card at a time, so the
+    // reply only promises it rather than waiting for three captures inline.
     ctx.waitUntil((async () => {
       const bootstrap = await fpl<BootstrapResponse>("/bootstrap-static/");
       const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
-      await sendCardAlbum(env, chatId, `🏁 GW${event?.id ?? ""}:n pelit on pelattu!
-${env.PUBLIC_SITE_URL}`);
+      const caption = "\u{1F3C1} GW" + (event ? event.id : "") + ":n pelit on pelattu!\n" + env.PUBLIC_SITE_URL;
+      await queueAlbum(env, "album:preview", String(chatId), caption);
+      await telegramApi(env, "sendMessage", { chat_id: chatId, text: "Kortit ovat tulossa, se kestaa pari minuuttia." });
     })());
   } else if (command === "/deadline") {
     ctx.waitUntil((async () => {
