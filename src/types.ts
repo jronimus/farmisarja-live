@@ -13,6 +13,8 @@ export interface SquadPlayer {
   points: number;
   bonus: number;
   minutes: number;
+  cost: number;
+  ownership: number;
   state: PlayerState;
   fixtures?: Array<{ state: PlayerState }>;
   starter: boolean;

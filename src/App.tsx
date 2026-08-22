@@ -4,6 +4,7 @@ import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
+import ShareCard, { type CardKind } from "./ShareCard";
 import type { DashboardData, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
 
 type SortKey = "position" | "gameweekPoints" | "totalPoints" | "overallRank" | "captainPoints" | "upcoming" | "form" | "teamValue" | "seasonTransfers" | "benchPointsBeforeGw";
@@ -228,6 +229,9 @@ export default function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const demoMode = urlParams.has("demo");
   const screenshotMode = urlParams.has("screenshot");
+  // ?card=round|total|awards renders a single share card at its delivered size and nothing else.
+  const cardParam = urlParams.get("card");
+  const cardKind: CardKind | null = cardParam === "round" || cardParam === "total" || cardParam === "awards" ? cardParam : null;
   const [language, setLanguage] = useState<Language>(() => localStorage.getItem("farmisarja-language") === "en" ? "en" : "fi");
   const [autosubs, setAutosubs] = useState(true);
   const [mobileDetails, setMobileDetails] = useState(true);
@@ -357,6 +361,9 @@ export default function App() {
   // Awards are decided once every match has been played, which is before the points turn final.
   const gameweekComplete = demoMode || (gameweekFixtures.length > 0 && gameweekFixtures.every((fixture) => fixture.status === "provisional" || fixture.status === "final"));
   const updatedLabel = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { dateStyle: "short", timeStyle: "medium" }).format(new Date(data.updatedAt));
+
+  // The capture waits for .sc-card, so an unready card renders nothing rather than a half card.
+  if (cardKind) return liveReady && !liveError ? <ShareCard data={data} kind={cardKind} /> : <div className="sc-stage" />;
 
   return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
     <BackgroundPattern />

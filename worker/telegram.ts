@@ -36,6 +36,43 @@ async function sendLinkMessage(env: TelegramEnv, chatId: number | string, text: 
   await telegramApi(env, "sendMessage", { chat_id: chatId, text, reply_markup: button(env), disable_web_page_preview: true });
 }
 
+export type ShareCardKind = "round" | "total" | "awards";
+
+/** Each card is drawn at its delivered size, so the viewport only needs to clear it. */
+export async function captureCard(env: TelegramEnv, kind: ShareCardKind): Promise<Blob> {
+  const response = await env.BROWSER.quickAction("screenshot", {
+    url: `${env.PUBLIC_SITE_URL}?card=${kind}`,
+    selector: ".sc-card",
+    viewport: { width: 1160, height: 1440, deviceScaleFactor: 1 },
+    gotoOptions: { waitUntil: "networkidle0", timeout: 45_000 },
+    screenshotOptions: { type: "png" },
+  });
+  if (!response.ok) throw new Error(`Card screenshot failed: ${kind} ${response.status} ${await response.text()}`);
+  return response.blob();
+}
+
+/**
+ * The three cards go out as one album, so the group gets a single notification rather
+ * than three. Albums carry no inline keyboard, so the link rides in the caption and the
+ * card itself prints the address.
+ */
+async function sendCardAlbum(env: TelegramEnv, chatId: number | string, caption: string): Promise<void> {
+  if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+  const kinds: ShareCardKind[] = ["round", "total", "awards"];
+  const form = new FormData();
+  form.set("chat_id", String(chatId));
+  const media: Array<Record<string, string>> = [];
+  for (const [index, kind] of kinds.entries()) {
+    form.set(`file${index}`, await captureCard(env, kind), `${kind}.png`);
+    media.push(index === 0
+      ? { type: "photo", media: `attach://file${index}`, caption }
+      : { type: "photo", media: `attach://file${index}` });
+  }
+  form.set("media", JSON.stringify(media));
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMediaGroup`, { method: "POST", body: form });
+  if (!response.ok) throw new Error(`Telegram sendMediaGroup failed: ${response.status} ${await response.text()}`);
+}
+
 export async function captureTable(env: TelegramEnv, demo = false, lightTheme = false): Promise<Blob> {
   const query = new URLSearchParams({ screenshot: "1" });
   if (demo) query.set("demo", "1");
@@ -136,7 +173,11 @@ async function checkPostGame(env: TelegramEnv, event: FplEvent, now: number): Pr
     return;
   }
   if (now - new Date(detected).getTime() < 30 * 60_000) return;
-  await sendOnce(env, sentKey, () => sendTablePhoto(env, env.TELEGRAM_CHAT_ID!, `🏁 GW${event.id}:n pelit on pelattu!`));
+  await sendOnce(env, sentKey, () => sendCardAlbum(
+    env, env.TELEGRAM_CHAT_ID!,
+    `🏁 GW${event.id}:n pelit on pelattu!
+${env.PUBLIC_SITE_URL}`,
+  ));
 }
 
 export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): Promise<void> {

@@ -1,0 +1,215 @@
+/*
+ * Share cards for Telegram. Everything is prefixed sc- because the dashboard stylesheet
+ * already owns generic names like .row, .team, .score and .pos.
+ *
+ * Each card is authored at its delivered size of 1080 x 1350 and never scaled here, so a
+ * pixel in this file is a pixel in the image. The artwork carries its own row bands of
+ * 103px starting at y=320, and the row block is pinned to them.
+ */
+
+.sc-stage {
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: #ffffff;
+}
+
+.sc-card {
+  --sc-ink: #0c1316;
+  --sc-dark: #253238;
+  --sc-faint: #6f7d84;
+  --sc-bar: #d1ed19;
+  --sc-bar-neg: #ff9d88;
+  --sc-band: 103px;
+  --sc-rows-top: 320px;
+  --sc-slab-top: 232px;
+  --sc-tile: 230px;
+  --sc-gap: 20px;
+
+  position: relative;
+  box-sizing: border-box;
+  width: 1080px;
+  height: 1350px;
+  overflow: hidden;
+  padding: 64px;
+  background: #ffffff;
+  color: var(--sc-ink);
+  font-family: "Inter", system-ui, sans-serif;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+}
+
+.sc-card * { box-sizing: border-box; }
+
+.sc-plate { position: absolute; inset: 0; width: 1080px; height: 1350px; pointer-events: none; }
+
+.sc-card > *:not(.sc-plate):not(.sc-rows):not(.sc-tiles) { position: relative; z-index: 2; }
+
+/* --- head and foot -------------------------------------------------------- */
+.sc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; }
+.sc-title {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 52px;
+  line-height: 1.02;
+  letter-spacing: -.005em;
+  max-width: 640px;
+}
+.sc-round { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.sc-round b { font-family: "Archivo Black", sans-serif; font-size: 48px; line-height: 1; letter-spacing: -.02em; }
+.sc-state {
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--sc-ink);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.sc-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.sc-brand { display: flex; align-items: center; gap: 11px; }
+.sc-brand img { width: 46px; height: 46px; }
+/* Passion One is the wordmark face on the site, so the cards carry the same one. */
+.sc-brand span { font-family: "Passion One", "Inter", sans-serif; font-weight: 700; font-size: 31px; letter-spacing: .4px; line-height: 1; }
+.sc-site { font-size: 21px; font-weight: 600; color: var(--sc-dark); }
+
+/* --- table cards ---------------------------------------------------------- */
+.sc-rows {
+  position: absolute;
+  z-index: 2;
+  left: 64px;
+  right: 64px;
+  top: var(--sc-rows-top);
+}
+.sc-row {
+  height: var(--sc-band);
+  display: grid;
+  grid-template-columns: 86px 1fr auto;
+  align-items: center;
+  gap: 22px;
+}
+.sc-pos {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 42px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sc-who { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sc-team {
+  font-size: 37px;
+  font-weight: 800;
+  letter-spacing: -.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sc-meta {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--sc-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sc-meta i { font-style: normal; color: var(--sc-faint); padding: 0 7px; }
+.sc-meta em { font-style: normal; font-weight: 800; color: var(--sc-ink); }
+.sc-score { display: flex; align-items: center; }
+.sc-score b { font-family: "Archivo Black", sans-serif; font-size: 58px; line-height: 1; font-variant-numeric: tabular-nums; }
+
+/* The leader is marked by a bar struck through the numerals, so the figures stay
+   black and the accent is a shape rather than a colour of type. */
+.sc-row.sc-lead .sc-pos span,
+.sc-row.sc-lead .sc-score b span {
+  background-image: linear-gradient(to bottom, transparent 0 46%, var(--sc-bar) 46% 92%, transparent 92%);
+  padding: 0 9px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.sc-row.sc-lead .sc-pos span { margin-left: -9px; }
+.sc-row.sc-lead .sc-score b span { margin-right: -9px; }
+
+/* --- award card ----------------------------------------------------------- */
+.sc-tiles {
+  position: absolute;
+  z-index: 2;
+  left: 64px;
+  right: 64px;
+  top: var(--sc-slab-top);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: var(--sc-tile);
+  gap: var(--sc-gap);
+}
+
+/* The outline and the interior lift are matched to the artwork's own band edge:
+   a 2px white line at roughly a third opacity. It disappears on the white half of
+   the plate and only shows where the colour is. */
+.sc-tile {
+  padding: 18px 18px 16px;
+  border: 2px solid rgba(255, 255, 255, .34);
+  display: grid;
+  grid-template-rows: 44px 32px 46px 17px 44px;
+  row-gap: 3px;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, .10) 0,
+    rgba(255, 255, 255, 0) 45%,
+    rgba(255, 255, 255, .07) 100%
+  );
+}
+.sc-tile-name { align-self: start; font-size: 21px; font-weight: 900; letter-spacing: -.01em; line-height: 1.05; }
+.sc-tile-rule { align-self: start; font-size: 13px; font-weight: 600; line-height: 1.3; }
+.sc-tile-value { align-self: end; display: flex; align-items: baseline; gap: 5px; }
+.sc-tile-value b { font-family: "Archivo Black", sans-serif; font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
+.sc-tile-value i { font-style: normal; font-size: 18px; font-weight: 800; color: var(--sc-dark); }
+.sc-tile-detail {
+  align-self: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sc-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sc-tile-who { align-self: end; min-width: 0; }
+.sc-tile-team {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sc-tile-team span {
+  background-image: linear-gradient(to bottom, transparent 0 44%, var(--sc-bar) 44% 94%, transparent 94%);
+  padding: 0 7px;
+  margin-left: -7px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.sc-tile.sc-neg .sc-tile-team span { --sc-bar: var(--sc-bar-neg); }
+.sc-tile-manager {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--sc-dark);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Shown only when a gameweek produced nothing worth a tile. */
+.sc-empty {
+  position: absolute;
+  z-index: 2;
+  left: 64px;
+  right: 64px;
+  top: 560px;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--sc-dark);
+}

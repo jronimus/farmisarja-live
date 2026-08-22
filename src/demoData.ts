@@ -35,6 +35,8 @@ const makeSquad = (seed: number, captainIndex: number): SquadPlayer[] => {
   venue: clubFixtures[player[1]].venue,
   points: (index * 3 + seed * 2) % 11, bonus: index % 5 === seed % 5 ? (index % 3) + 1 : 0,
   minutes: clubFixtures[player[1]].state === "finished" ? 90 : clubFixtures[player[1]].state === "live" ? 45 : 0,
+  cost: 4.5 + ((index * 7 + seed * 3) % 21) / 2,
+  ownership: 1 + ((index * 13 + seed * 5) % 60),
   state: clubFixtures[player[1]].state,
   captain: index === captainIndex, viceCaptain: index === (captainIndex + 1) % 11,
   }));

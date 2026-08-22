@@ -3,7 +3,7 @@ import { nextGameweekFreeTransfers, provisionalAutosubSquad, usedChipsForHalf } 
 import type { SquadPlayer } from "../types";
 
 const player = (id: number, position: SquadPlayer["position"], squadPosition: number, starter: boolean, state: SquadPlayer["state"] = "upcoming", minutes = 0): SquadPlayer => ({
-  id, position, squadPosition, starter, state, minutes, name: String(id), club: "ARS", clubCode: 1, opponent: "CHE", venue: "H", points: 0, bonus: 0,
+  id, position, squadPosition, starter, state, minutes, name: String(id), club: "ARS", clubCode: 1, opponent: "CHE", venue: "H", points: 0, bonus: 0, cost: 5, ownership: 10,
 });
 
 describe("FPL rules", () => {

@@ -12,7 +12,7 @@ async function api<T>(workerPath: string, officialPath: string): Promise<T> {
 }
 
 interface EventData { id: number; deadline_time: string; finished: boolean; data_checked: boolean; is_current: boolean; is_next: boolean; }
-interface Element { id: number; web_name: string; team: number; element_type: number; }
+interface Element { id: number; web_name: string; team: number; element_type: number; now_cost: number; selected_by_percent: string; }
 interface Team { id: number; short_name: string; }
 interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; }
 interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; }
@@ -120,6 +120,8 @@ async function managerRow(
       // Live scores already carry the bonus FPL has published for the fixture.
       bonus: 0,
       minutes: live?.stats.minutes ?? 0,
+      cost: element.now_cost / 10,
+      ownership: Number(element.selected_by_percent) || 0,
       state,
       fixtures: states.length ? states : undefined,
       starter: pick.position <= 11,
