@@ -18,7 +18,7 @@ export interface Award {
   subject?: number;
 }
 
-const MAX_TILES = 12;
+const MAX_TILES = 8;
 const MAX_PER_MANAGER = 2;
 
 const scoring = (manager: ManagerRow) =>

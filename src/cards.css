@@ -25,7 +25,7 @@
   --sc-band: 103px;
   --sc-rows-top: 320px;
   --sc-slab-top: 232px;
-  --sc-tile: 230px;
+  --sc-tile: 244px;
   --sc-gap: 20px;
 
   position: relative;
@@ -139,7 +139,7 @@
   right: 64px;
   top: var(--sc-slab-top);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   grid-auto-rows: var(--sc-tile);
   gap: var(--sc-gap);
 }
@@ -148,11 +148,11 @@
    a 2px white line at roughly a third opacity. It disappears on the white half of
    the plate and only shows where the colour is. */
 .sc-tile {
-  padding: 18px 18px 16px;
+  padding: 20px 20px 16px;
   border: 2px solid rgba(255, 255, 255, .34);
   display: grid;
-  grid-template-rows: 44px 32px 46px 17px 44px;
-  row-gap: 3px;
+  grid-template-rows: 32px 23px 56px 24px 53px;
+  row-gap: 4px;
   background-image: linear-gradient(
     180deg,
     rgba(255, 255, 255, .10) 0,
@@ -160,14 +160,14 @@
     rgba(255, 255, 255, .07) 100%
   );
 }
-.sc-tile-name { align-self: start; font-size: 21px; font-weight: 900; letter-spacing: -.01em; line-height: 1.05; }
-.sc-tile-rule { align-self: start; font-size: 13px; font-weight: 600; line-height: 1.3; }
+.sc-tile-name { align-self: start; font-size: 30px; font-weight: 900; letter-spacing: -.015em; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-tile-rule { align-self: start; font-size: 17px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-tile-value { align-self: end; display: flex; align-items: baseline; gap: 5px; }
-.sc-tile-value b { font-family: "Archivo Black", sans-serif; font-size: 44px; line-height: 1; font-variant-numeric: tabular-nums; }
-.sc-tile-value i { font-style: normal; font-size: 18px; font-weight: 800; color: var(--sc-dark); }
+.sc-tile-value b { font-family: "Archivo Black", sans-serif; font-size: 56px; line-height: 1; font-variant-numeric: tabular-nums; }
+.sc-tile-value i { font-style: normal; font-size: 23px; font-weight: 800; color: var(--sc-dark); }
 .sc-tile-detail {
   align-self: center;
-  font-size: 14px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--sc-dark);
   white-space: nowrap;
@@ -176,7 +176,7 @@
 }
 .sc-tile-who { align-self: end; min-width: 0; }
 .sc-tile-team {
-  font-size: 19px;
+  font-size: 25px;
   font-weight: 800;
   letter-spacing: -.01em;
   line-height: 1.15;
@@ -186,14 +186,14 @@
 }
 .sc-tile-team span {
   background-image: linear-gradient(to bottom, transparent 0 44%, var(--sc-bar) 44% 94%, transparent 94%);
-  padding: 0 7px;
-  margin-left: -7px;
+  padding: 0 9px;
+  margin-left: -9px;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
 .sc-tile.sc-neg .sc-tile-team span { --sc-bar: var(--sc-bar-neg); }
 .sc-tile-manager {
-  font-size: 15px;
+  font-size: 19px;
   font-weight: 600;
   color: var(--sc-dark);
   line-height: 1.25;

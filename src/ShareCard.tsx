@@ -5,8 +5,8 @@ import "./cards.css";
 
 export type CardKind = "round" | "total" | "awards";
 
-const COLUMNS = 3;
-const TILE = 230;
+const COLUMNS = 2;
+const TILE = 244;
 const GAP = 20;
 const HEADER_BOTTOM = 163;
 const FOOT_TOP = 1240;
