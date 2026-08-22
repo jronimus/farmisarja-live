@@ -2,7 +2,7 @@ interface FplEvent { id: number; deadline_time: string; is_current: boolean; is_
 interface BootstrapResponse { events: FplEvent[]; }
 interface LeagueEntry { entry: number; }
 interface LeagueResponse { standings: { results: LeagueEntry[] }; new_entries: { results: LeagueEntry[] }; }
-interface Fixture { event: number | null; finished: boolean; }
+interface Fixture { event: number | null; finished: boolean; finished_provisional: boolean; }
 interface TelegramMessage { chat?: { id?: number | string }; text?: string; }
 interface TelegramUpdate { message?: TelegramMessage; edited_message?: TelegramMessage; }
 
@@ -125,7 +125,8 @@ async function checkTableReady(env: TelegramEnv, event: FplEvent, now: number): 
 async function checkPostGame(env: TelegramEnv, event: FplEvent, now: number): Promise<void> {
   if (!env.TELEGRAM_CHAT_ID) return;
   const fixtures = (await fpl<Fixture[]>("/fixtures/")).filter((fixture) => fixture.event === event.id);
-  if (!fixtures.length || fixtures.some((fixture) => !fixture.finished)) return;
+  // FPL can leave finished unset long after full time, so full time is what schedules the report.
+  if (!fixtures.length || fixtures.some((fixture) => !fixture.finished && !fixture.finished_provisional)) return;
   const sentKey = `postgame:gw:${event.id}`;
   if (await env.TELEGRAM_STATE.get(sentKey)) return;
   const detectedKey = `postgame-detected:gw:${event.id}`;
