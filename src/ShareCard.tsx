@@ -78,7 +78,7 @@ function TableCard({ data, kind }: { data: DashboardData; kind: "round" | "total
     <div className="sc-rows">
       {rows.map(({ manager, figure, place }) => <div className={`sc-row ${place === 1 ? "sc-lead" : ""}`} key={manager.id}>
         <div className="sc-pos">
-          <span>{place}</span>
+          <span className="sc-place">{place}</span>
           {kind === "total" && <Movement manager={manager} place={place} />}
         </div>
         <div className="sc-who">

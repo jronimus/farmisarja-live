@@ -199,6 +199,18 @@ export async function handleTelegramWebhook(request: Request, env: TelegramEnv, 
   if (!chatId || !command) return new Response("OK");
   if (command === "/farmisarja") {
     ctx.waitUntil(sendLinkMessage(env, chatId, "⚽ Farmisarja Live"));
+  } else if (command === "/id") {
+    // Answers with the id of whatever chat it was sent in, which is how a private chat
+    // becomes addressable without anyone reading the token.
+    ctx.waitUntil(telegramApi(env, "sendMessage", { chat_id: chatId, text: `Tämän chatin tunnus: ${chatId}` }).then(() => undefined));
+  } else if (command === "/kortit") {
+    // Sends the post-gameweek album to the asker, exactly as the group would receive it.
+    ctx.waitUntil((async () => {
+      const bootstrap = await fpl<BootstrapResponse>("/bootstrap-static/");
+      const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
+      await sendCardAlbum(env, chatId, `🏁 GW${event?.id ?? ""}:n pelit on pelattu!
+${env.PUBLIC_SITE_URL}`);
+    })());
   } else if (command === "/deadline") {
     ctx.waitUntil((async () => {
       const bootstrap = await fpl<BootstrapResponse>("/bootstrap-static/");

@@ -121,14 +121,14 @@
 
 /* The leader is marked by a bar struck through the numerals, so the figures stay
    black and the accent is a shape rather than a colour of type. */
-.sc-row.sc-lead .sc-pos span,
+.sc-row.sc-lead .sc-pos .sc-place,
 .sc-row.sc-lead .sc-score b span {
   background-image: linear-gradient(to bottom, transparent 0 46%, var(--sc-bar) 46% 92%, transparent 92%);
   padding: 0 9px;
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
 }
-.sc-row.sc-lead .sc-pos span { margin-left: -9px; }
+.sc-row.sc-lead .sc-pos .sc-place { margin-left: -9px; }
 .sc-row.sc-lead .sc-score b span { margin-right: -9px; }
 
 /* --- award card ----------------------------------------------------------- */
