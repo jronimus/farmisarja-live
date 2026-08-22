@@ -150,7 +150,7 @@ function compactRank(value: number) {
 function BrandLogo() {
   return <div className="brand-logo" aria-label="Farmisarja">
     <span className="brand-logo-main">
-      <img src={`${import.meta.env.BASE_URL}branding/fs-logo-v9-7.svg`} alt="" />
+      <img src={`${import.meta.env.BASE_URL}branding/fs-logo-v10.svg`} alt="" />
       <span className="brand-logo-name" data-text="FARMISARJA">FARMISARJA</span>
     </span>
   </div>;
