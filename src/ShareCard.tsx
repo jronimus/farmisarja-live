@@ -22,8 +22,10 @@ function plateFor(kind: CardKind, rows: number) {
 
 const netPoints = (manager: ManagerRow) => manager.gameweekPoints + manager.provisionalBonus - manager.hit;
 
+const MAX_ROWS = 8;
+
 function ranked(managers: ManagerRow[], figure: (manager: ManagerRow) => number) {
-  const sorted = [...managers].sort((a, b) => figure(b) - figure(a));
+  const sorted = [...managers].sort((a, b) => figure(b) - figure(a)).slice(0, MAX_ROWS);
   return sorted.map((manager) => ({
     manager,
     figure: figure(manager),
@@ -58,6 +60,13 @@ function Shell({ title, gameweek, finalised, plate, children }: {
   </div>;
 }
 
+function Movement({ manager, place }: { manager: ManagerRow; place: number }) {
+  const previous = manager.previousPosition;
+  if (!previous || previous === place) return null;
+  const up = place < previous;
+  return <span className={`sc-move ${up ? "sc-up" : "sc-down"}`}>{up ? "▲" : "▼"}{Math.abs(previous - place)}</span>;
+}
+
 function TableCard({ data, kind }: { data: DashboardData; kind: "round" | "total" }) {
   const rows = ranked(data.managers, kind === "round" ? netPoints : (m) => m.totalPoints + m.provisionalBonus - m.hit);
   return <Shell
@@ -68,7 +77,10 @@ function TableCard({ data, kind }: { data: DashboardData; kind: "round" | "total
   >
     <div className="sc-rows">
       {rows.map(({ manager, figure, place }) => <div className={`sc-row ${place === 1 ? "sc-lead" : ""}`} key={manager.id}>
-        <div className="sc-pos"><span>{place}</span></div>
+        <div className="sc-pos">
+          <span>{place}</span>
+          {kind === "total" && <Movement manager={manager} place={place} />}
+        </div>
         <div className="sc-who">
           <div className="sc-team">{manager.teamName}</div>
           <div className="sc-meta">

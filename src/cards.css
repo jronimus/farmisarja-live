@@ -213,3 +213,15 @@
   font-weight: 700;
   color: var(--sc-dark);
 }
+
+/* Rank movement on the standings card. */
+.sc-pos { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.sc-move {
+  font-family: "Inter", sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  line-height: 1;
+}
+.sc-move.sc-up { color: #0f8a4a; }
+.sc-move.sc-down { color: #d0492f; }
