@@ -70,7 +70,6 @@ export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt
  */
 interface AlbumJob {
   chat: string;
-  caption: string;
   done: ShareCardKind[];
 }
 
@@ -84,27 +83,36 @@ const ALBUM_TTL = 3 * 3600;
  * The job is therefore spread across cron ticks, one card each, with the PNGs parked
  * in KV until the set is complete.
  */
-export async function queueAlbum(env: TelegramEnv, key: string, chat: string, caption: string): Promise<void> {
-  const job: AlbumJob = { chat, caption, done: [] };
+export async function queueAlbum(env: TelegramEnv, key: string, chat: string): Promise<void> {
+  const job: AlbumJob = { chat, done: [] };
   await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
 }
 
 async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob, fresh?: { kind: ShareCardKind; bytes: ArrayBuffer }): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
-  const form = new FormData();
-  form.set("chat_id", job.chat);
-  const media: Array<Record<string, string>> = [];
-  for (const [index, kind] of ALBUM_KINDS.entries()) {
+  const part = async (kind: ShareCardKind): Promise<Blob> => {
     const bytes = fresh && fresh.kind === kind ? fresh.bytes : await env.TELEGRAM_STATE.get(`${key}:${kind}`, "arrayBuffer");
     if (!bytes) throw new Error(`Album part missing: ${kind}`);
-    form.set(`file${index}`, new Blob([bytes], { type: "image/png" }), `${kind}.png`);
-    media.push(index === 0
-      ? { type: "photo", media: `attach://file${index}`, caption: job.caption }
-      : { type: "photo", media: `attach://file${index}` });
-  }
-  form.set("media", JSON.stringify(media));
-  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMediaGroup`, { method: "POST", body: form });
-  if (!response.ok) throw new Error(`Telegram sendMediaGroup failed: ${response.status} ${await response.text()}`);
+    return new Blob([bytes], { type: "image/png" });
+  };
+  const post = async (method: string, body: FormData) => {
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, { method: "POST", body });
+    if (!response.ok) throw new Error(`Telegram ${method} failed: ${response.status} ${await response.text()}`);
+  };
+
+  const first = new FormData();
+  first.set("chat_id", job.chat);
+  first.set("photo", await part("round"), "round.png");
+  first.set("reply_markup", JSON.stringify(button(env)));
+  await post("sendPhoto", first);
+
+  const second = new FormData();
+  second.set("chat_id", job.chat);
+  const pair: ShareCardKind[] = ["total", "awards"];
+  for (const [index, kind] of pair.entries()) second.set(`file${index}`, await part(kind), `${kind}.png`);
+  second.set("media", JSON.stringify(pair.map((_, index) => ({ type: "photo", media: `attach://file${index}` }))));
+  await post("sendMediaGroup", second);
+
   await Promise.all([
     env.TELEGRAM_STATE.delete(key),
     ...ALBUM_KINDS.map((kind) => env.TELEGRAM_STATE.delete(`${key}:${kind}`)),
@@ -234,11 +242,7 @@ async function checkPostGame(env: TelegramEnv, event: FplEvent, now: number): Pr
     return;
   }
   if (now - new Date(detected).getTime() < 10 * 60_000) return;
-  await sendOnce(env, sentKey, () => queueAlbum(
-    env, `album:gw:${event.id}`, env.TELEGRAM_CHAT_ID!,
-    `🏁 GW${event.id}:n pelit on pelattu!
-${env.PUBLIC_SITE_URL}`,
-  ));
+  await sendOnce(env, sentKey, () => queueAlbum(env, `album:gw:${event.id}`, env.TELEGRAM_CHAT_ID!));
 }
 
 export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): Promise<void> {
@@ -268,13 +272,10 @@ export async function handleTelegramWebhook(request: Request, env: TelegramEnv, 
     // becomes addressable without anyone reading the token.
     ctx.waitUntil(telegramApi(env, "sendMessage", { chat_id: chatId, text: `Tämän chatin tunnus: ${chatId}` }).then(() => undefined));
   } else if (command === "/kortit") {
-    // Queues the album for the asker. The cron builds it one card at a time, so the
+    // Queues the report for the asker. The cron builds it one card at a time, so the
     // reply only promises it rather than waiting for three captures inline.
     ctx.waitUntil((async () => {
-      const bootstrap = await fpl<BootstrapResponse>("/bootstrap-static/");
-      const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
-      const caption = "\u{1F3C1} GW" + (event ? event.id : "") + ":n pelit on pelattu!\n" + env.PUBLIC_SITE_URL;
-      await queueAlbum(env, "album:preview", String(chatId), caption);
+      await queueAlbum(env, "album:preview", String(chatId));
       await telegramApi(env, "sendMessage", { chat_id: chatId, text: "Kortit ovat tulossa, se kestaa pari minuuttia." });
     })());
   } else if (command === "/deadline") {
