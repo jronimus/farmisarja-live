@@ -89,13 +89,13 @@ export async function queueAlbum(env: TelegramEnv, key: string, chat: string, ca
   await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
 }
 
-async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob): Promise<void> {
+async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob, fresh?: { kind: ShareCardKind; bytes: ArrayBuffer }): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
   const form = new FormData();
   form.set("chat_id", job.chat);
   const media: Array<Record<string, string>> = [];
   for (const [index, kind] of ALBUM_KINDS.entries()) {
-    const bytes = await env.TELEGRAM_STATE.get(`${key}:${kind}`, "arrayBuffer");
+    const bytes = fresh && fresh.kind === kind ? fresh.bytes : await env.TELEGRAM_STATE.get(`${key}:${kind}`, "arrayBuffer");
     if (!bytes) throw new Error(`Album part missing: ${kind}`);
     form.set(`file${index}`, new Blob([bytes], { type: "image/png" }), `${kind}.png`);
     media.push(index === 0
@@ -118,11 +118,16 @@ export async function advanceAlbum(env: TelegramEnv, key: string): Promise<boole
   const job = JSON.parse(stored) as AlbumJob;
   const next = ALBUM_KINDS.find((kind) => !job.done.includes(kind));
   if (next) {
-    const blob = await captureCard(env, next);
-    await env.TELEGRAM_STATE.put(`${key}:${next}`, await blob.arrayBuffer(), { expirationTtl: ALBUM_TTL });
+    const bytes = await (await captureCard(env, next)).arrayBuffer();
     job.done.push(next);
-    await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
     console.log(JSON.stringify({ event: "album_card_ready", key, kind: next, done: job.done.length }));
+    if (job.done.length === ALBUM_KINDS.length) {
+      await sendQueuedAlbum(env, key, job, { kind: next, bytes });
+      console.log(JSON.stringify({ event: "album_sent", key }));
+      return true;
+    }
+    await env.TELEGRAM_STATE.put(`${key}:${next}`, bytes, { expirationTtl: ALBUM_TTL });
+    await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
     return true;
   }
   await sendQueuedAlbum(env, key, job);
@@ -228,7 +233,7 @@ async function checkPostGame(env: TelegramEnv, event: FplEvent, now: number): Pr
     await env.TELEGRAM_STATE.put(detectedKey, new Date(now).toISOString());
     return;
   }
-  if (now - new Date(detected).getTime() < 30 * 60_000) return;
+  if (now - new Date(detected).getTime() < 10 * 60_000) return;
   await sendOnce(env, sentKey, () => queueAlbum(
     env, `album:gw:${event.id}`, env.TELEGRAM_CHAT_ID!,
     `🏁 GW${event.id}:n pelit on pelattu!
