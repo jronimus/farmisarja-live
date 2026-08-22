@@ -38,8 +38,14 @@ async function sendLinkMessage(env: TelegramEnv, chatId: number | string, text: 
 
 export type ShareCardKind = "round" | "total" | "awards";
 
-/** Each card is drawn at its delivered size, so the viewport only needs to clear it. */
-export async function captureCard(env: TelegramEnv, kind: ShareCardKind): Promise<Blob> {
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Each card is drawn at its delivered size, so the viewport only needs to clear it.
+ * Browser Rendering rate limits back to back calls, so a 429 is waited out rather than
+ * thrown: three cards in a row will otherwise fail on the second one.
+ */
+export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt = 0): Promise<Blob> {
   const response = await env.BROWSER.quickAction("screenshot", {
     url: `${env.PUBLIC_SITE_URL}?card=${kind}`,
     selector: ".sc-card",
@@ -47,6 +53,12 @@ export async function captureCard(env: TelegramEnv, kind: ShareCardKind): Promis
     gotoOptions: { waitUntil: "networkidle0", timeout: 45_000 },
     screenshotOptions: { type: "png" },
   });
+  if (response.status === 429 && attempt < 5) {
+    const delay = 15_000 * (attempt + 1);
+    console.log(JSON.stringify({ event: "card_rate_limited", kind, attempt, delay }));
+    await wait(delay);
+    return captureCard(env, kind, attempt + 1);
+  }
   if (!response.ok) throw new Error(`Card screenshot failed: ${kind} ${response.status} ${await response.text()}`);
   return response.blob();
 }
@@ -63,7 +75,9 @@ async function sendCardAlbum(env: TelegramEnv, chatId: number | string, caption:
   form.set("chat_id", String(chatId));
   const media: Array<Record<string, string>> = [];
   for (const [index, kind] of kinds.entries()) {
+    if (index > 0) await wait(12_000);
     form.set(`file${index}`, await captureCard(env, kind), `${kind}.png`);
+    console.log(JSON.stringify({ event: "card_captured", kind }));
     media.push(index === 0
       ? { type: "photo", media: `attach://file${index}`, caption }
       : { type: "photo", media: `attach://file${index}` });
