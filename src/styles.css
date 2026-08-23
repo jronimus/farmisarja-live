@@ -1678,31 +1678,42 @@ footer a { color:#c4c6d8; }
    already has a wordmark, a gameweek card and a language switch fighting for the
    same line.
    ========================================================================== */
+/* A ticking clock in the right-hand group changes width with every second unless its
+   digits are tabular, and in a space-between header that shoves everything else about.
+   The grid pins the middle column so the links cannot move at all, and tabular figures
+   stop GW 1 and the countdown itself from twitching. */
+@media (min-width:801px) {
+  .topbar { display:grid; grid-template-columns:1fr auto 1fr; }
+  .topbar > .top-actions { justify-self:end; }
+}
+.gameweek-status,
+.price-countdown strong,
+.deadline-clock { font-variant-numeric:tabular-nums; }
+
 .top-nav {
   display:flex;
-  gap:3px;
-  padding:4px;
-  border-radius:11px;
-  background:rgba(255,255,255,.1);
+  gap:20px;
 }
+/* Links, not a switch. A pill pair reads as a toggle — as though it were changing a
+   setting on the page rather than leaving for another one. */
 .top-nav a {
-  padding:7px 15px;
-  border-radius:8px;
-  color:rgba(255,255,255,.72);
-  font-size:12px;
+  padding-bottom:4px;
+  border-bottom:2px solid transparent;
+  color:rgba(255,255,255,.66);
+  font-size:13px;
   font-weight:700;
   text-decoration:none;
   white-space:nowrap;
 }
+.top-nav a:hover { color:#fff; }
 .top-nav a.active {
-  background:rgba(255,255,255,.92);
-  color:#0d2019;
+  border-bottom-color:#fff;
+  color:#fff;
 }
 
 @media (max-width:800px) {
   .topbar { flex-wrap:wrap; height:auto; padding-block:10px; row-gap:9px; }
-  .top-nav { order:3; flex:1 1 100%; justify-content:stretch; }
-  .top-nav a { flex:1 1 0; text-align:center; }
+  .top-nav { order:3; flex:1 1 100%; justify-content:center; gap:26px; }
 }
 
 /* The page itself. It is a data table like the league table, but it holds 600 rows
@@ -1762,7 +1773,7 @@ footer a { color:#c4c6d8; }
 .price-head,
 .price-row {
   display:grid;
-  grid-template-columns:minmax(150px,1.5fr) minmax(120px,1.3fr) 132px 150px 96px 106px 96px;
+  grid-template-columns:minmax(140px,1.2fr) minmax(210px,2fr) 132px 150px 96px 106px 96px;
   align-items:center;
   gap:0 10px;
   padding:0 16px;
@@ -1797,7 +1808,10 @@ footer a { color:#c4c6d8; }
 .price-owners { display:flex; flex-wrap:wrap; gap:3px; min-width:0; }
 .price-owners.empty { color:var(--faint); }
 .price-owners b {
-  padding:2px 6px;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding:2px 7px;
   border-radius:999px;
   background:color-mix(in srgb,var(--accent) 12%,transparent);
   color:var(--text);

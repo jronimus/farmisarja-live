@@ -41,7 +41,7 @@ function Owners({ owners, language }: { owners: PlayerOwner[]; language: Languag
       key={owner.managerId}
       className={`${owner.captain ? "is-captain" : ""} ${owner.benched ? "is-benched" : ""}`}
       title={`${owner.teamName} · ${owner.managerName}${owner.captain ? ` · ${t.captain}` : ""}${owner.benched ? ` · ${t.bench}` : ""}`}
-    >{owner.managerName.split(" ")[0]}</b>)}
+    >{owner.teamName}</b>)}
   </span>;
 }
 

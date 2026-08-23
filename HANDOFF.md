@@ -252,7 +252,7 @@ per-hour rate, ownership with its transfer trend, current price with the season'
 lock and calibration markers, and paging with a page size.
 
 Two things are ours rather than either site's: the **Omistajat** column, which names the
-managers in this league who hold the player — the armband struck in the same lime as the
+teams in this league that hold the player — the armband struck in the same lime as the
 league table uses, a benched owner at half strength — and the **team filter**, which cuts
 the six hundred rows down to one manager's fifteen.
 
@@ -267,9 +267,17 @@ FPL's own can disagree in the last decimal.
 
 Two destinations do not earn a hamburger. Hiding a two-item nav behind a menu costs a tap
 and an overlay to reach something that fits on the screen; that pattern is for five or
-more. The pair is a segmented control, in the header on desktop and on its own full-width
-row under it on a phone, where the header already has a wordmark, a gameweek card and a
-language switch competing for one line.
+more. They are **links**, with the current one underlined — a pair of pills reads as a
+toggle, as though it changed a setting on the page rather than leaving for another one.
+They sit in the header on desktop and on their own row under it on a phone, where the
+header already has a wordmark, a gameweek card and a language switch competing for one
+line.
+
+The header is a grid of `1fr auto 1fr` above 800px so the middle column cannot move, and
+everything that ticks is set in `tabular-nums`. Inter's proportional figures are not one
+width — `1` is 4.86px against `0` at 7.61px — so a running clock in the right-hand group
+shoved `GW 1` and the links about by up to 16px every second. That was measured off the
+font rather than guessed at.
 
 ## Share cards
 
