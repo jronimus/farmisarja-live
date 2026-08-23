@@ -2262,3 +2262,15 @@ footer a { color:#c4c6d8; }
    colour stays on it, but it is no longer carrying the fact on its own. */
 .squad-panel .player-waiting { display:block; line-height:1; }
 .squad-panel .player-upcoming .player-venue { opacity:1; font-weight:800; letter-spacing:-.02em; }
+
+/* The kick-off, as much of it as the band holds. */
+.squad-panel .kickoff-day,
+.squad-panel .kickoff-time { font-style:normal; }
+.squad-panel .kickoff-day + .kickoff-time { margin-left:3px; }
+
+@media (max-width:800px) {
+  /* 41px holds the opponent and one of the two. The day wins, because a time you cannot
+     place on a calendar is worth less than a day you can — and on the day itself there is
+     no day to print, so the time appears exactly when it becomes the useful half. */
+  .squad-panel .player-venue:has(.kickoff-day) .kickoff-time { display:none; }
+}

@@ -6,7 +6,7 @@ import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
 import type { DashboardData, Language, PriceRow } from "./types";
 
 type SortKey = "progress" | "perHour" | "ownership" | "cost" | "name";
-type Direction = "risers" | "fallers" | "all";
+type Direction = "all" | "risers" | "fallers" | "locked";
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -47,7 +47,9 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
   const [position, setPosition] = useState("");
   const [club, setClub] = useState("");
   const [manager, setManager] = useState("");
-  const [direction, setDirection] = useState<Direction>("risers");
+  // Everything, like FPL's own page. Splitting risers from fallers is a filter, not a
+  // default: the question "what is moving" comes before "which way".
+  const [direction, setDirection] = useState<Direction>("all");
   const [sort, setSort] = useState<SortKey>("progress");
   const [descending, setDescending] = useState(true);
   const [pageSize, setPageSize] = useState(25);
@@ -70,12 +72,15 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
       if (manager && !(owners.get(row.id) ?? []).some((owner) => String(owner.managerId) === manager)) return false;
       if (direction === "risers" && row.progress <= 0) return false;
       if (direction === "fallers" && row.progress >= 0) return false;
+      if (direction === "locked" && !row.lockedUntil) return false;
       return true;
     });
     const value = (row: PriceRow) => {
       if (sort === "name") return 0;
-      if (sort === "progress") return direction === "fallers" ? -row.progress : row.progress;
-      if (sort === "perHour") return direction === "fallers" ? -row.perHour : row.perHour;
+      // With both directions on screen at once, the biggest movers are the ones furthest
+      // from nothing, whichever way they are going.
+      if (sort === "progress") return direction === "fallers" ? -row.progress : direction === "risers" ? row.progress : Math.abs(row.progress);
+      if (sort === "perHour") return direction === "fallers" ? -row.perHour : direction === "risers" ? row.perHour : Math.abs(row.perHour);
       if (sort === "ownership") return row.ownership;
       return row.cost;
     };
@@ -125,7 +130,7 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         {clubs.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
       </select>
       <div className="price-direction" role="group" aria-label={t.risers}>
-        {([["risers", t.risers], ["fallers", t.fallers], ["all", t.allPlayersFilter]] as Array<[Direction, string]>).map(([key, label]) =>
+        {([["all", t.allPlayersFilter], ["risers", t.risers], ["fallers", t.fallers], ["locked", t.lockedOnly]] as Array<[Direction, string]>).map(([key, label]) =>
           <button key={key} className={direction === key ? "active" : ""} onClick={() => setDirection(key)}>{label}</button>)}
       </div>
     </div>
@@ -158,7 +163,7 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
           </span>
           <span className="price-outlook" data-label={t.priceOutlook}>
             {row.lockedUntil
-              ? <em className="locked"><Lock /> {t.priceLocked}</em>
+              ? <em className="locked"><Lock /> {t.priceLocked} {new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { day: "numeric", month: "numeric" }).format(new Date(row.lockedUntil))}</em>
               : row.calibrating
                 ? <em>{t.priceCalibrating}</em>
                 : outlook

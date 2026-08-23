@@ -221,8 +221,15 @@ score carries the state as the colour of the figure, purple settled, green live,
 come, which is what the legend above the squad already spells out. There is no state dot:
 a second mark for the same fact read as a stray bullet.
 
-**A player who has not kicked a ball gets a dash, not a nought**, and the kick-off time in
-place of the venue letter. A colour alone was not enough to carry that at 14px on a light
+**A player who has not kicked a ball gets a dash, not a nought**, and the kick-off in place
+of the venue letter.
+
+How much of the kick-off depends on how far away it is, because a gameweek can run over two
+weekends and then a weekday alone names two different Saturdays. Today prints only the
+time; inside a week, the weekday; past a week, the date. On a phone the band is 41px and
+holds the opponent plus one of the two, so the day wins and the time appears on the day
+itself — which is the half that becomes useful then. A desktop band is 72px and takes both;
+the switch is one `:has(.kickoff-day)` rule rather than two copies of the markup. A colour alone was not enough to carry that at 14px on a light
 band, and the nought was wrong anyway: it is the same nought a player who played badly
 gets, and those are not the same thing. The dash says which without raising its voice.
 
@@ -367,7 +374,7 @@ quantities.
 ### What the page carries
 
 The union of LiveFPL's page and FPL's own, minus the duplicates: search, position filter,
-club filter, risers/fallers/all, sortable columns, a progress bar, the projection, the
+club filter, all/risers/fallers/locked, sortable columns, a progress bar, the projection, the
 per-hour rate, ownership with its transfer trend, current price with the season's change,
 lock and calibration markers, and paging with a page size.
 
@@ -375,6 +382,15 @@ Two things are ours rather than either site's: the **Omistajat** column, which n
 teams in this league that hold the player — the armband struck in the same lime as the
 league table uses, a benched owner at half strength — and the **team filter**, which cuts
 the six hundred rows down to one manager's fifteen.
+
+**Locked** is a filter because FPL publishes it: `price_change_locked_until` is a
+timestamp on 38 players at a time, so the page can both list them and say when each one
+comes free.
+
+The direction filter defaults to **all**, like FPL's own page. Splitting risers from
+fallers is a filter, not a default — "what is moving" comes before "which way" — and with
+both on screen the progress sort ranks by distance from nothing, so the biggest movers lead
+whichever way they are going.
 
 Deliberately left out: a watchlist, which needs storage nobody asked for, and purchase and
 selling prices, which are per manager rather than per player and belong to a squad view.
