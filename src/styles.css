@@ -1976,17 +1976,31 @@ footer a { color:#c4c6d8; }
 }
 .ticker-window::-webkit-scrollbar { display:none; }
 .ticker-window:has(.ticker-track) { mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent); }
-.ticker-track { display:flex; align-items:center; gap:22px; width:max-content; }
+.ticker-track { display:flex; align-items:center; width:max-content; }
 
 /* An arrival announces itself: it slides in from the left, pushing the older lines along,
    and holds a lit surround for twenty-five seconds. Long enough to catch on a second
    monitor, short enough that two goals a minute apart are still told apart.
    The padding is on every line, not only the lit one — adding it with the highlight made
    the line change shape as it arrived and again as it cooled. */
+/* The padding is the spacing: a negative margin pulled the first line's highlight 9px to
+   the left of the strip, where the overflow cut it off. */
 .ticker-item {
-  padding:3px 9px;
-  margin:0 -9px;
+  position:relative;
+  padding:3px 13px;
   border-radius:6px;
+}
+/* A hairline between events, and only between them — the first line has nothing to be
+   divided from. */
+.ticker-item + .ticker-item::after {
+  content:"";
+  position:absolute;
+  top:50%;
+  left:0;
+  width:1px;
+  height:15px;
+  transform:translateY(-50%);
+  background:rgba(255,255,255,.16);
 }
 .ticker-item.is-fresh {
   animation:ticker-arrive .45s cubic-bezier(.22,1,.36,1), ticker-glow 25s ease-out forwards;
@@ -2040,7 +2054,15 @@ footer a { color:#c4c6d8; }
 
 /* Our own teams are named, not painted. The lime stroke belongs to the table, where it
    answers "which rows", and a ticker line is already about one player. */
-.ticker-owners { display:flex; gap:8px; }
+/* A dot between the teams, which is a lighter mark than the rule between events: one
+   separates names inside a line, the other separates the lines themselves. */
+.ticker-owners { display:flex; gap:5px; }
+.ticker-owners b + b::before {
+  content:"·";
+  margin-right:5px;
+  color:rgba(255,255,255,.32);
+  font-weight:700;
+}
 .ticker-owners b {
   color:rgba(255,255,255,.62);
   font-size:10px;
