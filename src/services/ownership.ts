@@ -84,3 +84,33 @@ export function ownershipOf(manager: ManagerRow, playerId: number | null, autosu
   if (benched && !includeBench) return nobody;
   return { owns: true, captains: Boolean(player.captain), benched };
 }
+
+export interface PlayerOwner {
+  managerId: number;
+  teamName: string;
+  managerName: string;
+  captain: boolean;
+  benched: boolean;
+}
+
+/**
+ * Who in the league holds each player. The price page needs the names, not just the
+ * count, so this is kept apart from `buildOwnership` rather than bolted onto it.
+ */
+export function ownersByPlayer(managers: ManagerRow[], autosubs: boolean): Map<number, PlayerOwner[]> {
+  const byPlayer = new Map<number, PlayerOwner[]>();
+  for (const manager of managers) {
+    for (const player of provisionalAutosubSquad(manager.squad, autosubs)) {
+      const owners = byPlayer.get(player.id) ?? [];
+      owners.push({
+        managerId: manager.id,
+        teamName: manager.teamName,
+        managerName: manager.managerName,
+        captain: Boolean(player.captain),
+        benched: pickMultiplier(player, manager.chip) === 0,
+      });
+      byPlayer.set(player.id, owners);
+    }
+  }
+  return byPlayer;
+}

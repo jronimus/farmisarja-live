@@ -38,7 +38,9 @@ const arg = (name, fallback) => {
   return hit ? hit.slice(name.length + 3) : fallback;
 };
 
-const url = arg("url", "http://localhost:5174/?demo=1");
+const base = arg("url", "http://localhost:5174/?demo=1");
+// Both pages, at every width. A nav that fits is not proof the page behind it does.
+const urls = [base, `${base}#/hinnat`];
 const widths = arg("widths", "").length
   ? arg("widths", "").split(",").map(Number)
   : DEFAULT_WIDTHS;
@@ -143,10 +145,10 @@ await send("Page.enable");
 await send("Runtime.enable");
 
 /** An empty shell fits every width, so wait for real rows before measuring. */
-async function waitForTable(send) {
+async function waitForContent(send) {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const { result } = await send("Runtime.evaluate", {
-      expression: "document.querySelectorAll('.manager-row').length",
+      expression: "document.querySelectorAll('.manager-row, .price-row').length",
       returnByValue: true,
     });
     if (result.value > 0) {
@@ -159,6 +161,7 @@ async function waitForTable(send) {
 }
 
 const failures = [];
+for (const url of urls) {
 for (const width of widths) {
   // Below 600px the only real device is a phone, which has overlay scrollbars;
   // a desktop window cannot be dragged that narrow. Emulating a desktop there
@@ -169,8 +172,8 @@ for (const width of widths) {
     width, height: 900, deviceScaleFactor: phone ? 2 : 1, mobile: phone,
   });
   await send("Page.navigate", { url });
-  if (!await waitForTable(send)) {
-    console.error(`FAIL ${width}px — the table never rendered, so nothing was tested`);
+  if (!await waitForContent(send)) {
+    console.error(`FAIL ${width}px ${url} — nothing rendered, so nothing was tested`);
     failures.push({ width, overflow: 0, offenders: [] });
     continue;
   }
@@ -179,7 +182,7 @@ for (const width of widths) {
   const overflow = report.scrollWidth - report.clientWidth;
   if (overflow > 1) {
     failures.push({ width, overflow, offenders: report.offenders });
-    console.log(`FAIL ${width}px — page scrolls ${overflow}px sideways`);
+    console.log(`FAIL ${width}px ${url} — page scrolls ${overflow}px sideways`);
     for (const offender of report.offenders) {
       console.log(`       ${offender.name} sticks out ${offender.over}px (width ${offender.width})`);
     }
@@ -187,8 +190,9 @@ for (const width of widths) {
       console.log("       no single element is to blame; look for a min-width on a container");
     }
   } else {
-    console.log(`ok   ${width}px`);
+    console.log(`ok   ${width}px  ${url.includes("#/") ? url.slice(url.indexOf("#")) : "/"}`);
   }
+}
 }
 
 const { result: units } = await send("Runtime.evaluate", { expression: VIEWPORT_UNITS, returnByValue: true });
@@ -208,4 +212,4 @@ if (failures.length || viewportUnits.length) {
     + `${viewportUnits.length} viewport-unit widths.`);
   process.exit(1);
 }
-console.log(`\nAll ${widths.length} widths fit.`);
+console.log(`\nAll ${widths.length * urls.length} checks fit.`);

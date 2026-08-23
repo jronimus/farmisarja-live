@@ -10,7 +10,8 @@ before making changes.
 1. Run `git status --short` first. Do not reset, clean or discard the working tree.
 2. `npm install`, then `npm run dev` for the dashboard.
 3. Validation before any commit: `npm test`, `npm run build`, `npm run worker:check`,
-   and `node scripts/check-overflow.mjs` with the dev server running.
+   and `node scripts/check-overflow.mjs` with the dev server running. That one checks both
+   pages at twelve widths each.
 4. Source code, identifiers and comments in English. Visible page content in Finnish
    (the dashboard is bilingual FI/EN; the share cards are Finnish only).
 5. Deploy only when asked. Pages deploys on push to `main`; the Worker needs a separate
@@ -40,6 +41,8 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/cards.css` | Card styles, everything prefixed `sc-` |
 | `src/services/awards.ts` | Award rules, thresholds, rarity, selection |
 | `src/services/ownership.ts` | League ownership and effective ownership, for the player highlight |
+| `src/services/priceChanges.ts` | FPL's published price-change numbers, and the two figures derived from them |
+| `src/PriceChanges.tsx` | The price change page at `#/hinnat` |
 | `src/services/liveDashboard.ts` | FPL response mapping and dashboard composition |
 | `src/services/fplRules.ts` | Chips, free transfers, provisional autosubs |
 | `src/i18n.ts` | FI/EN strings |
@@ -207,6 +210,66 @@ easily hold two Fernandes.
 state is red text, `--live:#ff5f77`, not a red pill, and it does not pulse. The count sits
 over a small `PELATTU` caption. The same card is used on mobile a size down; measured at
 375px it ends 14px from the right edge with the language switch beside it.
+
+## The price change page
+
+`#/hinnat`. Two pages, no router: Pages serves the site from a subpath and a hash survives
+that without any server rewrite. `view` is read from `location.hash` and kept in step with
+`hashchange`.
+
+### FPL publishes this itself now
+
+Nothing here is modelled, and nothing here should be. Since 2026-27 the bootstrap carries,
+per player:
+
+| Field | What it is |
+| --- | --- |
+| `price_change_percent` | Progress toward the next change. 100 is where the price moves; negative is a fall |
+| `price_change_projections` | Three entries, `offset` 0/1/2 days, each with `projected_percent` (can pass 100) and `likelihood`, −5…5 |
+| `price_change_locked_until` | Set on about 38 players at a time |
+| `price_change_calibrating` | Set on a handful whose numbers are not settled |
+
+and `game_config.settings.price_change_deadlines` gives the exact change times, so the
+countdown counts to a published moment rather than an assumed 01:30 UTC. The first one,
+`2026-08-23T23:00:00Z`, is 02:00 Finnish time, which is exactly what FPL's own page shows.
+
+`price_change_hourly_rate` is a **transfer count**, not a percentage, and is not what the
+per-hour column shows. That column is derived: two projections exactly a day apart give
+percentage points per hour, `(offset2 − offset1) / 24`. Checked against LiveFPL's own
+per-hour column on the same players — 1.67 against 1.76, 1.93 against 2.11, 2.38 against
+2.28. The estimated hours-to-change follows from that rate and the current progress.
+
+The one thing that reads as a contradiction is FPL's own: Calafiori at 52.5 % projects
+99.5 % for tomorrow, half a point short, so the outlook says *2 pv* while the derived rate
+says *noin 28 h*. Both are shown, in separate columns, because they are separate
+quantities.
+
+### What the page carries
+
+The union of LiveFPL's page and FPL's own, minus the duplicates: search, position filter,
+club filter, risers/fallers/all, sortable columns, a progress bar, the projection, the
+per-hour rate, ownership with its transfer trend, current price with the season's change,
+lock and calibration markers, and paging with a page size.
+
+Two things are ours rather than either site's: the **Omistajat** column, which names the
+managers in this league who hold the player — the armband struck in the same lime as the
+league table uses, a benched owner at half strength — and the **team filter**, which cuts
+the six hundred rows down to one manager's fifteen.
+
+Deliberately left out: a watchlist, which needs storage nobody asked for, and purchase and
+selling prices, which are per manager rather than per player and belong to a squad view.
+
+The numbers are up to five minutes old: the Worker caches `/api/bootstrap-static` for
+300 s. Progress moves slowly enough that this does not matter, but it is why the page and
+FPL's own can disagree in the last decimal.
+
+### Navigation
+
+Two destinations do not earn a hamburger. Hiding a two-item nav behind a menu costs a tap
+and an overlay to reach something that fits on the screen; that pattern is for five or
+more. The pair is a segmented control, in the header on desktop and on its own full-width
+row under it on a phone, where the header already has a wordmark, a gameweek card and a
+language switch competing for one line.
 
 ## Share cards
 

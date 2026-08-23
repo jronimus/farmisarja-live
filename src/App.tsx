@@ -6,6 +6,7 @@ import { provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
 import { buildOwnership, ownershipOf } from "./services/ownership";
 import ShareCard, { type CardKind } from "./ShareCard";
+import PriceChanges from "./PriceChanges";
 import type { DashboardData, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
 
 type SortKey = "position" | "gameweekPoints" | "totalPoints" | "overallRank" | "captainPoints" | "upcoming" | "form" | "teamValue" | "seasonTransfers" | "benchPointsBeforeGw";
@@ -243,6 +244,9 @@ export default function App() {
   // outlives the session the way the language does.
   const [startersOnly, setStartersOnly] = useState(() => localStorage.getItem("farmisarja-starters-only") === "true");
   const [formOpen, setFormOpen] = useState<number | null>(null);
+  // Two pages, no router: Pages serves this from a subpath, and the hash survives that
+  // without any server rewrite.
+  const [view, setView] = useState<"table" | "prices">(() => location.hash.replace(/^#\/?/, "") === "hinnat" ? "prices" : "table");
   const [expanded, setExpanded] = useState<number | null>(demoMode ? null : 101);
   const [sort, setSort] = useState<SortKey>("position");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
@@ -257,6 +261,12 @@ export default function App() {
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const readHash = () => setView(location.hash.replace(/^#\/?/, "") === "hinnat" ? "prices" : "table");
+    window.addEventListener("hashchange", readHash);
+    return () => window.removeEventListener("hashchange", readHash);
   }, []);
 
   useEffect(() => {
@@ -398,6 +408,13 @@ export default function App() {
     <BackgroundPattern />
     <header className="topbar">
       <BrandLogo />
+      {/* Two destinations do not earn a hamburger: hiding them costs a tap and an overlay
+          for something that fits on the screen. The pair sits in the header on desktop and
+          takes its own full-width row under it on a phone. */}
+      <nav className="top-nav" aria-label={t.navTable}>
+        <a href="#/" className={view === "table" ? "active" : ""} aria-current={view === "table" ? "page" : undefined}>{t.navTable}</a>
+        <a href="#/hinnat" className={view === "prices" ? "active" : ""} aria-current={view === "prices" ? "page" : undefined}>{t.navPrices}</a>
+      </nav>
       <div className="top-actions">
         {liveReady && <div className={`gameweek-status ${gameweekFixtures.length > 0 ? "has-fixture-menu" : ""}`}>
           <b>GW&nbsp;{data.gameweek}</b>
@@ -422,7 +439,9 @@ export default function App() {
       <strong>FPL DATA ERROR</strong>
       <span>{liveError}</span>
       <small>{language === "fi" ? "Uutta yritystä tehdään automaattisesti. Vanhentunutta tai demodataa ei näytetä." : "Retrying automatically. Stale or demo data is not shown."}</small>
-    </section> : !liveReady ? <div className="initial-loading" aria-label={language === "fi" ? "Ladataan FPL-dataa" : "Loading FPL data"} /> : <>
+    </section> : !liveReady ? <div className="initial-loading" aria-label={language === "fi" ? "Ladataan FPL-dataa" : "Loading FPL data"} />
+      : view === "prices" ? <PriceChanges data={data} language={language} autosubs={autosubs} />
+      : <>
       <div className="toolbar">
         <div className="toolbar-selects">
           <select className="period-select" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label={language === "fi" ? "Valitse ajanjakso" : "Select period"}>

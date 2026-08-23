@@ -1,4 +1,5 @@
 import type { DashboardData, FixtureStatus, GameweekFixture, ManagerRow, PlayerState, SquadPlayer } from "../types";
+import { buildPriceMarket } from "./priceChanges";
 import { nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
 
 const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");
@@ -12,9 +13,15 @@ async function api<T>(workerPath: string, officialPath: string): Promise<T> {
 }
 
 interface EventData { id: number; deadline_time: string; finished: boolean; data_checked: boolean; is_current: boolean; is_next: boolean; }
-interface Element { id: number; web_name: string; team: number; element_type: number; now_cost: number; selected_by_percent: string; }
-interface Team { id: number; short_name: string; }
-interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; }
+interface Element {
+  id: number; web_name: string; team: number; element_type: number; now_cost: number; selected_by_percent: string;
+  // FPL publishes its own price-change progress; see services/priceChanges.ts.
+  cost_change_start: number; transfers_in_event: number; transfers_out_event: number;
+  price_change_percent: string; price_change_locked_until: string | null; price_change_calibrating: boolean;
+  price_change_projections: Array<{ offset: number; projected_percent: string; likelihood: number }>;
+}
+interface Team { id: number; short_name: string; code: number; }
+interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; game_config?: { settings?: { price_change_deadlines?: string[] } }; }
 interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; }
 interface LiveElement { id: number; stats: { total_points: number; minutes: number; bonus: number }; explain: Array<{ fixture: number }>; }
 interface LeagueStanding { entry: number; rank: number; last_rank: number; entry_name: string; player_name: string; total: number; }
@@ -208,6 +215,14 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     api<Fixture[]>("/fixtures", "/fixtures/"),
     api<LeagueResponse>("/league", `/leagues-classic/${leagueId}/standings/?page_standings=1&page_new_entries=1`),
   ]);
+
+  // FPL's own price-change numbers ride along on the bootstrap that is already loaded, so
+  // the price page costs no extra request and refreshes on the same tick as the table.
+  const prices = buildPriceMarket(
+    bootstrap.elements,
+    bootstrap.teams,
+    bootstrap.game_config?.settings?.price_change_deadlines ?? [],
+  );
   const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
   if (!event) return null;
   const startedMonths = [...new Set(bootstrap.events.filter((item) => item.finished || Date.now() >= new Date(item.deadline_time).getTime()).map((item) => item.deadline_time.slice(0, 7)))];
@@ -257,6 +272,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       activeMonths: startedMonths,
       fixtures: fixtureList,
       managers,
+      prices,
     };
   }
   if (!league.standings.results.length && !league.new_entries?.results.length) return null;
@@ -271,6 +287,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     activeMonths: startedMonths,
     fixtures: fixtureList,
     managers: rosterManagers(),
+    prices,
   });
   let liveById: Map<number, LiveElement>;
   try {
@@ -300,5 +317,6 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     activeMonths: startedMonths,
     fixtures: fixtureList,
     managers: rows.filter((row): row is ManagerRow => row !== null),
+    prices,
   };
 }

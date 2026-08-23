@@ -8,6 +8,11 @@ const copy = {
     overall: "Kokonaiskilpailu", gameweek: "Kierros", month: "Kuukausi", allMonths: "Koko kausi", noTransfers: "Ei siirtoja",
     starting: "Avaus", squad: "Kokoonpano", bench: "Penkki", best: "Paras", worst: "Heikoin", provisional: "Alustava bonus",
     highlightPlayer: "Korosta pelaaja", allPlayers: "Valitse pelaaja", inSquads: "joukkueessa", asCaptain: "kapteenina", onBench: "penkillä", effectiveOwnership: "Tehollinen omistus", startersOnly: "Vain avaus", lastFive: "Viisi viimeistä",
+    nextPriceChange: "Seuraava hintamuutos", atClock: "klo", searchPlayer: "Hae pelaajaa", allTeams: "Kaikki joukkueet", allPositions: "Kaikki pelipaikat", allClubs: "Kaikki seurat",
+    risers: "Nousijat", fallers: "Laskijat", allPlayersFilter: "Kaikki", player: "Pelaaja", leagueOwners: "Omistajat", priceProgress: "Edistyminen", priceOutlook: "Ennuste", perHour: "Vauhti / h",
+    ownership: "Omistus", price: "Hinta", willRise: "Nousee", willFall: "Laskee", outlookToday: "tänään", outlookTomorrow: "huomenna", outlookTwoDays: "2 pv", noChangeAhead: "Ei muutosta näkyvissä",
+    priceLocked: "Lukittu", priceCalibrating: "Kalibroidaan", inAbout: "noin", noPlayersMatch: "Ei osumia", playersShown: "pelaajaa", rowsPerPage: "Rivejä", previous: "Edellinen", next: "Seuraava",
+    pricesUnavailable: "Hintadataa ei ole juuri nyt saatavilla", navTable: "Taulukko", navPrices: "Hinnat", priceSource: "Hintamuutosdata tulee suoraan FPL:stä.",
     rankEstimate: "Arvioitu live-yleissija", dataPreview: "GW1-data ei ole vielä avautunut — näkymässä on esikatseludata", transfer: "siirto", transfersCount: "siirtoa", net: "netto", oldTeam: "Vanha", currentTeam: "Nykyinen", nextMatch: "Seuraava peli", fixtures: "GW-ottelut", fixturesPlayed: "pelattu", fixtureUpcoming: "Tulossa", fixtureLive: "Käynnissä", fixtureProvisional: "Alustava", fixtureFinal: "Vahvistettu",
   },
   en: {
@@ -17,6 +22,11 @@ const copy = {
     overall: "Overall", gameweek: "Gameweek", month: "Month", allMonths: "Full season", noTransfers: "No transfers",
     starting: "Starting XI", squad: "Squad", bench: "Bench", best: "Best", worst: "Lowest", provisional: "Provisional bonus",
     highlightPlayer: "Highlight player", allPlayers: "Select player", inSquads: "squads", asCaptain: "as captain", onBench: "benched", effectiveOwnership: "Effective ownership", startersOnly: "Starting XI only", lastFive: "Last five",
+    nextPriceChange: "Next price change", atClock: "at", searchPlayer: "Search for player", allTeams: "All teams", allPositions: "All positions", allClubs: "All clubs",
+    risers: "Risers", fallers: "Fallers", allPlayersFilter: "All", player: "Player", leagueOwners: "Owners", priceProgress: "Progress", priceOutlook: "Prediction", perHour: "Per hour",
+    ownership: "Ownership", price: "Price", willRise: "Rises", willFall: "Falls", outlookToday: "today", outlookTomorrow: "tomorrow", outlookTwoDays: "in 2 days", noChangeAhead: "No change in sight",
+    priceLocked: "Locked", priceCalibrating: "Calibrating", inAbout: "in about", noPlayersMatch: "No matches", playersShown: "players", rowsPerPage: "Rows", previous: "Prev", next: "Next",
+    pricesUnavailable: "Price data is not available right now", navTable: "Table", navPrices: "Prices", priceSource: "Price change data comes directly from FPL.",
     rankEstimate: "Estimated live overall rank", dataPreview: "GW1 data is not available yet — showing preview data", transfer: "transfer", transfersCount: "transfers", net: "net", oldTeam: "Previous", currentTeam: "Current", nextMatch: "Next game", fixtures: "GW fixtures", fixturesPlayed: "played", fixtureUpcoming: "Upcoming", fixtureLive: "Live", fixtureProvisional: "Provisional", fixtureFinal: "Final",
   },
 } as const;

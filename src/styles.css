@@ -1667,3 +1667,224 @@ footer a { color:#c4c6d8; }
 .manager-row .form-popover .form-values > b.rank-up { color:#45df91; }
 .manager-row .form-popover .form-values > b.rank-down { color:#ff8ba0; }
 .manager-row .form-popover .form-values > b::after { color:rgba(255,255,255,.62); }
+
+/* ==========================================================================
+   Header navigation, and the price change page
+   --------------------------------------------------------------------------
+   Two destinations do not earn a hamburger. Hiding a two-item nav behind a menu
+   costs a tap and an overlay to reach something that fits on the screen; the
+   pattern exists for five or more. The pair is a segmented control, in the header
+   on desktop and on its own full-width row under it on a phone, where the header
+   already has a wordmark, a gameweek card and a language switch fighting for the
+   same line.
+   ========================================================================== */
+.top-nav {
+  display:flex;
+  gap:3px;
+  padding:4px;
+  border-radius:11px;
+  background:rgba(255,255,255,.1);
+}
+.top-nav a {
+  padding:7px 15px;
+  border-radius:8px;
+  color:rgba(255,255,255,.72);
+  font-size:12px;
+  font-weight:700;
+  text-decoration:none;
+  white-space:nowrap;
+}
+.top-nav a.active {
+  background:rgba(255,255,255,.92);
+  color:#0d2019;
+}
+
+@media (max-width:800px) {
+  .topbar { flex-wrap:wrap; height:auto; padding-block:10px; row-gap:9px; }
+  .top-nav { order:3; flex:1 1 100%; justify-content:stretch; }
+  .top-nav a { flex:1 1 0; text-align:center; }
+}
+
+/* The page itself. It is a data table like the league table, but it holds 600 rows
+   rather than seven, so it is paged and its filters carry the weight. */
+.price-page { display:flex; flex-direction:column; gap:14px; }
+
+.price-countdown {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:9px;
+  padding:14px 18px;
+  border-radius:14px;
+  background:var(--surface);
+  color:var(--text);
+}
+.price-countdown svg { width:17px; color:var(--green); }
+.price-countdown span { color:var(--soft); font-size:12px; font-weight:700; }
+.price-countdown strong { font:400 22px/1 "Archivo Black",sans-serif; font-variant-numeric:tabular-nums; }
+.price-countdown small { color:var(--faint); font-size:11px; font-weight:700; }
+
+.price-filters { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+.price-search {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex:1 1 220px;
+  min-width:0;
+  padding:0 12px;
+  height:38px;
+  border-radius:10px;
+  background:var(--surface);
+}
+.price-search svg { width:15px; color:var(--faint); flex:none; }
+.price-search input {
+  min-width:0;
+  flex:1 1 auto;
+  border:0;
+  background:none;
+  color:var(--text);
+  font:600 13px "Inter",sans-serif;
+  outline:none;
+}
+.price-direction { display:flex; gap:3px; padding:4px; border-radius:10px; background:var(--surface); }
+.price-direction button {
+  padding:7px 13px;
+  border:0;
+  border-radius:7px;
+  background:none;
+  color:var(--soft);
+  font:700 12px "Inter",sans-serif;
+  cursor:pointer;
+}
+.price-direction button.active { background:var(--accent); color:#fff; }
+
+.price-table { border-radius:14px; background:var(--surface); overflow:hidden; }
+.price-head,
+.price-row {
+  display:grid;
+  grid-template-columns:minmax(150px,1.5fr) minmax(120px,1.3fr) 132px 150px 96px 106px 96px;
+  align-items:center;
+  gap:0 10px;
+  padding:0 16px;
+}
+.price-head { min-height:42px; background:var(--raised); }
+.price-head > span { color:var(--soft); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.price-sort {
+  display:flex;
+  align-items:center;
+  gap:3px;
+  padding:0;
+  border:0;
+  background:none;
+  color:inherit;
+  font:inherit;
+  letter-spacing:inherit;
+  text-transform:inherit;
+  cursor:pointer;
+}
+.price-sort svg { width:11px; }
+.price-sort.active { color:var(--text); }
+
+.price-row { min-height:56px; border-top:1px solid color-mix(in srgb,var(--faint) 22%,transparent); }
+.price-row.is-held { background:color-mix(in srgb,var(--pick) 6%,transparent); }
+
+.price-player { display:grid; grid-template-columns:26px auto; grid-template-rows:auto auto; column-gap:8px; align-items:center; min-width:0; }
+.price-player .shirt { grid-row:1 / 3; width:26px; height:26px; position:relative; }
+.price-player .shirt-image { width:26px; height:26px; object-fit:contain; }
+.price-player b { grid-column:2; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.price-player small { grid-column:2; color:var(--faint); font-size:9px; font-weight:800; letter-spacing:.03em; }
+
+.price-owners { display:flex; flex-wrap:wrap; gap:3px; min-width:0; }
+.price-owners.empty { color:var(--faint); }
+.price-owners b {
+  padding:2px 6px;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  color:var(--text);
+  font-size:9px;
+  font-weight:800;
+  white-space:nowrap;
+}
+/* The armband is worth twice the rest, on this page too, and it is struck the same way. */
+.price-owners b.is-captain { background:var(--pick); }
+.price-owners b.is-benched { opacity:.5; }
+
+.price-progress { display:grid; row-gap:4px; }
+.price-progress b { font-size:13px; font-weight:900; font-variant-numeric:tabular-nums; }
+.price-progress i { display:block; height:5px; border-radius:3px; background:color-mix(in srgb,var(--faint) 30%,transparent); overflow:hidden; }
+.price-progress u { display:block; height:100%; border-radius:3px; }
+.price-progress .up { color:var(--green); background:var(--green); }
+.price-progress .down { color:var(--red); background:var(--red); }
+.price-progress b.up,
+.price-progress b.down { background:none; }
+
+.price-outlook em { font-size:11px; font-style:normal; font-weight:800; }
+.price-outlook .up { color:var(--green); }
+.price-outlook .down { color:var(--red); }
+.price-outlook .quiet,
+.price-outlook .locked { color:var(--faint); display:flex; align-items:center; gap:4px; }
+.price-outlook svg { width:11px; }
+
+.price-rate,
+.price-ownership,
+.price-cost { display:grid; row-gap:2px; }
+.price-rate b,
+.price-ownership b,
+.price-cost b { font-size:12px; font-weight:900; font-variant-numeric:tabular-nums; }
+.price-rate small,
+.price-ownership small,
+.price-cost small { color:var(--faint); font-size:9px; font-weight:800; }
+.price-rate .up,
+.price-ownership .up,
+.price-cost .up { color:var(--green); }
+.price-rate .down,
+.price-ownership .down,
+.price-cost .down { color:var(--red); }
+
+.price-empty { padding:26px 16px; color:var(--soft); text-align:center; font-size:13px; }
+
+.price-foot { display:flex; flex-wrap:wrap; align-items:center; gap:12px; color:var(--soft); font-size:11px; font-weight:700; }
+.price-foot label { display:flex; align-items:center; gap:6px; }
+.price-foot .period-select { height:30px; }
+.price-pager { display:flex; align-items:center; gap:8px; margin-left:auto; }
+.price-pager button {
+  padding:6px 12px;
+  border:0;
+  border-radius:8px;
+  background:var(--raised);
+  color:var(--text);
+  font:700 11px "Inter",sans-serif;
+  cursor:pointer;
+}
+.price-pager button:disabled { opacity:.4; cursor:default; }
+
+@media (max-width:800px) {
+  /* The search takes a line of its own and the four filters pair up under it, rather than
+     all five sharing one line and truncating their own labels. */
+  .price-search { flex:1 1 100%; }
+  .price-filters .period-select { flex:1 1 40%; min-width:0; }
+  .price-direction { flex:1 1 100%; }
+  .price-direction button { flex:1 1 0; }
+
+  /* 600 rows of seven columns do not fit a phone, so each row becomes a card and every
+     cell states what it is. */
+  .price-head { display:none; }
+  .price-row {
+    grid-template-columns:1fr 1fr;
+    gap:8px 10px;
+    padding:12px 14px;
+  }
+  .price-player { grid-column:1 / 3; }
+  .price-row > span:not(.price-player)::before {
+    content:attr(data-label);
+    display:block;
+    margin-bottom:2px;
+    color:var(--faint);
+    font-size:8px;
+    font-weight:800;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+  }
+  .price-owners-cell { grid-column:1 / 3; }
+  .price-foot { font-size:10px; }
+}

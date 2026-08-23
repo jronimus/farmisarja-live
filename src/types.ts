@@ -70,6 +70,42 @@ export interface ManagerRow {
   squad: SquadPlayer[];
 }
 
+/** One of FPL's own projections: how far along the player is expected to be in `offset` days. */
+export interface PriceProjection {
+  /** 0 is tonight's change, 1 tomorrow's, 2 the one after. */
+  offset: number;
+  /** Can pass 100, which is the point at which the price moves. */
+  percent: number;
+  /** FPL's own confidence, -5…5. Negative is a fall. */
+  likelihood: number;
+}
+
+export interface PriceRow {
+  id: number;
+  name: string;
+  club: string;
+  clubCode: number;
+  position: SquadPlayer["position"];
+  cost: number;
+  /** Price movement since the season started, in millions. */
+  costChangeStart: number;
+  ownership: number;
+  netTransfers: number;
+  /** Progress toward the next change: 100 is where the price moves. Negative is a fall. */
+  progress: number;
+  projections: PriceProjection[];
+  /** Percentage points per hour, derived from the projections a day apart. */
+  perHour: number;
+  lockedUntil: string | null;
+  calibrating: boolean;
+}
+
+export interface PriceMarket {
+  /** FPL publishes the exact change times; the countdown is not guesswork. */
+  deadlines: string[];
+  players: PriceRow[];
+}
+
 export interface DashboardData {
   leagueName: string;
   gameweek: number;
@@ -82,4 +118,5 @@ export interface DashboardData {
   activeMonths: string[];
   fixtures?: GameweekFixture[];
   managers: ManagerRow[];
+  prices?: PriceMarket;
 }

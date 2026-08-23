@@ -69,7 +69,33 @@ const demoFixtures: GameweekFixture[] = [
   { id: 10, kickoff: "2026-08-24T19:00:00Z", home: "FUL", away: "CHE", homeScore: null, awayScore: null, minutes: 0, status: "upcoming" },
 ];
 
+const demoManagers = managers.map((manager, index) => ({ ...manager, squad: makeSquad(index + 1, [5, 9, 7, 6, 10, 1, 6, 7, 9, 5][index]) }));
+
+/**
+ * Demo prices are generated from the demo squads rather than written out: the price page
+ * needs six hundred rows to stress, and the point of `?demo=1` is a layout to measure, not
+ * a market to believe. The spread is deterministic so two runs are comparable.
+ */
+const demoPrices = (): DashboardData["prices"] => {
+  const seen = new Map<number, SquadPlayer>();
+  for (const manager of demoManagers) for (const player of manager.squad) seen.set(player.id, player);
+  const players = [...seen.values()].map((player, index) => {
+    const progress = ((index * 37) % 190) - 90;
+    const perHourPercent = (((index * 13) % 60) - 20) / 10;
+    const projection = (offset: number) => ({ offset, percent: Math.round((progress + perHourPercent * 24 * (offset + 0.5)) * 10) / 10, likelihood: progress > 0 ? 3 : -3 });
+    return {
+      id: player.id, name: player.name, club: player.club, clubCode: player.clubCode, position: player.position,
+      cost: player.cost, costChangeStart: ((index % 5) - 2) / 10, ownership: player.ownership,
+      netTransfers: (index % 7 === 0 ? -1 : 1) * ((index * 5417) % 90000),
+      progress, projections: [projection(0), projection(1), projection(2)], perHour: perHourPercent,
+      lockedUntil: index % 41 === 0 ? "2026-08-24T23:00:00Z" : null, calibrating: index % 53 === 0,
+    };
+  });
+  return { deadlines: ["2026-08-23T23:00:00Z", "2026-08-24T23:00:00Z"], players };
+};
+
 export const demoData: DashboardData = {
   leagueName: "Farmisarja", gameweek: 1, deadline: "2026-08-21T17:30:00Z", updatedAt: new Date().toISOString(), isPreview: true, pointsFinalized: false, activeMonths: ["2026-08"], fixtures: demoFixtures,
-  managers: managers.map((manager, index) => ({ ...manager, squad: makeSquad(index + 1, [5, 9, 7, 6, 10, 1, 6, 7, 9, 5][index]) })),
+  managers: demoManagers,
+  prices: demoPrices(),
 };
