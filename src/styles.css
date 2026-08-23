@@ -2019,7 +2019,6 @@ footer a { color:#c4c6d8; }
 }
 
 .ticker-item { display:flex; align-items:center; gap:7px; white-space:nowrap; color:rgba(255,255,255,.85); font-size:11px; font-weight:700; }
-.ticker-clock { color:rgba(255,255,255,.42); font-style:normal; font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
 /* Drawn, and coloured by what happened: a yellow card is yellow, a goal is the accent, a
    sending-off is red. Emoji could do none of that. */
 .ticker-icon { display:grid; place-items:center; flex:none; }
@@ -2038,17 +2037,23 @@ footer a { color:#c4c6d8; }
 .ticker-icon.icon-bonus { color:#ffd166; }
 .ticker-item b { color:#fff; font-size:10px; font-weight:900; letter-spacing:.06em; }
 .ticker-item .ticker-player { color:rgba(255,255,255,.9); }
-/* The tie, three letters a side. The player's own club is the bold half. */
-.ticker-fixture { display:flex; align-items:baseline; gap:1px; font-style:normal; }
-.ticker-fixture b,
+/* The tie and how it stands. Both clubs the same colour — weight alone says which one the
+   player belongs to. Greying the other made the line look half-broken. */
+.ticker-fixture { display:flex; align-items:baseline; gap:4px; font-style:normal; }
+.ticker-fixture b {
+  color:rgba(255,255,255,.78);
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.02em;
+}
+.ticker-fixture b.is-own { font-weight:900; }
 .ticker-fixture em {
-  color:rgba(255,255,255,.42);
+  color:rgba(255,255,255,.5);
   font-size:10px;
   font-style:normal;
   font-weight:700;
-  letter-spacing:.02em;
+  font-variant-numeric:tabular-nums;
 }
-.ticker-fixture b.is-own { color:rgba(255,255,255,.92); font-weight:900; }
 .ticker-item u,
 .ticker-row u {
   padding:1px 6px;

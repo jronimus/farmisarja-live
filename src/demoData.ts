@@ -304,7 +304,7 @@ const demoFeed = (): DashboardData["feed"] => {
       at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
       gameweek: 24, element: player.id, player: player.name, club: player.club,
       kind, value: 1, pointsDelta, points: player.points,
-      fixture: { home: player.club, away: player.opponent, homeScore: 2, awayScore: 1, minutes: 90 - minutesAgo },
+      fixture: { home: player.club, away: player.opponent, homeScore: index % 4, awayScore: (index + 2) % 3, minutes: 90 - minutesAgo },
     };
   });
 };

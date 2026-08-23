@@ -47,20 +47,18 @@ function Owners({ owners }: { owners: PlayerOwner[] }) {
 }
 
 function Item({ event, owners, language, fresh }: { event: FeedEvent; owners: PlayerOwner[]; language: Language; fresh?: boolean }) {
-  const clock = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { hour: "2-digit", minute: "2-digit" })
-    .format(new Date(event.at));
   return <span className={`ticker-item kind-${event.kind} ${fresh ? "is-fresh" : ""}`}>
-    <i className="ticker-clock">{clock}</i>
+    {/* The match first, and how it stands. Which side the player is on is carried by weight
+        alone: the two clubs are the same colour, because one of them being greyed out made
+        the line look broken rather than emphasised. */}
+    {event.fixture && <i className="ticker-fixture">
+      <b className={event.fixture.home === event.club ? "is-own" : ""}>{event.fixture.home}</b>
+      <em>{event.fixture.homeScore}–{event.fixture.awayScore}</em>
+      <b className={event.fixture.away === event.club ? "is-own" : ""}>{event.fixture.away}</b>
+    </i>}
     <EventIcon kind={event.kind} />
     <b>{kindLabel(event.kind, language)}</b>
     <span className="ticker-player">{event.player}</span>
-    {/* Which match, with the player's own side in bold — the tie reads the same way round
-        as it does everywhere else, and you can see at a glance which half he is. */}
-    {event.fixture && <i className="ticker-fixture">
-      <b className={event.fixture.home === event.club ? "is-own" : ""}>{event.fixture.home}</b>
-      <em>–</em>
-      <b className={event.fixture.away === event.club ? "is-own" : ""}>{event.fixture.away}</b>
-    </i>}
     {event.pointsDelta !== 0 && <u className={event.pointsDelta > 0 ? "up" : "down"}>{event.pointsDelta > 0 ? "+" : "−"}{Math.abs(event.pointsDelta)}</u>}
     <Owners owners={owners} />
   </span>;
