@@ -9,13 +9,13 @@ button { color: inherit; }
 .topbar { height: 84px; display: flex; align-items: center; justify-content: space-between; padding: 0 36px; background: rgba(5, 13, 10, .9); }
 .brand-logo { display:flex; align-items:center; width:max-content; flex:0 0 auto; line-height:1; white-space:nowrap; }.brand-logo-main { display:flex; align-items:center; height:46px; padding:4px 0; background:transparent; }.brand-logo img { display:block; width:38px; height:38px; flex:0 0 auto; }.brand-logo-name { position:relative; margin-left:6px; transform:translateY(2px); color:#fff; font:700 29px/1 "Passion One",sans-serif; letter-spacing:.2px; }
 .top-actions { display: flex; align-items: center; gap: 22px; }.sync { display: flex; align-items: center; gap: 9px; color: #789087; }.sync svg { width: 15px; }.sync span { display: flex; flex-direction: column; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }.sync b { color: #cfddd6; font-size: 11px; letter-spacing: 0; margin-top: 2px; }.language { border: 0; border-radius: 9px; padding: 9px 11px; background: #12211b; display: flex; align-items: center; gap: 7px; font-weight: 700; cursor: pointer; }.language svg { width: 16px; }
-.gameweek-status { display:flex; align-items:center; gap:9px; color:var(--soft); font-size:11px; font-weight:900; letter-spacing:.05em; white-space:nowrap; }.gameweek-status > b { color:var(--text); }.gameweek-status span { padding:5px 8px; border-radius:5px; }.gameweek-status .deadline { display:flex; align-items:center; gap:5px; color:var(--yellow); background:color-mix(in srgb,var(--yellow) 12%,transparent); }.gameweek-live { display:inline-flex; align-items:center; justify-content:center; background:#d51f3e; color:#fff; }.gameweek-live i { color:#fff; font:900 11px/1 "Inter",sans-serif; font-style:normal; letter-spacing:.08em; animation:live-text-pulse 2.4s ease-in-out infinite; }.deadline svg { display:none; width:14px; height:14px; }.deadline i { font:inherit; font-style:normal; }.deadline-compact { display:none; }@keyframes live-text-pulse { 0%,100% { opacity:1; } 50% { opacity:.48; } }
+.gameweek-status { display:flex; align-items:center; gap:9px; color:var(--soft); font-size:11px; font-weight:900; letter-spacing:.05em; white-space:nowrap; }.gameweek-status > b { color:var(--text); }.gameweek-status span { padding:5px 8px; border-radius:5px; }.gameweek-status .deadline { display:flex; align-items:center; gap:5px; color:var(--yellow); background:color-mix(in srgb,var(--yellow) 12%,transparent); }.gameweek-live { display:inline-flex; align-items:center; justify-content:center; padding:0; background:none; color:var(--live); }.gameweek-live i { color:var(--live); font:900 11px/1 "Inter",sans-serif; font-style:normal; letter-spacing:.08em; }.deadline svg { display:none; width:14px; height:14px; }.deadline i { font:inherit; font-style:normal; }.deadline-compact { display:none; }@keyframes live-text-pulse { 0%,100% { opacity:1; } 50% { opacity:.48; } }
 main { max-width: 1540px; padding: 22px 30px 42px; margin: 0 auto; }
 .initial-loading { min-height:220px; }
 .status-strip { display: flex; align-items: center; justify-content: space-between; min-height: 42px; margin-bottom: 15px; }.live-status { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #a9bbb2; }.live-status svg { width: 17px; color: var(--green); }.live-status strong { color: var(--green); font: 800 11px "Inter"; letter-spacing: .13em; }.live-status i { width: 3px; height: 3px; border-radius: 50%; background: #4a5e55; }.preview-note { display: flex; gap: 7px; align-items: center; color: #a7b7af; background: #15231e; border-radius: 8px; padding: 8px 11px; font-size: 11px; }.preview-note svg { width: 14px; color: #f8d466; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }.view-tabs { display: flex; gap: 3px; padding: 4px; background: #101a16; border-radius: 10px; }.view-tabs button { border: 0; background: transparent; color: #7f948a; padding: 8px 15px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }.view-tabs button.active { background: #24372f; color: #edf8f2; }.autosub-toggle { display: flex; align-items: center; gap: 8px; color: #a9bbb2; font-size: 12px; }.autosub-toggle button { width: 34px; height: 19px; padding: 2px; border: 0; border-radius: 20px; background: #324039; cursor: pointer; }.autosub-toggle button i { display: block; width: 15px; height: 15px; border-radius: 50%; background: #98a79f; transition: .2s; }.autosub-toggle button.enabled { background: #187c4c; }.autosub-toggle button.enabled i { transform: translateX(15px); background: var(--green); }.autosub-toggle b { min-width: 28px; color: var(--green); font-size: 11px; }
 .period-select { min-width:150px; height:42px; padding:0 44px 0 14px; border:1px solid color-mix(in srgb,var(--faint) 32%,transparent); border-radius:9px; appearance:none; -webkit-appearance:none; background-color:var(--raised); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; color:var(--text); font:800 13px "Inter"; cursor:pointer; }
-.league-table { overflow-x:hidden; background:#0a120f; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25); }.table-head,.manager-row { min-width:1268px; display:grid; grid-template-columns:60px minmax(155px,1.15fr) 85px minmax(150px,1fr) 65px 120px 95px 55px 195px 95px 80px 60px; align-items:center; }
+.league-table { overflow-x:hidden; background:#0a120f; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25); }.table-head,.manager-row { min-width:1268px; display:grid; grid-template-columns:60px minmax(150px,1fr) 85px minmax(185px,1.5fr) 65px 120px 95px 55px 168px 95px 80px 60px; align-items:center; }
 .league-table,
 .league-table * { font-family:"Inter",sans-serif !important; }
 .league-table .points-cell > strong,
@@ -312,31 +312,8 @@ main::before {
 .player.player-live .mobile-player-score { color:#55efa1 !important; }
 .player.player-upcoming .mobile-player-score { color:#ffda61 !important; }
 
-/* League honours: a marker is always shown, while names require a tier. */
-.award-tag {
-  display:flex;
-  align-items:center;
-  gap:3px;
-  width:max-content;
-  max-width:100%;
-  color:#5650a4;
-  font-size:7px;
-  font-weight:900;
-  line-height:1;
-  letter-spacing:0;
-  text-transform:uppercase;
-  white-space:nowrap;
-}
-.award-tag i { width:5px; height:5px; flex:0 0 auto; border-radius:50%; background:currentColor; }
-.award-tag b { min-width:0; font:900 8px/1.08 "Inter",sans-serif; letter-spacing:0; white-space:normal; overflow-wrap:break-word; }
+/* League honours tint the figure they belong to; they carry no name. */
 .bench-points-cell { min-width:0; width:100%; }
-.bench-points-cell > .award-tag { width:100%; max-width:100%; white-space:normal; }
-.bench-points-cell > .award-tag b { flex:1 1 auto; max-width:100%; }
-.award-tag.award-green { color:#087044; }
-.award-tag.award-gold { color:#8a5b00; }
-.award-tag.award-red { color:#a92d49; }
-.award-tag.award-blue { color:#345f91; }
-.award-tag.award-purple { color:#5944b4; }
 .award-target:not(.award-level-0) {
   display:inline-flex;
   align-items:center;
@@ -354,8 +331,6 @@ main::before {
 .award-target.award-level-2 { filter:saturate(1.12) brightness(.92); }
 .award-target.award-level-3 { filter:saturate(1.25) brightness(.82); }
 .captain-cell,.team-value-cell,.bench-points-cell,.points-cell { gap:4px; }
-.captain-cell > .award-tag b { font-size:7px; letter-spacing:-.035em; }
-.transfer-cell > .award-tag { margin-top:1px; }
 .form-cell {
   display:grid;
   grid-template-columns:1fr auto;
@@ -436,10 +411,13 @@ main::before {
     inset 0 -1px 0 rgba(255,255,255,.28);
   backdrop-filter:blur(30px) saturate(145%);
 }
+/* Opaque on purpose. While the header was translucent the table's own light lavender
+   showed through it, and its backdrop-filter nested inside the table's made that patch
+   composite separately, so a pale rectangle appeared that did not line up with the
+   purple. These two stops are the measured colours of the old blended result. */
 .table-head {
-  background:linear-gradient(105deg,rgba(39,42,88,.92),rgba(82,71,151,.86));
+  background:linear-gradient(105deg,#353863,#6158a0);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 10px 28px rgba(28,27,71,.2);
-  backdrop-filter:blur(20px);
 }
 .manager-block,.manager-block:nth-child(even) {
   background:rgba(250,251,255,.84);
@@ -557,7 +535,7 @@ footer a { color:#c4c6d8; }
 @media (min-width:801px) {
   .table-head,
   .manager-row {
-    grid-template-columns:60px minmax(155px,1.15fr) 85px minmax(150px,1fr) 65px 120px 95px 55px 195px 95px 80px 60px;
+    grid-template-columns:60px minmax(150px,1fr) 85px minmax(185px,1.5fr) 65px 120px 95px 55px 168px 95px 80px 60px;
   }
   .bench-points-cell,
   .table-head .sort-header:nth-child(8) {
@@ -655,8 +633,6 @@ footer a { color:#c4c6d8; }
   .manager-row .form-values { grid-column:1; grid-row:1; }
   .manager-row .form-meta { grid-column:1; grid-row:2; align-self:center; }
   .manager-row .transfer-cell { min-height:58px; justify-content:center; }
-  .manager-row .award-tag b { font-size:8px; }
-  .manager-row .captain-cell > .award-tag b { font-size:7px; }
 }
 
 .manager-row .points-cell strong.award-target {
@@ -675,7 +651,7 @@ footer a { color:#c4c6d8; }
 .gw-score { position:relative; display:inline-grid; width:max-content; }
 .gw-score > strong { color:var(--text); font:400 22px "Archivo Black"; line-height:1; }
 .gw-score.has-chip {
-  grid-template-rows:auto 12px;
+  grid-template-rows:auto 13px;
   row-gap:2px;
   justify-items:start;
   min-width:0;
@@ -684,7 +660,11 @@ footer a { color:#c4c6d8; }
   background:transparent;
 }
 .gw-score.has-chip > strong { padding:0; color:var(--text); background:transparent; text-align:left; }
-.gw-score.has-chip > b { box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:12px; margin:0; padding:0 4px; border-radius:5px; color:#fff; background:var(--chip-color); font-size:7px; line-height:1; }
+/* Centring the line box leaves all-caps text high: the box reserves descender space
+   the letters never use. Measured high by 0.50/0.80/0.67/0.25px at device pixel ratios
+   1/1.25/1.5/2; the top padding pushes the centred content back down by half of itself,
+   leaving -0.50/0.00/+0.67/-0.25. A half pixel is rounded up by layout, so 1px it is. */
+.gw-score.has-chip > b { box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:13px; margin:0; padding:1px 4px 0; border-radius:5px; color:#fff; background:var(--chip-color); font-size:8px; line-height:1; }
 .gw-score.chip-wc { --chip-color:#2878d4; }
 .gw-score.chip-fh { --chip-color:#d66b19; }
 .gw-score.chip-bb { --chip-color:#087d68; }
@@ -773,6 +753,18 @@ footer a { color:#c4c6d8; }
 }
 
 /* Compact persistent language selector and stronger gameweek label. */
+/* The gameweek number, the live or deadline state and the played count read as one
+   thing, so they share one surface instead of sitting in three separate pills. */
+.gameweek-status {
+  --live:#ff5f77;
+  box-sizing:border-box;
+  height:34px;
+  padding:0 10px;
+  gap:10px;
+  border-radius:8px;
+  background:rgba(255,255,255,.09);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13);
+}
 .gameweek-status > b {
   font-size:15px;
   line-height:1;
@@ -856,9 +848,6 @@ footer a { color:#c4c6d8; }
   }
   .points-cell > .points-formula {
     grid-row:3;
-  }
-  .points-cell > .award-tag {
-    grid-row:4;
   }
   .progress-cell {
     display:flex;
@@ -946,13 +935,11 @@ footer a { color:#c4c6d8; }
     letter-spacing:.05em;
     text-transform:uppercase;
   }
-  .points-cell > .award-tag { transform:translateY(-3px); }
   .team-value-cell {
     padding:0 !important;
     background:transparent !important;
     box-shadow:none !important;
   }
-  .app-shell[data-mobile-details="off"] .award-tag { display:none !important; }
   .app-shell[data-mobile-details="off"] .manager-row {
     min-height:56px;
     grid-template-columns:44px minmax(0,1fr) 46px 54px;
@@ -1055,20 +1042,23 @@ footer a { color:#c4c6d8; }
   .gw-score > strong { font-size:18px; }
   .gw-score.has-chip { grid-template-rows:auto 10px; row-gap:2px; min-width:0; }
   .gw-score.has-chip > strong { padding:0; }
-  .gw-score.has-chip > b { min-width:20px; height:10px; padding:0 3px; font-size:7px; line-height:1; }
+  .gw-score.has-chip > b { min-width:20px; height:10px; padding:1px 3px 0; font-size:7px; line-height:1; }
 }
 
 
 /* Gameweek fixture status and the header fixture menu. */
 .topbar { position:relative; z-index:20; }
 .gameweek-status .deadline small { font:800 9px/1 "Inter",sans-serif; letter-spacing:.1em; opacity:.7; }
-.gameweek-live b { margin-left:6px; min-width:15px; height:15px; padding:0 4px; display:inline-grid; place-items:center; border-radius:4px; background:rgba(0,0,0,.26); font:900 10px/1 "Inter",sans-serif; }
+.gameweek-live b { margin-left:5px; padding:0; background:none; color:var(--live); font:900 11px/1 "Inter",sans-serif; }
 .gameweek-status .gameweek-state { display:inline-flex; align-items:center; padding:6px 8px; border-radius:5px; font:900 10px/1 "Inter",sans-serif; letter-spacing:.08em; }
 .gameweek-status .gameweek-state.is-provisional { color:#ffd166; background:rgba(255,209,102,.15); }
 .gameweek-status .gameweek-state.is-final { color:#42f5a1; background:rgba(15,118,76,.38); }
 .fixture-menu { position:relative; display:flex; }
-.fixture-button { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 8px; border:0; border-radius:7px; background:rgba(255,255,255,.11); box-shadow:inset 0 1px 0 rgba(255,255,255,.12); color:#fff; font:800 11px/1 "Inter",sans-serif; cursor:pointer; }
-.fixture-button:hover { background:rgba(255,255,255,.17); }
+.fixture-button { display:inline-flex; align-items:center; gap:5px; height:100%; padding:0; border:0; border-radius:6px; background:none; box-shadow:none; color:#fff; font:800 11px/1 "Inter",sans-serif; cursor:pointer; }
+.fixture-button:hover .fixture-count { opacity:.72; }
+.fixture-count { display:flex; flex-direction:column; align-items:center; gap:1px; line-height:1; }
+.fixture-count b { font:800 12px/1 "Inter",sans-serif; }
+.fixture-count small { font:800 7px/1 "Inter",sans-serif; letter-spacing:.12em; text-transform:uppercase; opacity:.62; }
 .fixture-button span { padding:0; }
 .fixture-button svg { width:13px; height:13px; transition:transform .16s ease; }
 .fixture-button.open svg { transform:rotate(180deg); }
@@ -1089,7 +1079,8 @@ footer a { color:#c4c6d8; }
 .fixture-dot { width:6px; height:6px; border-radius:50%; background:currentColor; animation:live-text-pulse 2.4s ease-in-out infinite; }
 @media (max-width:800px) {
   .gameweek-status .deadline small { display:none; }
-  .fixture-button { height:28px; padding:0 6px; font-size:10px; }
+  .fixture-count b { font-size:11px; }
+  .fixture-count small { font-size:6px; }
   .fixture-panel { width:min(86vw,274px); }
   .fixture-row { grid-template-columns:50px 1fr auto; }
 }
@@ -1165,10 +1156,8 @@ footer a { color:#c4c6d8; }
 }
 
 
-/* The gameweek number rides in the fixture button and the globe appears only where the header is tight. */
-.fixture-gw,
+/* The globe appears only where the header is tight. */
 .language-globe { display:none; }
-.fixture-button em { font-style:normal; }
 
 @media (max-width:800px) {
   /* Stack the countdown label over the clock so the pill stops eating the row. */
@@ -1183,13 +1172,18 @@ footer a { color:#c4c6d8; }
   }
   .gameweek-status .deadline svg { display:none; }
   .gameweek-status .deadline small { display:block; }
-  .gameweek-status.has-fixture-menu > b { display:none; }
-  .fixture-gw {
-    display:inline;
-    margin-right:1px;
-    opacity:.72;
-    font-weight:900;
+  /* The whole card has to share 390px with the wordmark and the language switch, so
+     every part inside it steps down a size rather than the card wrapping or clipping. */
+  .gameweek-status {
+    height:30px;
+    padding:0 7px;
+    gap:6px;
   }
+  .gameweek-status > b { font-size:12px; }
+  .gameweek-status .gameweek-live { padding:0; }
+  .gameweek-live i,.gameweek-live b { font-size:10px; }
+  .fixture-button { gap:3px; }
+  .fixture-button svg { width:11px; height:11px; }
   .language-globe {
     display:block;
     width:12px;
@@ -1264,3 +1258,125 @@ footer a { color:#c4c6d8; }
 .player-worst .player-points { border-color:transparent; box-shadow:none; }
 .squad-legend .legend-best { color:#a97f16; }
 .squad-legend .legend-best i { background:linear-gradient(140deg,#ffeaa9,#e0bb63); }
+
+/* ==========================================================================
+   Row rhythm and type scale.
+
+   The row had grown eleven distinct font sizes (7, 8, 9, 10, 11, 12, 13, 13.33,
+   14, 18, 22) and its cells started their first line anywhere over a 22px range,
+   because each one had picked up its own gap, alignment and line-height over time.
+   This block is the last layer in the file on purpose: it restates the sizes as six
+   steps and gives every cell the same vertical rhythm, rather than unpicking forty
+   declarations spread across the earlier layers.
+   ========================================================================== */
+@media (min-width:801px) {
+  .league-table {
+    --fs-hero:22px;   /* position number, gameweek points */
+    --fs-total:18px;  /* season total */
+    --fs-lead:13px;   /* the primary line of a cell */
+    --fs-sub:11px;    /* a name or figure under the primary line */
+    --fs-meta:9px;    /* sub-figures and labels */
+    --fs-micro:8px;   /* chips and the smallest badges */
+  }
+
+  /* One rhythm for every cell: one gap, one line-height, and every stack centred in the
+     row. The first lines used to scatter over 22px, but that came from each cell having
+     its own gap and from three of them carrying a fixed row template sized for an award
+     tag that no longer exists. With those gone the stacks are close enough in height
+     that centring keeps the lines together. */
+  .manager-row > * {
+    align-self:stretch;
+    align-content:center;
+    row-gap:3px;
+    line-height:1.15;
+  }
+  /* The cell stretches now, so the badges have to be told not to stretch with it. */
+  .manager-row .chips-cell { align-content:center; align-items:center; }
+  /* These cells carried a fixed 24px/17px/12px row template sized for the award tag that
+     used to sit under them. The tag is gone, and the 24px first row was centring their
+     primary line 5px below everyone else's, so the template goes with it. */
+  .manager-row .captain-cell,
+  .manager-row .team-value-cell,
+  .manager-row .bench-points-cell,
+  .manager-row .points-cell,
+  .manager-row .form-cell {
+    grid-template-rows:none;
+    grid-auto-rows:min-content;
+    align-items:start;
+    align-content:center;
+    gap:3px;
+  }
+  .manager-row .form-cell { display:grid; justify-items:start; }
+  .manager-row .captain-cell,
+  .manager-row .team-value-cell,
+  .manager-row .bench-points-cell,
+  .manager-row .season-transfers-cell,
+  .manager-row .progress-cell,
+  .manager-row .points-cell,
+  .manager-row .total-cell,
+  .manager-row .transfer-cell,
+  .manager-row .manager-cell {
+    display:grid;
+    align-content:center;
+    justify-items:start;
+  }
+
+  /* Primary line. */
+  .manager-row .manager-cell a,
+  .manager-row .captain-cell > strong,
+  .manager-row .season-transfers-cell > strong,
+  .manager-row .team-value-cell > strong,
+  .manager-row .bench-points-cell > strong,
+  .manager-row .form-cell .form-values b,
+  .manager-row .progress-summary,
+  .manager-row .progress-cell > strong { font-size:var(--fs-lead); line-height:1.15; }
+
+  /* Secondary line. */
+  .manager-row .manager-cell > span,
+  .manager-row .captain-cell > span,
+  .manager-row .transfer-cell small { font-size:var(--fs-sub); line-height:1.15; }
+
+  /* Sub-figures and labels. */
+  .manager-row .manager-cell small,
+  .manager-row .season-transfers-cell > span,
+  .manager-row .team-value-cell > span,
+  .manager-row .bench-points-cell > span,
+  .manager-row .form-average,
+  .manager-row .points-formula,
+  .manager-row .progress-cell small,
+  .manager-row .desktop-transfer-footer,
+  .manager-row .desktop-transfer-footer strong,
+  .manager-row .transfer-cell > em { font-size:var(--fs-meta); line-height:1.15; }
+
+  .manager-row .chips-cell span { font-size:var(--fs-micro); }
+  .manager-row .position-cell > strong { font-size:var(--fs-hero); }
+  .manager-row .points-cell > strong { font-size:var(--fs-hero); }
+  .manager-row .total-cell > strong { font-size:var(--fs-total); }
+
+  /* Transfers: one line per move, whatever the names. The row is a grid so the
+     two player names share the slack and the difference stays pinned right,
+     which is what stops four transfers or a long name from overflowing. */
+  .manager-row .transfer-cell small {
+    display:flex;
+    align-items:baseline;
+    column-gap:5px;
+    width:100%;
+    overflow:visible;
+  }
+  .manager-row .desktop-transfer-row {
+    min-width:0;
+    flex:0 1 auto;
+    display:flex;
+    align-items:baseline;
+    column-gap:3px;
+  }
+  .manager-row .tf-name { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .manager-row .transfer-cell small > b { flex:none; }
+  .manager-row .transfer-cell small b { padding:0; }
+  .manager-row .transfer-equals { flex:none; }
+  .manager-row .transfer-cell { grid-template-columns:minmax(0,1fr); }
+  .manager-row .form-values { gap:8px; }
+  .manager-row .wildcard-transfer > strong { font-size:var(--fs-lead); }
+  .manager-row .wildcard-transfer > b { font-size:var(--fs-sub); }
+  .manager-row .wildcard-transfer > small { font-size:var(--fs-meta); }
+}

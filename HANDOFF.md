@@ -34,7 +34,7 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | Path | What it is |
 | --- | --- |
 | `src/App.tsx` | Dashboard UI, table, sorting, header, award labels |
-| `src/styles.css` | Dashboard styles, ~1100 lines, heavily layered overrides |
+| `src/styles.css` | Dashboard styles, ~1400 lines, heavily layered overrides |
 | `src/ShareCard.tsx` | The four Telegram cards |
 | `src/cards.css` | Card styles, everything prefixed `sc-` |
 | `src/services/awards.ts` | Award rules, thresholds, rarity, selection |
@@ -45,6 +45,44 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `worker/index.ts` | Proxy routes, webhook, protected `/admin/card-screenshot?card=` endpoint |
 | `worker/telegram.ts` | Reminders, card capture, staged report, bot commands |
 | `public/cards/*.webp` | Card backgrounds, 1080×1350 |
+
+## The dashboard table
+
+The table is the oldest part of the project and the one that had drifted most. It was
+tidied on 23 Aug; the rules below are what that pass settled on, and they live in the
+last block of `src/styles.css` on purpose.
+
+- **Six font sizes, no more.** `--fs-hero` 22px (position, gameweek points), `--fs-total`
+  18px (season total), `--fs-lead` 13px (a cell's primary line), `--fs-sub` 11px (the name
+  or figure under it), `--fs-meta` 9px (sub-figures and labels), `--fs-micro` 8px (chips).
+  It had grown to eleven sizes, including a 13.33px that was simply an unstyled `<small>`.
+- **One rhythm.** Every cell is a grid with `align-content:center`, `row-gap:3px` and
+  `line-height:1.15`. Three cells used to carry a fixed `grid-template-rows:24px 17px 12px`
+  sized for an award tag that no longer exists, which pushed their first line 5px below
+  everyone else's.
+- **No award names in the table.** The shouted labels (ÖLJYPOHATTA, EI SAATANA and the
+  rest) were removed on 23 Aug. `awardFor()` still returns a `level` and a `tone`, which
+  tint the winning figure; only the naming went. The nicknames live on the awards card.
+- **Nothing relies on grey for legibility** on the share cards; the dashboard still uses
+  `--soft` and `--faint`, which is fine on its own dark ground.
+
+### The transfers column
+
+The column is 203px and each transfer is one line: `out N → in N = ±D`. Names sit in
+`.tf-name` spans that truncate, so the line can never overflow horizontally — verified by
+injecting four transfers with the longest real names into the live DOM and checking
+`scrollWidth == clientWidth`. The row grows vertically instead, 82px to 102px for four.
+
+Most names fit whole. Alexander-Arnold is the one that still truncates: it needs 91px and
+gets 57. If that matters, the per-player points can go from the desktop line — they are
+recoverable from the difference — which frees about 35px.
+
+### The header
+
+`GW`, the live state and the played count share one card (`.gameweek-status`). The live
+state is red text, `--live:#ff5f77`, not a red pill, and it does not pulse. The count sits
+over a small `PELATTU` caption. The same card is used on mobile a size down; measured at
+375px it ends 14px from the right edge with the language switch beside it.
 
 ## Share cards
 
@@ -192,20 +230,23 @@ These cost real debugging time. Do not re-derive them from assumptions.
 
 ## Open tasks
 
-1. **Revisit the dashboard table.** Explicitly deferred to look at again.
-2. **Rename the dashboard award labels.** The table still uses the old shouted labels
-   (ÖLJYPOHATTA, EI SAATANA, MELAPISTEET, SYÖKSYKIERRE). The cards moved to nicknames
-   with an explanatory subtitle. Align the two so the same event is not named twice.
-3. **Verify the first automatic report.** GW1 ends with FUL–CHE on Monday 24 Aug at
+1. **Verify the first automatic report.** GW1 ends with FUL–CHE on Monday 24 Aug at
    22:00 local. The report should arrive about 16 minutes after full time. If nothing
    comes, `npx wrangler tail --format json` and look for `album_card_ready` and
    `album_sent`. Note the log is pretty-printed multi-line JSON, so split on `\n{`.
-4. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
+2. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
    Nothing else needs changing; the card picks the plate by row count.
-5. **Verify the deadline card against real picks.** It has only been rendered from demo
+3. **Verify the deadline card against real picks.** It has only been rendered from demo
    data, where the settled totals and `manager.position` disagree because the demo sits
    mid-gameweek. At a real deadline `gameweekPoints` is 0 and the two agree. GW2's
    deadline is the first chance to see it fire.
+4. **Narrow desktop windows overflow horizontally.** At around 390px wide in a desktop
+   browser the whole page scrolls sideways: the header actions run off the right and the
+   manager cards are cut. Checked against the deployed build before the 23 Aug changes and
+   it is already there, so it is old, not new. Real phones do not show it, because the
+   meta viewport handles them. Not investigated further.
+5. **Alexander-Arnold truncates in the transfers column.** See the dashboard table section
+   for the measurement and the way out if it becomes annoying.
 
 ## Rules that keep being learned the hard way
 
