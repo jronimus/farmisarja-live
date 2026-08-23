@@ -1,4 +1,5 @@
 import { captureCard, handleTelegramWebhook, runTelegramSchedule, type ShareCardKind, type TelegramEnv } from "./telegram";
+import { readFeed, updateFeed, type EventsEnv } from "./events";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
 
@@ -67,6 +68,16 @@ export default {
     }
     if (request.method !== "GET") return json({ error: "Method not allowed" }, request, env, 405);
     if (url.pathname === "/health") return json({ ok: true, leagueId: env.FPL_LEAGUE_ID }, request, env);
+    if (url.pathname === "/events") {
+      const gameweek = Number(url.searchParams.get("gw"));
+      if (!Number.isInteger(gameweek) || gameweek < 1) return json({ error: "gw is required" }, request, env, 400);
+      const feed = await readFeed(env as EventsEnv, gameweek);
+      // The cron writes at most every two minutes, so a short cache costs the feed nothing
+      // and keeps a page left open all evening off the KV read budget.
+      return new Response(JSON.stringify({ gameweek, events: feed?.events ?? [] }), {
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=30" },
+      });
+    }
     const route = upstreamPath(url.pathname, env);
     if (!route) return json({ error: "Not found" }, request, env, 404);
     try {
@@ -78,5 +89,9 @@ export default {
   },
   async scheduled(_controller, env, ctx): Promise<void> {
     ctx.waitUntil(runTelegramSchedule(env as TelegramEnv));
+    // Independent of the Telegram switch: the feed is the site's, not the chat's.
+    ctx.waitUntil(updateFeed(env as EventsEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "feed_update_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
   },
 } satisfies ExportedHandler<Env>;

@@ -29,7 +29,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const DEFAULT_WIDTHS = [320, 360, 375, 390, 414, 768, 800, 900, 1024, 1280, 1440, 1920];
+// 900–1200 is its own layout: the table drops four columns there so it fits a portrait
+// monitor or a half-screen window, and that range needs testing like any other.
+const DEFAULT_WIDTHS = [320, 360, 375, 390, 414, 768, 800, 900, 1024, 1080, 1200, 1280, 1440, 1920];
 const CHROME = process.env.CHROME
   ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 

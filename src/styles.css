@@ -1902,3 +1902,179 @@ footer a { color:#c4c6d8; }
   .price-owners-cell { grid-column:1 / 3; }
   .price-foot { font-size:10px; }
 }
+
+/* ==========================================================================
+   The live ticker
+   --------------------------------------------------------------------------
+   A strip under the header, so the feed and the table are on screen together
+   without either giving up width — which is the whole point on a portrait
+   second monitor, where a side rail would have cost the table half its columns.
+
+   The track is rendered twice and translated by exactly half its width, which is
+   what makes the loop seamless: the second copy arrives where the first left.
+   Hovering stops it, because a moving line you cannot read is decoration.
+   ========================================================================== */
+.ticker {
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:#08150f;
+  box-shadow:0 8px 24px rgba(4,20,12,.35);
+}
+.ticker-bar {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  height:40px;
+  padding-inline:max(16px,calc((100% - 1540px) / 2 + 16px));
+}
+.ticker-badge {
+  flex:none;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 9px;
+  border-radius:6px;
+  background:rgba(255,255,255,.1);
+  color:rgba(255,255,255,.7);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.1em;
+}
+.ticker-badge.is-live { background:rgba(255,95,119,.16); color:#ff8ba0; }
+.ticker-badge.is-live::before {
+  content:"";
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#ff5f77;
+  animation:ticker-pulse 1.6s ease-in-out infinite;
+}
+@keyframes ticker-pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.8); } }
+
+.ticker-window { flex:1 1 auto; min-width:0; overflow:hidden; mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent); }
+.ticker-track { display:flex; width:max-content; animation:ticker-scroll linear infinite; }
+.ticker-run { display:flex; align-items:center; gap:26px; padding-right:26px; }
+.ticker:hover .ticker-track,
+.ticker-track:focus-within { animation-play-state:paused; }
+@keyframes ticker-scroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+@media (prefers-reduced-motion:reduce) {
+  .ticker-track { animation:none; }
+  .ticker-run:nth-child(2) { display:none; }
+}
+
+.ticker-item { display:flex; align-items:center; gap:7px; white-space:nowrap; color:rgba(255,255,255,.85); font-size:11px; font-weight:700; }
+.ticker-clock { color:rgba(255,255,255,.42); font-style:normal; font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
+.ticker-icon { font-style:normal; font-size:12px; }
+.ticker-item b { color:#fff; font-size:10px; font-weight:900; letter-spacing:.06em; }
+.ticker-item .ticker-player { color:rgba(255,255,255,.9); }
+.ticker-item u,
+.ticker-row u {
+  padding:1px 6px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:900;
+  text-decoration:none;
+  font-variant-numeric:tabular-nums;
+}
+.ticker-item u.up,
+.ticker-row u.up { background:rgba(69,223,145,.18); color:#45df91; }
+.ticker-item u.down,
+.ticker-row u.down { background:rgba(255,101,119,.18); color:#ff8ba0; }
+
+/* Our own teams, struck in the same lime the table and the price page use. */
+.ticker-owners { display:flex; gap:5px; }
+.ticker-owners b {
+  padding:0 2px;
+  color:#0c1316;
+  background:var(--pick);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:0;
+}
+.ticker-owners b.is-captain { box-shadow:inset 0 -3px 0 rgba(12,19,22,.35); }
+
+.ticker-empty { color:rgba(255,255,255,.4); font-size:11px; font-weight:700; }
+.ticker-toggle {
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  border:0;
+  border-radius:8px;
+  background:rgba(255,255,255,.1);
+  color:#fff;
+  cursor:pointer;
+}
+.ticker-toggle svg { width:15px; }
+
+.ticker-panel {
+  max-height:min(52vh,460px);
+  overflow-y:auto;
+  border-top:1px solid rgba(255,255,255,.08);
+  padding-inline:max(16px,calc((100% - 1540px) / 2 + 16px));
+}
+.ticker-controls {
+  position:sticky;
+  top:0;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:10px 0;
+  background:#08150f;
+  color:rgba(255,255,255,.7);
+  font-size:11px;
+  font-weight:700;
+}
+.ticker-controls label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.ticker-count { margin-left:auto; color:rgba(255,255,255,.4); }
+.ticker-list { padding-bottom:12px; }
+.ticker-row {
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:9px 0;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.ticker-row.is-held { box-shadow:inset 3px 0 0 var(--pick); padding-left:11px; }
+.ticker-headline { flex:1 1 auto; min-width:0; display:grid; row-gap:2px; }
+.ticker-headline b { color:#fff; font-size:12px; font-weight:800; }
+.ticker-headline small { color:rgba(255,255,255,.45); font-size:10px; font-weight:600; }
+.ticker-empty-list { padding:20px 0; color:rgba(255,255,255,.4); font-size:12px; text-align:center; }
+
+@media (max-width:800px) {
+  .ticker-bar { height:36px; gap:9px; padding-inline:12px; }
+  .ticker-panel { padding-inline:12px; max-height:60vh; }
+  .ticker-badge { font-size:8px; padding:3px 7px; }
+}
+
+/* ==========================================================================
+   The middle widths
+   --------------------------------------------------------------------------
+   Below 800px the table becomes cards. Above 1260px it fits whole. In between —
+   a 1080px portrait monitor, a half-screen window — it was neither: the desktop
+   grid asks for 1224px and `.league-table` clips what does not fit, so the last
+   three columns simply were not there.
+
+   Four columns step aside instead, the four whose figures are cumulative rather
+   than about this gameweek: total transfers, chips, team value and bench points.
+   What is left is the gameweek itself, and it fits from about 880px up.
+   ========================================================================== */
+@media (min-width:801px) and (max-width:1259px) {
+  .table-head .sort-header:nth-child(5),
+  .table-head .sort-header:nth-child(6),
+  .table-head .sort-header:nth-child(7),
+  .table-head .sort-header:nth-child(8),
+  .manager-row .season-transfers-cell,
+  .manager-row .chips-cell,
+  .manager-row .team-value-cell,
+  .manager-row .bench-points-cell {
+    display:none;
+  }
+  .table-head,
+  .manager-row {
+    min-width:842px;
+    grid-template-columns:70px minmax(140px,1fr) 118px minmax(200px,1.5fr) 58px 67px 72px 77px;
+  }
+}

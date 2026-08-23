@@ -1,4 +1,5 @@
 import type { DashboardData, GameweekFixture, ManagerRow, SquadPlayer } from "./types";
+import type { FeedEvent } from "./services/liveFeed";
 
 const playerPool = [
   ["Raya", "ARS", 1, "GK"], ["Pickford", "EVE", 9, "GK"],
@@ -94,8 +95,33 @@ const demoPrices = (): DashboardData["prices"] => {
   return { deadlines: ["2026-08-23T23:00:00Z", "2026-08-24T23:00:00Z"], players };
 };
 
+/** A handful of events so `?demo=1` shows the ticker moving without a Worker behind it. */
+const demoFeed = (): DashboardData["feed"] => {
+  // Spread across squads, and every third event belongs to nobody in the league — which is
+  // what a real feed looks like, and the only way to see the unowned row rendered.
+  const pool = demoManagers.flatMap((manager, managerIndex) => manager.squad.map((player) => ({ player, managerIndex })));
+  const shape: Array<[FeedEvent["kind"], number, number]> = [
+    ["goal", 6, 2], ["assist", 3, 9], ["yellow", -1, 14], ["defcon", 2, 23],
+    ["save_point", 1, 31], ["bonus", 1, 38], ["goal", 6, 46], ["red", -3, 57],
+    ["penalty_save", 5, 64], ["assist", 3, 72],
+  ];
+  return shape.map(([kind, pointsDelta, minutesAgo], index) => {
+    const player = index % 3 === 2
+      ? { ...pool[index * 7 % pool.length].player, id: 90_000 + index, name: `Unowned ${index}` }
+      : pool[index * 13 % pool.length].player;
+    return {
+      id: `demo-${index}`,
+      at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+      gameweek: 1, element: player.id, player: player.name, club: player.club,
+      kind, value: 1, pointsDelta, points: player.points,
+      fixture: { home: player.club, away: player.opponent, homeScore: 2, awayScore: 1, minutes: 90 - minutesAgo },
+    };
+  });
+};
+
 export const demoData: DashboardData = {
   leagueName: "Farmisarja", gameweek: 1, deadline: "2026-08-21T17:30:00Z", updatedAt: new Date().toISOString(), isPreview: true, pointsFinalized: false, activeMonths: ["2026-08"], fixtures: demoFixtures,
   managers: demoManagers,
   prices: demoPrices(),
+  feed: demoFeed(),
 };

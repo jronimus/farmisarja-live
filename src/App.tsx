@@ -7,6 +7,7 @@ import { translations } from "./i18n";
 import { buildOwnership, ownershipOf } from "./services/ownership";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
+import Ticker from "./Ticker";
 import type { DashboardData, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
 
 type SortKey = "position" | "gameweekPoints" | "totalPoints" | "overallRank" | "captainPoints" | "upcoming" | "form" | "teamValue" | "seasonTransfers" | "benchPointsBeforeGw";
@@ -434,6 +435,8 @@ export default function App() {
         </button>
       </div>
     </header>
+
+    {liveReady && !liveError && <Ticker data={data} language={language} autosubs={autosubs} />}
 
     <main>{liveError ? <section className="data-pending data-error" role="alert">
       <strong>FPL DATA ERROR</strong>

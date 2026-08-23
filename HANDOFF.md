@@ -43,6 +43,9 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/services/ownership.ts` | League ownership and effective ownership, for the player highlight |
 | `src/services/priceChanges.ts` | FPL's published price-change numbers, and the two figures derived from them |
 | `src/PriceChanges.tsx` | The price change page at `#/hinnat` |
+| `src/Ticker.tsx` | The live event ticker under the header |
+| `src/services/liveFeed.ts` | Reads the event log from the Worker |
+| `worker/events.ts` | Derives the events by diffing snapshots, and serves `/events` |
 | `src/services/liveDashboard.ts` | FPL response mapping and dashboard composition |
 | `src/services/fplRules.ts` | Chips, free transfers, provisional autosubs |
 | `src/i18n.ts` | FI/EN strings |
@@ -210,6 +213,60 @@ easily hold two Fernandes.
 state is red text, `--live:#ff5f77`, not a red pill, and it does not pulse. The count sits
 over a small `PELATTU` caption. The same card is used on mobile a size down; measured at
 375px it ends 14px from the right edge with the language switch beside it.
+
+## The live ticker
+
+A strip under the header, on both pages, with the feed and the table on screen at once.
+That was the requirement — and on a portrait second monitor a side rail was not an option,
+because it would have cost the table half its columns on exactly the screen it is read on.
+
+### FPL publishes state, not events
+
+`/event/{gw}/live/` says Szoboszlai has one goal. It never says it went in at 20:31. Every
+feed of this kind, LiveFPL's included, derives its events by diffing successive snapshots
+and stamping the time itself, and so does this one.
+
+The diff runs in `worker/events.ts` on the cron that already ticks every two minutes. It
+compares eleven counters per player — goals, assists, own goals, cards, penalties saved and
+missed, bonus, defensive contribution, saves — against the previous snapshot, and writes
+both the snapshot and the log into **one** KV value under `feed:gw:N`.
+
+One value, because the free KV plan allows 1,000 writes a day and a two-minute tick around
+the clock is 720 of them. Writes only happen while football is being played: any fixture
+`started && !finished_provisional`, plus a 30-minute grace so the bonus recalculations are
+caught. A heavy Saturday costs about 200 writes.
+
+Two counters are not events in themselves. **Saves** are worth a point per three, so the
+feed reports the point and not every stop. **Bonus** moves by a point at a time and moves
+back again, which is why it is filtered out by default and why a counter going *down* never
+emits anything.
+
+The page reads `GET /events?gw=N`, cached 30 s, every 60 s and on window focus. Which of
+our teams own the player is joined **client-side** from the squads already loaded, so the
+log itself stays small and the Worker knows nothing about the league.
+
+### The look
+
+The track is rendered twice and translated by exactly half its width, which is what makes
+the loop seamless — the second copy arrives where the first left. Hovering stops it,
+because a moving line you cannot read is decoration, and `prefers-reduced-motion` stops it
+for good. The chevron opens a panel with the full log, a low-impact filter and an
+only-our-players filter.
+
+Owned players are struck in the same lime as everywhere else. One accent, one meaning.
+
+**The Worker must be deployed for any of this to have data**: `npx wrangler deploy`. Until
+then `/events` answers 404 and the ticker says it is waiting.
+
+## The middle widths
+
+Below 800px the table is cards. Above 1260px it fits whole. In between — a portrait
+monitor, a half-screen window — it was neither: the grid asked for 1224px and
+`.league-table` clipped what did not fit, so on a 1080px screen the last three columns
+simply were not there. Four columns now step aside in that range, the four whose figures
+are cumulative rather than about this gameweek: total transfers, chips, team value and
+bench points. What is left fits from about 880px up, and `check-overflow.mjs` tests 1080
+and 1200 alongside the rest.
 
 ## The price change page
 

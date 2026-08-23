@@ -106,6 +106,8 @@ export interface PriceMarket {
   players: PriceRow[];
 }
 
+import type { FeedEvent } from "./services/liveFeed";
+
 export interface DashboardData {
   leagueName: string;
   gameweek: number;
@@ -119,4 +121,6 @@ export interface DashboardData {
   fixtures?: GameweekFixture[];
   managers: ManagerRow[];
   prices?: PriceMarket;
+  /** Only demo data carries its own feed; live data reads it from the Worker. */
+  feed?: FeedEvent[];
 }
