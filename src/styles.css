@@ -2149,3 +2149,105 @@ footer a { color:#c4c6d8; }
   .squad-panel .player-fixture { font-size:7px; }
   .squad-panel .player-ownership { font-size:7px; }
 }
+
+/* ==========================================================================
+   The player card, rebuilt around the name
+   --------------------------------------------------------------------------
+   Two problems, one cause. The three bands at the foot were inset boxes inside
+   the card's padding, so they read as three separate objects rather than one
+   stack; and on a phone the card was one of eight in a row, about 41px of usable
+   width, which is narrower than "B.Fernandes" at any size worth reading.
+
+   So the bands break out of the padding and reach the edges, touching, with only
+   the last one rounded because only the last one is at the bottom of the card.
+   And on a phone the squad is laid out as a formation — the goalkeeper, then the
+   defence, then the midfield, then the attack, each on its own row — which is
+   both how every FPL app draws a squad and how the cards get wide enough that no
+   name has to be cut. Five to a row rather than eight is 66px of name at 320px.
+
+   The name itself may take two lines, and the space for the second is reserved on
+   every card so the grid stays level whether it is used or not. `anywhere` is the
+   backstop for a single token that still will not fit: a broken word is ugly, an
+   ellipsis is a name you cannot read.
+   ========================================================================== */
+/* The card is a column so the stack of bands can sit on the bottom edge: the card has a
+   fixed height and the content is shorter than it, which left a 9px shelf under the last
+   band. */
+/* Taller than it was: two lines of name and three bands need the room, and a card that
+   fits its contents is worth more than one that fits a number somebody typed in 2026. */
+.squad-panel .player {
+  --card-pad-x:5px;
+  display:flex;
+  flex-direction:column;
+  height:auto;
+  min-height:178px;
+  padding-bottom:0;
+  overflow:visible;
+}
+.squad-panel .player-bottom {
+  row-gap:0;
+  /* Back into the flow. It was pinned `position:absolute; left:5px; right:5px; bottom:9px`
+     from the design where the stack floated inside the card's padding, which is both why
+     the bands stopped 9px short of the bottom edge and why no margin could move them. */
+  position:static;
+  margin:6px calc(var(--card-pad-x) * -1) 0;
+}
+.squad-panel .player-points span { color:inherit; }
+.squad-panel .player-points,
+.squad-panel .player-fixture { border-radius:0; }
+
+/* The state is the colour of the figure, which is what the legend spells out, and it is
+   now the same on a desktop as it always was on a phone. The band behind it stays neutral;
+   tinting that as well said the same thing twice and left the number in ink. */
+.squad-panel .player-finished .player-points,
+.squad-panel .player-finished .player-points span { color:#6432b5; }
+.squad-panel .player-live .player-points,
+.squad-panel .player-live .player-points span { color:#087a46; }
+.squad-panel .player-upcoming .player-points,
+.squad-panel .player-upcoming .player-points span { color:#946000; }
+
+.squad-panel .player-ownership {
+  padding:3px 0;
+  border-radius:0 0 8px 8px;
+  background:#fff;
+  color:var(--text);
+  font-size:9px;
+}
+
+/* Two lines of name, always reserved, never cut. */
+.squad-panel .player-name {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  /* The name takes the slack rather than the bands being pushed by an auto margin: the
+     card has a fixed height, and whatever is left over belongs above the stack, not
+     under it as a shelf. */
+  flex:1 1 auto;
+  min-height:calc(2 * 1.15em);
+  margin-top:4px;
+  overflow:visible;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  line-height:1.15;
+  text-wrap:balance;
+}
+.squad-panel .player-name span { display:block; }
+
+@media (max-width:800px) {
+  /* A formation, not a strip: every group starts its own row, so the rows are
+     1 / up to 5 / up to 5 / up to 3 exactly as the team lines up. */
+  .squad-panel .squad-players { grid-template-columns:repeat(5,minmax(0,1fr)); column-gap:5px; row-gap:20px; }
+  .squad-panel .squad-grid.starters { display:contents; }
+  .squad-panel .squad-grid.starters .player.group-start { grid-column-start:1; }
+  /* grid-row:auto, because the old eight-column layout pinned the bench to row 2 and it
+     would otherwise sit between the goalkeeper and the defence. */
+  .squad-panel .squad-grid.bench { grid-column:1 / -1; grid-row:auto; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+  .squad-panel .squad-players .bench-heading { display:block; grid-column:1 / -1; }
+  .squad-panel .player { --card-pad-x:3px; height:auto; min-height:132px; padding:5px 3px 0; border-radius:7px; }
+  .squad-panel .player-name { font-size:9px; margin-top:5px; }
+  .squad-panel .player-ownership { border-radius:0 0 7px 7px; font-size:8px; }
+  .squad-panel .player-visual { height:40px; }
+  .squad-panel .shirt { width:70px; height:64px; }
+  .squad-panel .player-points { font-size:16px; }
+  .squad-panel .player-fixture { font-size:8px; }
+}

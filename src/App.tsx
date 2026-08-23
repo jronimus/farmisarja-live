@@ -209,10 +209,9 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
     <div className="player-bottom">
       <strong className="player-points"><span className="desktop-player-score">{(player.points + player.bonus) * scoreMultiplier}</span><span className="mobile-player-score">{(player.points + player.bonus) * scoreMultiplier}</span></strong>
       {/* FPL's own 1–5 difficulty, from this player's side of the tie. */}
+      {/* No state dot: the state is the colour of the band above, which is the same
+          coding the legend spells out. A second mark for it read as a stray bullet. */}
       <span className={`player-fixture venue-${player.venue.toLowerCase()} fdr-${player.difficulty ?? 0}`}>
-        <i className={`state-dot ${player.state}`} />
-        {/* One label, not a desktop copy and a mobile copy: the band is three characters
-            wide on either. */}
         <span className="player-opponent">{player.opponent}</span>
         <b className="player-venue">{player.venue}</b>
       </span>

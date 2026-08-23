@@ -213,11 +213,27 @@ The eleven are ordered by line and then by squad position. A substitute keeps hi
 `squadPosition`, so sorting by that alone dropped him after the forwards and opened a
 second midfield heading behind them.
 
-Each card's foot is two bands the width of the card — the score above, the fixture below —
-and the fixture band carries FPL's own 1–5 difficulty as its colour. That is in the API as
-`team_h_difficulty` and `team_a_difficulty` on the fixture and needs no inventing.
-Ownership sits under both, because it is the one figure on the card that is not about this
-match.
+Each card's foot is three bands the full width of the card, touching, reaching its edges:
+the score, the fixture, and ownership. Only the last is rounded, because only the last is
+at the bottom. The fixture band carries FPL's own 1–5 difficulty as its colour — that is in
+the API as `team_h_difficulty` and `team_a_difficulty` and needs no inventing — and the
+score carries the state as the colour of the figure, purple settled, green live, amber to
+come, which is what the legend above the squad already spells out. There is no state dot:
+a second mark for the same fact read as a stray bullet.
+
+`.player-bottom` was `position:absolute; left:5px; right:5px; bottom:9px` from an older
+design where the stack floated inside the card's padding. That is why the bands stopped
+short of the edge and why no margin would move them. It is back in the flow.
+
+**The name decides the card.** Two lines are allowed and the room for the second is
+reserved on every card, so the grid stays level whether it is used or not, and
+`overflow-wrap:anywhere` is the backstop: a broken word is ugly, an ellipsis is a name you
+cannot read. On a phone the squad is laid out as a **formation** — goalkeeper, defence,
+midfield, attack, each on its own row, five columns with `grid-column-start:1` on the first
+card of each line — which is how every FPL app draws a squad and, more to the point, is
+what makes the cards wide enough. Eight to a row left 41px of name, which is narrower than
+"B.Fernandes" at any size worth reading; five leaves 66px at 320px. Verified at 320, 390
+and 1440: no name is cut at any of them.
 
 ### Autosubs count
 
