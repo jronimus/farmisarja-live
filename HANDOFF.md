@@ -9,7 +9,8 @@ before making changes.
 
 1. Run `git status --short` first. Do not reset, clean or discard the working tree.
 2. `npm install`, then `npm run dev` for the dashboard.
-3. Validation before any commit: `npm test`, `npm run build`, `npm run worker:check`.
+3. Validation before any commit: `npm test`, `npm run build`, `npm run worker:check`,
+   and `node scripts/check-overflow.mjs` with the dev server running.
 4. Source code, identifiers and comments in English. Visible page content in Finnish
    (the dashboard is bilingual FI/EN; the share cards are Finnish only).
 5. Deploy only when asked. Pages deploys on push to `main`; the Worker needs a separate
@@ -42,6 +43,8 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/services/fplRules.ts` | Chips, free transfers, provisional autosubs |
 | `src/i18n.ts` | FI/EN strings |
 | `src/demoData.ts` | Ten-manager stress data for `?demo=1` |
+| `scripts/check-overflow.mjs` | Asserts the page never scrolls sideways, at twelve widths |
+| `.claude/launch.json` | Starts the dev server on port 5174 |
 | `worker/index.ts` | Proxy routes, webhook, protected `/admin/card-screenshot?card=` endpoint |
 | `worker/telegram.ts` | Reminders, card capture, staged report, bot commands |
 | `public/cards/*.webp` | Card backgrounds, 1080×1350 |
@@ -74,16 +77,43 @@ last block of `src/styles.css` on purpose.
 - **Nothing relies on grey for legibility** on the share cards; the dashboard still uses
   `--soft` and `--faint`, which is fine on its own dark ground.
 
+### Column widths
+
+Every fixed column is the measured max-content width of the widest thing it can ever
+hold, read out of the live DOM by cloning a row with `grid-template-columns:repeat(12,
+max-content)` and worst-case text substituted in, plus whatever the header label needs
+once it is allowed to wrap. The numbers and the reasoning are in the last block of
+`src/styles.css`. Re-measure rather than nudge them.
+
+The old set was guessed and wrong in both directions. `Yhteensä` sat in a 60px column
+whose own header needs 69px, so that header was clipped at every window size. The captain
+name had 85px for a name that reaches 134px. `Arvo`, `Vire`, `GW-pisteet` and `Pelattu`
+together carried 106px that nothing ever used. The whole row also demanded 1268px inside
+the 1173px a 1280px window gives it, and quietly hid the difference behind
+`overflow:hidden` — the last column simply was not there on a 1280px laptop. The row now
+asks for 1224px and fits.
+
+The bench column carried `transform:translateX(-14px)`, a nudge toward a value column
+that was 17px wider than anything in it. With the columns cut to their content that nudge
+only pushed the value pill into the bench figure, so it is gone.
+
 ### The transfers column
 
-The column is 203px and each transfer is one line: `out N → in N = ±D`. Names sit in
-`.tf-name` spans that truncate, so the line can never overflow horizontally — verified by
-injecting four transfers with the longest real names into the live DOM and checking
-`scrollWidth == clientWidth`. The row grows vertically instead, 82px to 102px for four.
+Each transfer is one line: `out N → in N = ±D`. Names sit in `.tf-name` spans that
+truncate, so the line can never overflow horizontally; the row grows vertically instead,
+82px to 102px for four transfers.
 
-Most names fit whole. Alexander-Arnold is the one that still truncates: it needs 91px and
-gets 57. If that matters, the per-player points can go from the desktop line — they are
-recoverable from the difference — which frees about 35px.
+Both names share one budget, and it is smaller than it looks: the points, the arrow, the
+`=` and the difference are fixed, so at 1280px the pair of names had 97.8px between them
+with single-digit points and 88.1px with double-digit ones. Measured against the 348
+players who are realistically ownable, that fit 84.6 % and 69.5 % of possible pairs —
+`Dewsbury-Hall → Gibbs-White` on 12 and 15 points truncated both names. It was not the
+rare edge case the earlier note claimed.
+
+Reclaiming the wasted column width, plus a 4px rather than 8px gutter on this one cell,
+took the budget to 119.3px and 109.5px, which is 97.6 % and 94.2 % of pairs. The
+per-transfer points stay. The longest realistically ownable name is now George Hemmings
+at 97px; Alexander-Arnold is no longer in the game at all.
 
 ### The header
 
@@ -244,17 +274,36 @@ These cost real debugging time. Do not re-derive them from assumptions.
    `album_sent`. Note the log is pretty-printed multi-line JSON, so split on `\n{`.
 2. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
    Nothing else needs changing; the card picks the plate by row count.
-3. **Verify the deadline card against real picks.** It has only been rendered from demo
-   data, where the settled totals and `manager.position` disagree because the demo sits
-   mid-gameweek. At a real deadline `gameweekPoints` is 0 and the two agree. GW2's
-   deadline is the first chance to see it fire.
-4. **Narrow desktop windows overflow horizontally.** At around 390px wide in a desktop
-   browser the whole page scrolls sideways: the header actions run off the right and the
-   manager cards are cut. Checked against the deployed build before the 23 Aug changes and
-   it is already there, so it is old, not new. Real phones do not show it, because the
-   meta viewport handles them. Not investigated further.
-5. **Alexander-Arnold truncates in the transfers column.** See the dashboard table section
-   for the measurement and the way out if it becomes annoying.
+3. **Verify the deadline card's totals and transfer lines against real picks.** The card
+   itself was rendered from real GW1 picks on 23 Aug and is in
+   `artifacts/cards/deadline-real.png`: real names, real captains, ordered by
+   `manager.position`. Two parts of it are still unseen, because GW1 cannot show them —
+   the settled total, which is hidden at GW1 where it is zero, and an actual `out → in`
+   list, since nobody had transfers before the first deadline. GW2's deadline on
+   **28 Aug at 20:30** is the first time both appear.
+
+## What was fixed on 23 Aug, so it is not rediscovered
+
+- **The narrow-window overflow was `100vw`.** `.view-tabs` capped itself at
+  `calc(100vw - 62px)` and the topbar padded itself from `100vw` too. On a desktop window
+  with a classic scrollbar `100vw` is about 15px wider than the layout, so the row of
+  controls asked for more than the page had and pushed it sideways. A real phone has
+  overlay scrollbars, the two agree, and nothing shows — which is exactly why this was
+  filed as unreproducible. Both now use `100%`, and the flex rows carry `min-width:0`
+  so a control gives way instead of the page.
+- **`node scripts/check-overflow.mjs` guards it.** It loads `?demo=1` in headless Chrome
+  at twelve widths and asserts `documentElement.scrollWidth == clientWidth`, naming the
+  elements that stick out when it fails. It refuses to pass if the table never rendered,
+  because an empty shell fits every width. It also greps the CSSOM for `100vw`, since
+  headless Chrome draws overlay scrollbars and cannot reproduce that bug by layout alone.
+  Widths under 600px are emulated as phones; a desktop window cannot be dragged that
+  narrow, and emulating one there reports 15px of scrollbar nobody will ever see.
+  It cannot see content that is clipped rather than pushed out — a column hidden by
+  `overflow:hidden` still reports a page that fits, which is how the last column stayed
+  missing for weeks. Chrome's `--screenshot` flag does not size the viewport reliably
+  either; capture through `Page.captureScreenshot` if a screenshot has to prove a width.
+- It found one real overflow nobody had noticed: at 320px the toggles beside the view
+  tabs were 5px too wide for the page. `.toolbar` now wraps.
 
 ## Rules that keep being learned the hard way
 
@@ -271,3 +320,6 @@ These cost real debugging time. Do not re-derive them from assumptions.
 - Do not regenerate the shirt artwork in `public/kits/`. Do not reintroduce Vetoliiga
   branding, a theme switch, or demo data flashing during live loading.
 - Never claim a live behaviour is verified without testing it against the real API.
+- **Do not size a column by eye, and do not trust a width already in the file.** Clone the
+  row, set `grid-template-columns:repeat(12,max-content)`, substitute the worst content
+  each cell can hold, and read the widths back. Half the table's widths were wrong.

@@ -84,7 +84,7 @@ footer a { color:var(--soft); text-decoration:none; transition:color .15s ease; 
   .deadline svg,.deadline-compact { display:block; }.deadline-full { display:none; }.gameweek-status .deadline { padding:4px 6px; }
   .top-actions { gap:6px; }.theme-toggle,.language { height:28px; border-radius:6px; }.theme-toggle { width:28px; }.theme-toggle svg { width:14px; }.language { padding:0 7px; font-size:12px; }
   .gameweek-status .deadline { min-height:28px; box-sizing:border-box; }
-  main { padding:12px 10px 26px; }.status-strip { margin-bottom:10px; overflow:hidden; }.toolbar { align-items:center; gap:8px; margin-bottom:8px; }.view-tabs { max-width:calc(100vw - 62px); overflow-x:auto; scrollbar-width:none; }.view-tabs::-webkit-scrollbar { display:none; }.view-tabs button { white-space:nowrap; }
+  main { padding:12px 10px 26px; }.status-strip { margin-bottom:10px; overflow:hidden; }.toolbar { align-items:center; gap:8px; margin-bottom:8px; }.view-tabs { min-width:0; flex:0 1 auto; overflow-x:auto; scrollbar-width:none; }.view-tabs::-webkit-scrollbar { display:none; }.view-tabs button { white-space:nowrap; }
   .period-select { min-width:92px; width:92px; height:26px; padding:0 27px 0 9px; background-position:right 8px center; background-size:11px; font-size:10px; border-radius:6px; }
   .league-table { overflow:visible; background:transparent; border-radius:0; }.table-head { display:none; }.rows { display:flex; flex-direction:column; gap:10px; }
   .data-pending { min-height:170px; padding:28px 18px; border-radius:12px; }.data-pending strong { font-size:14px; }.data-pending span { font-size:10px; }
@@ -677,7 +677,9 @@ footer a { color:#c4c6d8; }
 .gw-score.has-medal > strong { padding:0; color:var(--text); background:none; }
 
 /* Final readability and desktop alignment pass. */
-.topbar { padding-inline:max(30px,calc((100vw - 1540px) / 2 + 30px)); }
+/* 100% is the layout width; 100vw includes a desktop scrollbar and would push the
+   header 15px wider than the page it is supposed to line up with. */
+.topbar { padding-inline:max(30px,calc((100% - 1540px) / 2 + 30px)); }
 .manager-row .manager-cell > span,
 .manager-row .transfer-cell small,
 .manager-row .desktop-transfer-footer,
@@ -1375,8 +1377,96 @@ footer a { color:#c4c6d8; }
   .manager-row .transfer-cell small b { padding:0; }
   .manager-row .transfer-equals { flex:none; }
   .manager-row .transfer-cell { grid-template-columns:minmax(0,1fr); }
-  .manager-row .form-values { gap:8px; }
+  .manager-row .form-values { gap:6px; }
   .manager-row .wildcard-transfer > strong { font-size:var(--fs-lead); }
   .manager-row .wildcard-transfer > b { font-size:var(--fs-sub); }
   .manager-row .wildcard-transfer > small { font-size:var(--fs-meta); }
+}
+
+/* ==========================================================================
+   Column widths, and the two flex rows above the table
+   --------------------------------------------------------------------------
+   Every fixed column below is the measured max-content width of the widest
+   thing that column can ever hold, taken from the live DOM rather than
+   guessed, plus whatever the header label needs once it is allowed to wrap.
+   The two flexible columns are the ones whose content is unbounded: a team
+   name and a list of transfers.
+
+   What the old numbers got wrong: `Yhteensä` sat in a 60px column while its
+   own header needs 69px, so the header was clipped at every window size; the
+   captain name had 85px for a name that reaches 134px; and `Arvo`, `Vire`,
+   `GW-pisteet` and `Pelattu` together carried 106px that nothing ever used.
+   Reclaiming that goes to the transfer column, which is the only one where
+   the shortfall was visible as truncated text.
+
+   Widths (content | header, whichever is larger):
+     70  position   10. + movement       |  56
+     140 manager    flexible, truncates  |  77 wrapped
+     106 captain    fits every name but the very longest, then ellipsis
+     212 transfers  flexible, the point of this pass
+     61  season tf  33                   |  61 wrapped
+     125 chips      four tags            |  51
+     78  value      £104.2m +0.4m        |  48
+     58  bench      35                   |  58
+     139 form       five figures + KA    |  42, at a 6px gap
+     67  gw points  146 + formula        |  63 wrapped
+     67  played     (11/11)              |  67
+     77  total      2400                 |  77, single word, cannot wrap
+   Sum 1200, plus 2×12px row padding = the 1224px min-width. That is what
+   makes the whole row fit a 1280px window, where it used to need 1268px of a
+   1173px opening and quietly clipped the last column behind overflow:hidden.
+   ========================================================================== */
+@media (min-width:801px) {
+  .table-head,
+  .manager-row {
+    min-width:1224px;
+    padding:0 12px;
+    grid-template-columns:70px minmax(140px,1fr) 106px minmax(212px,1.5fr) 61px 125px 78px 58px 139px 67px 67px 77px;
+  }
+
+  /* The bench column used to be nudged 14px left to sit closer to a value
+     column that was 17px wider than anything it held. With the columns cut to
+     their content that nudge only closes the gap between the two figures, and
+     the value pill ends up touching the bench number. */
+  .manager-row .bench-points-cell,
+  .table-head .sort-header:nth-child(8) {
+    transform:none;
+  }
+
+  /* Padding is not content. The transfer column is the only one whose text is
+     measurably short of room, so it keeps 4px of gutter instead of 8 and hands
+     the difference to the names. */
+  .manager-row .transfer-cell { padding-inline:4px; }
+
+  /* The captain is the one fixed column holding a name, so it truncates rather
+     than pushing the column to the width of the longest name in the game. */
+  .manager-row .captain-cell > strong {
+    min-width:0;
+    max-width:100%;  /* the cell aligns its children to the start, so they size to content */
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* At 1280 the table needs every pixel main is padding away. */
+  main { padding-inline:16px; }
+}
+
+@media (min-width:1401px) {
+  main { padding-inline:30px; }
+}
+
+/* A flex child defaults to min-width:auto and refuses to shrink below its
+   content, which is how a row of controls pushes the page sideways instead of
+   giving way. Neither of these rows may ever be the reason the page scrolls. */
+.topbar > *,
+.toolbar > * {
+  min-width:0;
+}
+
+/* The switches beside the view tabs cannot shrink any further than their own
+   labels, so below about 340px they need a second row rather than the page. */
+.toolbar {
+  flex-wrap:wrap;
+  row-gap:6px;
 }
