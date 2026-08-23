@@ -201,23 +201,21 @@ function Shirt({ player }: { player: SquadPlayer }) {
 }
 
 /**
- * When the match starts, in as few characters as the band can hold.
+ * When the match is, in one word.
  *
- * Today needs no day. Inside a week a weekday is enough, and it has to be there: a
- * gameweek can run over two weekends, and then "la" alone is two different Saturdays.
- * Past a week only a date is unambiguous. The band is 41px wide on a phone, which holds
- * the opponent and one of the two, so the day wins there and the time is kept for the day
- * itself; a desktop band is 72px and takes both.
+ * The clock is only worth printing on the day it matters; before that the answer to "when
+ * does he play" is a day, not a time. Inside a week the weekday says it, and past a week
+ * only a date does — a gameweek can run over two weekends, and then "la" would name two
+ * different Saturdays.
  */
-function kickoffParts(iso: string, language: Language) {
+function kickoffLabel(iso: string, language: Language) {
   const locale = language === "fi" ? "fi-FI" : "en-GB";
   const date = new Date(iso);
-  const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
   const midnight = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
   const days = Math.round((midnight(date) - midnight(new Date())) / 86_400_000);
-  if (days <= 0) return { day: "", time };
-  if (days < 7) return { day: new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date), time };
-  return { day: new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric" }).format(date), time };
+  if (days <= 0) return new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+  if (days < 7) return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date);
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric" }).format(date);
 }
 
 /** 8px, 7px or 6px, by the longest piece of the name that cannot be broken. */
@@ -231,7 +229,7 @@ function nameStep(name: string) {
 function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, groupLabel, mobileGroupLabel, groupKind, highlighted }: { player: SquadPlayer; best: boolean; language: Language; tripleCaptain: boolean; scoreMultiplier: number; groupLabel?: string; mobileGroupLabel?: string; groupKind?: "position" | "bench"; highlighted?: boolean }) {
   const t = translations(language);
   const waiting = player.state === "upcoming";
-  const kickoff = waiting && player.kickoff ? kickoffParts(player.kickoff, language) : null;
+  const kickoff = waiting && player.kickoff ? kickoffLabel(player.kickoff, language) : "";
   return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${highlighted ? "player-picked" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
     {groupLabel && <span className="player-group-label"><b className="desktop-squad-label">{groupLabel}</b><b className="mobile-squad-label">{mobileGroupLabel ?? groupLabel}</b></span>}
     <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /></div>
@@ -251,9 +249,7 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
           coding the legend spells out. A second mark for it read as a stray bullet. */}
       <span className={`player-fixture venue-${player.venue.toLowerCase()} fdr-${player.difficulty ?? 0}`}>
         <span className="player-opponent">{player.opponent}</span>
-        <b className="player-venue">{kickoff
-          ? <>{kickoff.day && <i className="kickoff-day">{kickoff.day}</i>}<i className="kickoff-time">{kickoff.time}</i></>
-          : player.venue}</b>
+        <b className="player-venue">{kickoff || player.venue}</b>
       </span>
       <span className="player-ownership">{player.ownership.toFixed(1)} %</span>
     </div>

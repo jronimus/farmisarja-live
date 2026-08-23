@@ -224,12 +224,12 @@ a second mark for the same fact read as a stray bullet.
 **A player who has not kicked a ball gets a dash, not a nought**, and the kick-off in place
 of the venue letter.
 
-How much of the kick-off depends on how far away it is, because a gameweek can run over two
-weekends and then a weekday alone names two different Saturdays. Today prints only the
-time; inside a week, the weekday; past a week, the date. On a phone the band is 41px and
-holds the opponent plus one of the two, so the day wins and the time appears on the day
-itself — which is the half that becomes useful then. A desktop band is 72px and takes both;
-the switch is one `:has(.kickoff-day)` rule rather than two copies of the markup. A colour alone was not enough to carry that at 14px on a light
+One word, and which word depends on how far away the match is. The clock is only worth
+printing on the day it matters; before that the answer to "when does he play" is a day, not
+a time. Inside a week the weekday says it, and past a week only a date does — a gameweek
+can run over two weekends, and then "la" would name two different Saturdays. Every form
+fits the 41px band on a phone with room to spare, so there is one rule and no breakpoint
+behind it. A colour alone was not enough to carry that at 14px on a light
 band, and the nought was wrong anyway: it is the same nought a player who played badly
 gets, and those are not the same thing. The dash says which without raising its voice.
 
