@@ -2234,19 +2234,18 @@ footer a { color:#c4c6d8; }
 .squad-panel .player-name span { display:block; }
 
 @media (max-width:800px) {
-  /* A formation, not a strip: every group starts its own row, so the rows are
-     1 / up to 5 / up to 5 / up to 3 exactly as the team lines up. */
-  .squad-panel .squad-players { grid-template-columns:repeat(5,minmax(0,1fr)); column-gap:5px; row-gap:20px; }
-  .squad-panel .squad-grid.starters { display:contents; }
-  .squad-panel .squad-grid.starters .player.group-start { grid-column-start:1; }
-  /* grid-row:auto, because the old eight-column layout pinned the bench to row 2 and it
-     would otherwise sit between the goalkeeper and the defence. */
-  .squad-panel .squad-grid.bench { grid-column:1 / -1; grid-row:auto; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
-  .squad-panel .squad-players .bench-heading { display:block; grid-column:1 / -1; }
   /* A step down in type across the card. Five to a row already gives the name the width
      it needs; the smaller sizes are what give the squad back its height, 132px to 112. */
   .squad-panel .player { --card-pad-x:3px; height:auto; min-height:112px; padding:4px 3px 0; border-radius:7px; }
-  .squad-panel .player-name { font-size:8px; margin-top:4px; }
+  /* The name uses the whole card, like the bands do: 37px of padded width could not hold
+     a surname, 43px can. */
+  .squad-panel .player-name {
+    margin:4px calc(var(--card-pad-x) * -1) 0;
+    font-size:8px;
+    letter-spacing:-.01em;
+  }
+  .squad-panel .player-name.name-step-1 { font-size:7px; }
+  .squad-panel .player-name.name-step-2 { font-size:6px; }
   .squad-panel .player-ownership { border-radius:0 0 7px 7px; padding:2px 0; font-size:7px; }
   .squad-panel .player-visual { height:36px; }
   .squad-panel .shirt { width:62px; height:58px; }
@@ -2254,21 +2253,7 @@ footer a { color:#c4c6d8; }
   .squad-panel .player-fixture { padding:2px 0; font-size:7px; }
 }
 
-/* The lines. Contents on a desktop, so the eleven still read as one strip; a centred flex
-   row on a phone, which is the one thing a grid cannot do for a row that is not full. */
+/* The line containers are structural only: the cards stay direct grid items so the strip
+   on a desktop and the two rows on a phone both lay out as they always did. */
 .squad-line { display:contents; }
-
-@media (max-width:800px) {
-  .squad-panel .squad-players { display:flex; flex-direction:column; gap:20px; }
-  .squad-panel .squad-grid.starters { display:flex; flex-direction:column; gap:20px; }
-  .squad-panel .squad-line {
-    display:flex;
-    justify-content:center;
-    gap:5px;
-  }
-  /* Every card is a fifth of the row whatever the formation, so a back three sits centred
-     under a midfield four without either changing size. */
-  .squad-panel .squad-line > .player { flex:0 0 calc((100% - 4 * 5px) / 5); }
-  .squad-panel .squad-grid.bench { display:grid; }
-}
 

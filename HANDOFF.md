@@ -226,14 +226,24 @@ design where the stack floated inside the card's padding. That is why the bands 
 short of the edge and why no margin would move them. It is back in the flow.
 
 **The name decides the card.** Two lines are allowed and the room for the second is
-reserved on every card, so the grid stays level whether it is used or not, and
-`overflow-wrap:anywhere` is the backstop: a broken word is ugly, an ellipsis is a name you
-cannot read. On a phone the squad is laid out as a **formation** — goalkeeper, defence,
-midfield, attack, each on its own row, five columns with `grid-column-start:1` on the first
-card of each line — which is how every FPL app draws a squad and, more to the point, is
-what makes the cards wide enough. Eight to a row left 41px of name, which is narrower than
-"B.Fernandes" at any size worth reading; five leaves 66px at 320px. Verified at 320, 390
-and 1440: no name is cut at any of them.
+reserved on every card, so the grid stays level whether it is used or not.
+
+On a phone the squad stays the two-row grid of eight it has always been, which gives a card
+43px. A formation layout was built and rejected: five to a row gave the names 66px but cost
+the squad 858px of height where the grid costs 313. So the name is fitted to the card
+instead. It breaks out of the card's padding to use all 43px, and its size is stepped by
+**the longest piece of the name that cannot be broken** — a space or a hyphen can wrap on
+its own, a surname cannot:
+
+| Longest unbreakable token | Size |
+| --- | --- |
+| up to 8 characters | 8px |
+| 9–10 | 7px |
+| 11 or more | 6px |
+
+The steps are measured, not guessed: at 43px, "B.Fernandes" needs 49px at 8px and 37px at
+6px. With them, the only name in the league that still takes two lines is João Pedro, and
+it wraps at its space, which is where a two-word name should wrap.
 
 ### Autosubs count
 

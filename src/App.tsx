@@ -200,12 +200,23 @@ function Shirt({ player }: { player: SquadPlayer }) {
   return <div className="shirt"><img className="shirt-image" src={source} alt="" /></div>;
 }
 
+/** 8px, 7px or 6px, by the longest piece of the name that cannot be broken. */
+function nameStep(name: string) {
+  const longest = Math.max(...name.split(/[\s]/).map((part) => part.length));
+  if (longest >= 11) return "name-step-2";
+  if (longest >= 9) return "name-step-1";
+  return "";
+}
+
 function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, groupLabel, mobileGroupLabel, groupKind, highlighted }: { player: SquadPlayer; best: boolean; language: Language; tripleCaptain: boolean; scoreMultiplier: number; groupLabel?: string; mobileGroupLabel?: string; groupKind?: "position" | "bench"; highlighted?: boolean }) {
   const t = translations(language);
   return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${highlighted ? "player-picked" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
     {groupLabel && <span className="player-group-label"><b className="desktop-squad-label">{groupLabel}</b><b className="mobile-squad-label">{mobileGroupLabel ?? groupLabel}</b></span>}
     <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /></div>
-    <div className="player-name"><span>{player.name}</span></div>
+    {/* The step is chosen from the longest unbreakable token, not the whole name: a space
+        or a hyphen can wrap on its own, a surname cannot. Measured against the 43px a card
+        gets at eight to a row. */}
+    <div className={`player-name ${nameStep(player.name)}`}><span>{player.name}</span></div>
     <div className="player-bottom">
       <strong className="player-points"><span className="desktop-player-score">{(player.points + player.bonus) * scoreMultiplier}</span><span className="mobile-player-score">{(player.points + player.bonus) * scoreMultiplier}</span></strong>
       {/* FPL's own 1–5 difficulty, from this player's side of the tie. */}
