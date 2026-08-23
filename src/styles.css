@@ -37,7 +37,7 @@ main { max-width: 1540px; padding: 22px 30px 42px; margin: 0 auto; }
 .toolbar-toggles { display:flex; align-items:center; gap:12px; }.details-toggle { display:none; align-items:center; gap:6px; color:var(--soft); font-size:9px; font-weight:800; white-space:nowrap; }.details-toggle button { width:34px; height:19px; padding:2px; border:0; border-radius:20px; background:var(--raised); cursor:pointer; }.details-toggle button i { display:block; width:15px; height:15px; border-radius:50%; background:var(--soft); transition:.2s; }.details-toggle button.enabled { background:var(--accent); }.details-toggle button.enabled i { transform:translateX(15px); background:var(--green); }.mobile-captain { display:none; }.season-transfers-cell,.bench-points-cell { display:flex; flex-direction:column; align-items:flex-start; gap:3px; }.season-transfers-cell strong,.bench-points-cell strong { color:var(--text); font-size:12px; }.season-transfers-cell span { color:var(--red); font-size:8px; font-weight:800; white-space:nowrap; }.bench-points-cell span { color:var(--green); font-size:8px; font-weight:800; white-space:nowrap; }
 .progress-cell { display:flex; flex-direction:column; align-items:flex-start; gap:4px; }.progress-summary { color:var(--text); font-size:11px; font-weight:900; white-space:nowrap; }.progress-cell small { color:var(--green); font-size:9px; font-weight:900; line-height:1; }.progress-cell small b { font:inherit; }.progress-cell > strong { font-size:9px; font-weight:900; letter-spacing:.03em; }.progress-cell .is-provisional { color:var(--purple); }.progress-cell .is-final { color:var(--green); }
 .progress-cell em { display:none; font:inherit; font-style:normal; text-transform:uppercase; }
-.form-cell { display:flex; align-items:center; justify-content:flex-start; gap:12px; padding-left:8px !important; padding-right:18px !important; }.form-cell > span { min-width:18px; color:var(--soft); font-size:12px; font-weight:900; text-align:center; }.form-cell > span.rank-up { color:var(--green); }.form-cell > span.rank-down { color:var(--red); }
+.form-cell { display:flex; align-items:center; justify-content:flex-start; gap:12px; padding-left:8px !important; padding-right:8px !important; }.form-cell > span { min-width:18px; color:var(--soft); font-size:12px; font-weight:900; text-align:center; }.form-cell > span.rank-up { color:var(--green); }.form-cell > span.rank-down { color:var(--red); }
 .squad-panel { padding:24px 22px 27px; background:linear-gradient(180deg,#101e18,#0c1712); box-shadow:inset 0 12px 18px -20px #000; }.squad-heading { display:flex; justify-content:space-between; align-items:center; margin:0 0 23px; text-transform:uppercase; color:#71857b; font-size:9px; font-weight:700; letter-spacing:.08em; }.squad-legend { display:flex; gap:10px; margin-right:10px; transform:translateY(-11px); }.squad-legend span { display:flex; align-items:center; gap:4px; white-space:nowrap; }.squad-legend .legend-finished { color:#9f7df0; }.squad-legend .legend-live { color:var(--green); }.squad-legend .legend-upcoming { color:var(--yellow); }.squad-legend i { box-sizing:border-box; width:13px; height:13px; border:2px solid currentColor; border-radius:4px; background:transparent; }.squad-legend .legend-best { color:var(--green); background:none; }.squad-legend .legend-worst { color:var(--red); background:none; }.bench-heading { display:none; }
 .squad-players { display:grid; grid-template-columns:repeat(15,minmax(0,1fr)); gap:8px; justify-content:start; }.squad-grid.starters { display:contents; }.squad-grid.bench { grid-column:12 / span 4; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; position:relative; margin:-27px -6px -7px; padding:26px 6px 10px; border:1px solid color-mix(in srgb,var(--faint) 42%,transparent); border-radius:10px; background:color-mix(in srgb,var(--surface) 36%,transparent); }.bench-frame-label { position:absolute; top:8px; left:8px; color:var(--soft); font:900 8px/1 "Inter",sans-serif; letter-spacing:.06em; text-transform:uppercase; }.player { box-sizing:border-box; height:148px; min-width:0; position:relative; text-align:center; padding:10px 5px 9px; border-radius:8px; background:rgba(255,255,255,.025); }.player-group-label { position:absolute; top:-19px; left:0; color:var(--soft); font-size:8px; line-height:1; font-weight:900; letter-spacing:.06em; white-space:nowrap; }.player.group-start:not(:first-child) { margin-left:0; }.player.group-start:not(:first-child)::after { content:""; position:absolute; top:-18px; bottom:0; left:-5px; width:2px; border-radius:2px; background:var(--faint); opacity:.65; }.player.group-bench { margin-left:0 !important; }.player.group-bench::after,.player.group-bench > .player-group-label { display:none; }.player-best::before,.player-worst::before { display:none; }.player-best .player-points { border-color:var(--green); box-shadow:0 0 8px color-mix(in srgb,var(--green) 55%,transparent); }.player-worst .player-points { border-color:var(--red); box-shadow:0 0 8px color-mix(in srgb,var(--red) 55%,transparent); }
 .player-visual { height: 35px; display: grid; place-items: center; position: relative; }.shirt { width: 29px; height: 27px; position: relative; display: block; }.shirt-image { display:block; width:100%; height:100%; object-fit:contain; }.armband { position: absolute; top: 0; right: 10px; min-width: 14px; height: 14px; display: grid; place-items: center; border-radius: 50%; font: 800 7px "Inter"; background: #66746e; color: white; }.armband.captain { background: var(--green); color: #052314; }.player-name { color: #dce8e2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 9px; font-weight: 700; margin-top: 3px; }.player-meta { display: flex; align-items: center; justify-content: center; gap: 3px; color: #60736a; font-size: 7px; margin-top: 2px; }.state-dot { width: 4px; height: 4px; border-radius: 50%; background: #59665f; }.state-dot.live { background: var(--green); box-shadow: 0 0 4px var(--green); }.state-dot.upcoming { background: #917b40; }.player-points { font: 800 12px "Inter"; margin-top: 5px; }.player-points span { color: #e0c45e; font-size: 8px; }
@@ -1377,7 +1377,7 @@ footer a { color:#c4c6d8; }
   .manager-row .transfer-cell small b { padding:0; }
   .manager-row .transfer-equals { flex:none; }
   .manager-row .transfer-cell { grid-template-columns:minmax(0,1fr); }
-  .manager-row .form-values { gap:6px; }
+  .manager-row .form-values { gap:5px; }
 
   /* Which end of the series is the newest week is not guessable from a row of figures,
      and the colour is already spoken for: it carries that week's overall-rank movement.
@@ -1393,9 +1393,13 @@ footer a { color:#c4c6d8; }
   }
   .manager-row .form-values > b::after {
     content:attr(data-gw);
-    color:var(--faint);
-    font-size:7px;
-    font-weight:800;
+    /* Grey at this size does not survive the light table ground: --faint lands at 3.6:1
+       against the row, and the label is the smallest type on the page. It is the ink
+       colour, held back by size and weight instead of by contrast. And 8px because that
+       is --fs-micro; the 7px this started at was a seventh size nobody had licensed. */
+    color:var(--text);
+    font-size:var(--fs-micro);
+    font-weight:700;
     letter-spacing:.02em;
   }
   /* One prefix establishes what the numbers under the figures are; repeating GW five
@@ -1431,7 +1435,7 @@ footer a { color:#c4c6d8; }
      125 chips      four tags            |  51
      78  value      £104.2m +0.4m        |  48
      58  bench      35                   |  58
-     129 form       five figures + KA    |  42, at a 6px gap
+     129 form       five figures + KA    |  42, at a 5px gap, labels included
      67  gw points  146 + formula        |  63 wrapped
      67  played     (11/11)              |  67
      77  total      2400                 |  77, single word, cannot wrap

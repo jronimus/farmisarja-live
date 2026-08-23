@@ -128,7 +128,9 @@ running gameweek in the form series therefore disagreed with the GW column besid
 read as a collapse every Saturday and recovered by itself overnight.
 
 Each figure carries its own gameweek number under it, `GW19 20 21 22 23`, with the prefix
-written once. Emphasising the newest figure instead was tried and dropped: emphasis reads
+written once. The label is the ink colour at `--fs-micro`, not grey: `--faint` lands at
+3.6:1 against the light row, and this is the smallest type on the page. It is held back by
+size and weight rather than by contrast. Emphasising the newest figure instead was tried and dropped: emphasis reads
 as *this is now*, and the one thing that figure is not is the running gameweek, which is
 two columns to the right. The labels also make the absence of the running week visible,
 which is the point. Repeating `GW` on all five cost 19px of a column with none to spare
