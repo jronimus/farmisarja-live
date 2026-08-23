@@ -60,7 +60,7 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/services/liveDashboard.ts` | FPL response mapping and dashboard composition |
 | `src/services/fplRules.ts` | Chips, free transfers, provisional autosubs |
 | `src/i18n.ts` | FI/EN strings |
-| `src/demoData.ts` | Ten-manager stress data for `?demo=1` |
+| `src/demoData.ts` | Ten-manager stress data for `?demo=1`, built from real players |
 | `scripts/check-overflow.mjs` | Asserts the page never scrolls sideways, at twelve widths |
 | `.claude/launch.json` | Starts the dev server on port 5174 |
 | `worker/index.ts` | Proxy routes, webhook, protected `/admin/card-screenshot?card=` endpoint |
@@ -348,16 +348,45 @@ log itself stays small and the Worker knows nothing about the league.
 
 ### The look
 
-The track is rendered twice and translated by exactly half its width, which is what makes
-the loop seamless — the second copy arrives where the first left. Hovering stops it,
-because a moving line you cannot read is decoration, and `prefers-reduced-motion` stops it
-for good. The chevron opens a panel with the full log, a low-impact filter and an
-only-our-players filter.
+**It stands still.** A line that is always moving is a line you cannot read, and the one
+thing worth noticing in a feed — that something just happened — is exactly what constant
+motion hides. The newest arrives at the left, pushes the rest along, and holds a lit
+surround for twenty-five seconds: long enough to catch on a second monitor, short enough
+that two goals a minute apart are still told apart. The strip scrolls by hand to look back.
+The chevron opens a panel with the full log, a low-impact filter and an only-our-players
+filter.
+
+Nothing is marked fresh on the first read: everything already in the log when the page
+opens is history, not news.
 
 Owned players are struck in the same lime as everywhere else. One accent, one meaning.
 
 **The Worker must be deployed for any of this to have data**: `npx wrangler deploy`. Until
 then `/events` answers 404 and the ticker says it is waiting.
+
+## The demo data
+
+`?demo=1` exists to stress the layout and to let a feature be looked at when no gameweek is
+running, so it has to be **plausible**, not merely present.
+
+The players are real, lifted from the 2026-27 bootstrap with their own clubs, positions,
+prices and ownership. Squads are legal ones: fifteen players, two goalkeepers, at most
+three from a club, a real formation. Every figure a manager row shows is computed from that
+manager's own squad — the gameweek total is what his eleven has actually scored, and the
+captain is the player wearing the armband, not a name typed in beside him.
+
+**The columns are deliberately out of step.** The old set listed form in the same order as
+the season total, so sorting by form could not be told from sorting by total and the column
+could not be tested at all. Form, value, bench and transfers now each rank differently from
+the total and from each other. Overall rank is the one thing that follows the total,
+because it does in the game.
+
+It also covers the states the table has to draw: all five fixture-difficulty colours, seven
+unplayed players showing a dash, and kick-off labels in each of their three forms.
+
+The pool is 119 players, which is 7 × 17 — a squad builder walking it with a stride of 7 or
+17 sees a fraction of it and comes back short. The strides are coprime with it, and a squad
+that is not fifteen players throws rather than rendering something impossible.
 
 ## The middle widths
 
