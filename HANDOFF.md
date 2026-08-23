@@ -1,6 +1,6 @@
 # Farmisarja Live — handoff
 
-Updated: 2026-08-23
+Updated: 2026-08-24
 
 Source of truth for continuing the project in a new conversation. Read it completely
 before making changes.
@@ -16,6 +16,17 @@ before making changes.
    (the dashboard is bilingual FI/EN; the share cards are Finnish only).
 5. Deploy only when asked. Pages deploys on push to `main`; the Worker needs a separate
    `npx wrangler deploy`.
+
+## What is here
+
+Three things, and the file is ordered as they are: the **dashboard table** at `#/`, the
+**price change page** at `#/hinnat`, and the **live event ticker** in the strip under the
+header on both. The Telegram share cards are the fourth, and they render out of the same
+app at `?card=`.
+
+Two of those are new since 23 Aug and neither has been seen against a live gameweek yet.
+The ticker in particular needs the Worker deployed before it does anything at all — see
+**Open tasks**.
 
 ## Product
 
@@ -585,19 +596,58 @@ These cost real debugging time. Do not re-derive them from assumptions.
 
 ## Open tasks
 
-1. **Verify the first automatic report.** GW1 ends with FUL–CHE on Monday 24 Aug at
-   22:00 local. The report should arrive about 16 minutes after full time. If nothing
-   comes, `npx wrangler tail --format json` and look for `album_card_ready` and
-   `album_sent`. Note the log is pretty-printed multi-line JSON, so split on `\n{`.
-2. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
-   Nothing else needs changing; the card picks the plate by row count.
-3. **Verify the deadline card's totals and transfer lines against real picks.** The card
-   itself was rendered from real GW1 picks on 23 Aug and is in
+1. **Deploy the Worker.** `npx wrangler deploy`. Nothing else on this list is blocked by
+   code — the event ticker is, and only by this. Until the Worker runs the new
+   `worker/events.ts`, `/events` answers 404, the KV feed is never written, and the strip
+   under the header says it is waiting. Pages deploys itself from `main`; the Worker never
+   does.
+2. **Watch the ticker fill during a live gameweek.** The first cron tick after kick-off
+   only takes a snapshot — a player seen for the first time is not a burst of events — so
+   the first lines appear on the second tick, two to four minutes in. If nothing arrives,
+   `npx wrangler tail --format json` and look for `feed_events_added` and
+   `feed_update_error`. The log is pretty-printed multi-line JSON, so split on `
+{`.
+3. **Verify the first automatic Telegram report.** GW1 ends with FUL–CHE on **Monday
+   24 Aug at 22:00 local**, and the report should arrive about 16 minutes after full time.
+   If nothing comes, tail the Worker and look for `album_card_ready` and `album_sent`.
+   This has been waiting since the 23rd, and it is the same evening as the ticker's first
+   real test.
+4. **Verify the deadline card's totals and transfer lines against real picks.** The card
+   was rendered from real GW1 picks on 23 Aug and is in
    `artifacts/cards/deadline-real.png`: real names, real captains, ordered by
    `manager.position`. Two parts of it are still unseen, because GW1 cannot show them —
    the settled total, which is hidden at GW1 where it is zero, and an actual `out → in`
-   list, since nobody had transfers before the first deadline. GW2's deadline on
-   **28 Aug at 20:30** is the first time both appear.
+   list, since nobody had transfers before the first deadline. **GW2's deadline is 28 Aug
+   at 20:30**, and it is the first time both appear.
+5. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
+   Nothing else needs changing; the card picks the plate by row count.
+
+Nothing is half-built. The working tree is clean, everything is pushed, and the four
+checks — `npm test` (25 passing), `npm run build`, `npm run worker:check` and
+`node scripts/check-overflow.mjs` (28 passing) — all pass as of the last commit.
+
+## What was built on 24 Aug
+
+The price change page, the live ticker and a long pass over the squad panel. Each has its
+own section above; what is worth knowing in one place is that **three separate features
+turned out to be reading FPL's own published numbers rather than modelling anything** —
+price progress, the gameweek average behind the form figure, and fixture difficulty. The
+one thing that genuinely had to be derived is the event feed, because FPL publishes state
+and not events.
+
+Four bugs were found by measurement rather than by eye, and all four had the same shape —
+a number compared against a stale copy of itself:
+
+- **autosubs were shown but not counted**, so a substitute's points were missing from the
+  total. Measured: 54 against LiveFPL's 56.
+- **overall-rank movement was drawn against this gameweek's stored rank** when there was no
+  previous gameweek, so a green pill appeared or did not depending on which of two numbers
+  FPL had refreshed last.
+- **the form series was built from the stored gameweek points**, which do not update during
+  live matches, so form disagreed with the GW column beside it all weekend.
+- **the table clipped its last columns** between 801 and 1259px, and again at 1280 before
+  that, because the row asked for more width than `.league-table` gave it and the overflow
+  was hidden rather than shown.
 
 ## What was fixed on 23 Aug, so it is not rediscovered
 
