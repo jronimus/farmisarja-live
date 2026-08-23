@@ -1655,8 +1655,9 @@ footer a { color:#c4c6d8; }
   top:50%;
   left:-10px;
   /* An absolutely positioned box shrinks to fit its containing block, and the containing
-     block here is a 58px column. Without this the five weeks are squeezed into it. */
+     block here is a 66px column. Without this the five weeks are squeezed into it. */
   width:max-content;
+  max-width:230px;
   transform:translateY(-50%);
   padding:9px 11px;
   border-radius:9px;
@@ -2293,3 +2294,50 @@ footer a { color:#c4c6d8; }
 .manager-row .form-delta.tier-flat { background:color-mix(in srgb,var(--faint) 22%,transparent); color:var(--soft); }
 .manager-row .form-delta.tier-down { background:color-mix(in srgb,#b8324f 14%,transparent); color:#b8324f; }
 .manager-row .form-delta.tier-low { background:#93122f; color:#ffe8ee; }
+
+/* A second line under a column name, for the one column whose name does not say what it
+   measures. 44px of it in a 50px opening, so it stays on one line. */
+.table-head .sort-header { flex-wrap:wrap; }
+.sort-header-note {
+  flex:1 1 100%;
+  margin-top:1px;
+  font-size:var(--fs-micro, 8px);
+  font-style:normal;
+  font-weight:800;
+  letter-spacing:0;
+  opacity:.62;
+}
+
+/* The popover says the average and what the figure beside it is measured against, so the
+   colour in the column never has to be taken on faith. */
+.manager-row .form-explain {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:4px 6px;
+  margin-top:8px;
+  padding-top:8px;
+  border-top:1px solid rgba(255,255,255,.14);
+}
+.manager-row .form-explain b { color:#fff; font-size:12px; font-weight:900; font-variant-numeric:tabular-nums; }
+.manager-row .form-explain i {
+  padding:1px 5px;
+  border-radius:999px;
+  font-size:9px;
+  font-style:normal;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+}
+.manager-row .form-explain i.tier-high { background:#45df91; color:#04281a; }
+.manager-row .form-explain i.tier-up { background:rgba(69,223,145,.22); color:#45df91; }
+.manager-row .form-explain i.tier-flat { background:rgba(255,255,255,.14); color:rgba(255,255,255,.7); }
+.manager-row .form-explain i.tier-down { background:rgba(255,139,160,.2); color:#ff8ba0; }
+.manager-row .form-explain i.tier-low { background:#ff8ba0; color:#3a0713; }
+.manager-row .form-explain em {
+  flex:1 1 100%;
+  color:rgba(255,255,255,.6);
+  font-size:9px;
+  font-style:normal;
+  font-weight:600;
+  line-height:1.3;
+}

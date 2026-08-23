@@ -145,7 +145,10 @@ down, which keeps them meaningful in a 30-point week and a 70-point one alike. T
 never has to be trusted on its own, because the number beside it says by how much.
 
 The label is gone. `KA 74.0` spent a third of a 66px column telling the reader what column
-they were looking at.
+they were looking at. What the column measures is said once, in the header — a second line
+under `VIRE` reading `VIIM. 5 GW`, 44px of it in a 50px opening — and the popover carries
+the rest: the average, the difference, and the sentence that says what the difference is
+against. The colour in the column never has to be taken on faith.
 
 Beyond that the column shows **only the average**. The five weeks are behind it, in a popover
 that opens on click and closes on the next click anywhere or on Escape. That took the

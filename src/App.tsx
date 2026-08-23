@@ -188,10 +188,13 @@ function BackgroundPattern() {
   )}</div>;
 }
 
-function SortHeader({ label, sortKey, active, direction, onSort }: { label: string; sortKey: SortKey | null; active: SortKey; direction: "asc" | "desc"; onSort: (key: SortKey) => void }) {
-  if (!sortKey) return <span className="sort-header sort-header-static">{label}</span>;
+function SortHeader({ label, note, sortKey, active, direction, onSort }: { label: string; note?: string; sortKey: SortKey | null; active: SortKey; direction: "asc" | "desc"; onSort: (key: SortKey) => void }) {
+  // The note is a second line under the label, for a column whose name does not say what
+  // it measures. It has to be short: the form column is 66px wide.
+  const body = <>{label}{note && <i className="sort-header-note">{note}</i>}</>;
+  if (!sortKey) return <span className="sort-header sort-header-static">{body}</span>;
   const isActive = active === sortKey;
-  return <button className={`sort-header ${isActive ? "active" : ""}`} onClick={() => onSort(sortKey)}>{label}{isActive && <ChevronDown className={direction === "asc" ? "rotate" : ""} />}</button>;
+  return <button className={`sort-header ${isActive ? "active" : ""}`} onClick={() => onSort(sortKey)}>{body}{isActive && <ChevronDown className={direction === "asc" ? "rotate" : ""} />}</button>;
 }
 
 function Shirt({ player }: { player: SquadPlayer }) {
@@ -496,7 +499,7 @@ export default function App() {
   // Finnish sets a space before the percent sign; English does not.
   const percent = (value: number) => language === "fi" ? `${Math.round(value)} %` : `${Math.round(value)}%`;
   const monthLabel = (month: string) => { const name = monthFormatter.format(new Date(`${month}-01T12:00:00Z`)); return name.charAt(0).toUpperCase() + name.slice(1); };
-  const headers: Array<[string, SortKey | null]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form"], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
+  const headers: Array<[string, SortKey | null, string?]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form", t.formNote], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
   const gameweekFixtures = data.fixtures ?? [];
   const liveFixtures = gameweekFixtures.filter((fixture) => fixture.status === "live");
   const playedFixtures = gameweekFixtures.filter((fixture) => fixture.status === "provisional" || fixture.status === "final");
@@ -593,7 +596,7 @@ export default function App() {
         <strong>{language === "fi" ? "Peliviikon joukkueita päivitetään" : "Gameweek teams are being updated"}</strong>
         <span>{language === "fi" ? "Taulukko avautuu automaattisesti heti, kun FPL-data on saatavilla." : "The table will open automatically as soon as the FPL data is available."}</span>
       </section> : <section className={`league-table ${selected ? "has-highlight" : ""}`}>
-        <div className="table-head">{headers.map(([label, key], index) => <SortHeader key={`${label}-${index}`} label={label} sortKey={key} active={sort} direction={direction} onSort={handleSort} />)}</div>
+        <div className="table-head">{headers.map(([label, key, note], index) => <SortHeader key={`${label}-${index}`} label={label} note={note} sortKey={key} active={sort} direction={direction} onSort={handleSort} />)}</div>
         <div className="rows">
           <div className="mobile-simple-head"><b>{t.position}</b><b>{t.manager}</b><b>GW</b><b>{t.total}</b></div>
           {managers.map((manager) => {
@@ -651,6 +654,13 @@ export default function App() {
                   </button>}
                   {formOpen === manager.id && <span className="form-popover" role="dialog" aria-label={t.lastFive} onClick={(event) => event.stopPropagation()}>
                     <span className="form-values">{manager.form.map((value, index) => <b key={index} data-gw={manager.formGameweeks[index]} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span>
+                    <span className="form-explain">
+                      <b>{language === "fi" ? "KA" : "AVG"} {Math.round(formAverage)}</b>
+                      {formStanding.benchmark !== null && <>
+                        <i className={`tier-${formStanding.tier}`}>{formStanding.delta! === 0 ? "0" : `${formStanding.delta! > 0 ? "+" : "−"}${Math.abs(formStanding.delta!)}`}</i>
+                        <em>{t.formVersus} {formStanding.benchmark}</em>
+                      </>}
+                    </span>
                   </span>}
                 </div>
                 <div className={`points-cell ${gwAward ? "award-cell" : ""}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwMedalRank ? `has-medal medal-rank-${gwMedalRank}` : ""}`}>{gwMedalRank && <Medal aria-label={language === "fi" ? `Kierroksen ${gwMedalRank}. paras` : `Gameweek rank ${gwMedalRank}`} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span></div>
