@@ -196,6 +196,7 @@ async function managerRow(
     live: squad.filter((player) => player.state === "live").length,
     upcoming: squad.filter((player) => player.state === "upcoming").length,
     form: formRows.map((row) => row.points),
+    formGameweeks: formRows.map((row) => row.event),
     formRankMovement: rankMovement(formRows),
     squad,
   };
@@ -238,6 +239,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       live: 0,
       upcoming: 0,
       form: [],
+      formGameweeks: [],
       formRankMovement: [],
       squad: [],
     }));

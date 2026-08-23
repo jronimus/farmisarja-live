@@ -64,6 +64,8 @@ export interface ManagerRow {
   live: number;
   upcoming: number;
   form: number[];
+  /** Which gameweek each form figure belongs to, so the series can label itself. */
+  formGameweeks: number[];
   formRankMovement: number[];
   squad: SquadPlayer[];
 }

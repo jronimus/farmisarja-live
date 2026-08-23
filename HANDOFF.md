@@ -111,7 +111,7 @@ players who are realistically ownable, that fit 84.6 % and 69.5 % of possible pa
 rare edge case the earlier note claimed.
 
 Reclaiming the wasted column width, plus a 4px rather than 8px gutter on this one cell,
-took the budget to 119.3px and 109.5px, which is 97.6 % and 94.2 % of pairs. The
+took the budget to 125.3px and 115.5px, which is 98.6 % and 96.6 % of pairs. The
 per-transfer points stay. The longest realistically ownable name is now George Hemmings
 at 97px; Alexander-Arnold is no longer in the game at all.
 
@@ -127,9 +127,12 @@ running gameweek in the form series therefore disagreed with the GW column besid
 23 Aug the leader read 48 in form and 56 in GW points, an hour into the round. It also
 read as a collapse every Saturday and recovered by itself overnight.
 
-The colour of each figure is spoken for — it carries that week's overall-rank movement —
-so the newest week is marked by shape, a rule under the figure. Without it a row of five
-numbers gives no clue which end is this week.
+Each figure carries its own gameweek number under it, `GW19 20 21 22 23`, with the prefix
+written once. Emphasising the newest figure instead was tried and dropped: emphasis reads
+as *this is now*, and the one thing that figure is not is the running gameweek, which is
+two columns to the right. The labels also make the absence of the running week visible,
+which is the point. Repeating `GW` on all five cost 19px of a column with none to spare
+and said nothing extra.
 
 ### The header
 
