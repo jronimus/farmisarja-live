@@ -1516,14 +1516,22 @@ footer a { color:#c4c6d8; }
    nothing. Seven managers all captaining the same player is 100% owned and 200%
    effective, which is why the figure passes 100 and ordinary ownership does not.
 
-   The paint is deliberately not green or red. Those two carry meaning in every
-   other column of this table — rank movement, awards, transfer difference — and a
-   third meaning for the same two colours would be unreadable. Nor is it the ink
-   colour, which was tried: mixed into white it lands on the same grey-lavender the
-   even rows are already striped with, and a highlight you have to compare against
-   the row above is not a highlight. It is `--purple`, the one hue in the palette
-   that carries no row-level meaning, as a rail down the left and a wash behind.
+   The paint is the share cards' own lime, `#d1ed19`, and the captain's name is
+   struck with it exactly the way the cards strike a figure: the same
+   `linear-gradient(to bottom, transparent 0 46%, bar 46% 92%, transparent 92%)`
+   behind black text, a highlighter stroke rather than a filled pill. One accent,
+   one meaning, in both places the league is published.
+
+   It is deliberately not green or red — those two carry meaning in every other
+   column of this table, and a third meaning for the same two colours would be
+   unreadable. It was not the ink colour either, which was tried: mixed into white
+   it lands on the same grey-lavender the even rows are already striped with, and a
+   highlight you have to compare against the row above is not a highlight.
    ========================================================================== */
+:root {
+  /* The share cards' bar colour. The dashboard and the cards highlight with one accent. */
+  --pick:#d1ed19;
+}
 .player-filter {
   display:flex;
   align-items:center;
@@ -1545,33 +1553,31 @@ footer a { color:#c4c6d8; }
 }
 .ownership-readout b { font-weight:800; }
 
-.manager-block.owns-picked {
-  background:color-mix(in srgb,var(--purple) 11%,#fff);
-  box-shadow:inset 4px 0 0 var(--purple),inset 0 1px 0 rgba(255,255,255,.95);
-}
-/* The captain is worth twice what the rest of the row is, so the row says so twice:
-   a heavier wash, and the name itself set in reverse in the captain column. */
-.manager-block.owns-picked.captains-picked {
-  background:color-mix(in srgb,var(--purple) 19%,#fff);
-}
-/* Holding a player who is on your bench is a different fact from fielding him. */
-.manager-block.owns-picked.benches-picked {
-  background:color-mix(in srgb,var(--purple) 6%,#fff);
-  box-shadow:inset 4px 0 0 color-mix(in srgb,var(--purple) 45%,transparent),inset 0 1px 0 rgba(255,255,255,.95);
-}
-.manager-block.owns-picked .manager-row:hover {
-  background:color-mix(in srgb,var(--purple) 8%,transparent);
-}
+/* The mark is the name, nothing else. Washing the whole row was tried at four
+   different strengths and every one of them was either invisible against the table's
+   own striping or too much; the row is not the fact, the name is. An owner's team
+   name is struck, and so is the captain's name in the captain column when the picked
+   player is the one wearing the armband. */
+.manager-row .manager-cell > a.picked-name,
 .manager-row .captain-cell > strong.picked-name,
 .manager-row .mobile-captain > strong.picked-name {
-  margin:-2px -5px;
-  padding:2px 5px;
-  border-radius:5px;
-  background:var(--purple);
-  color:#fff;
+  /* The share cards' stroke, not a pill: the bar is struck behind the text and the
+     text stays black. Never colour the type itself — that rule is why the cards read
+     on any part of their plate, and it holds here too. */
+  /* The stroke has to end where the name ends. These are stretched flex children, so
+     without this the bar runs the whole width of the cell and reads as a filled row. */
+  align-self:flex-start;
+  width:max-content;
+  max-width:100%;
+  padding:0;
+  border-radius:0;
+  color:var(--text);
+  background:linear-gradient(to bottom,transparent 0 46%,var(--pick) 46% 92%,transparent 92%);
 }
+.manager-row .manager-cell > a.picked-name:hover { color:var(--text); }
+
 .player.player-picked {
-  box-shadow:0 0 0 2px var(--purple),0 7px 18px rgba(8,69,41,.09);
+  box-shadow:0 0 0 3px var(--pick),0 7px 18px rgba(8,69,41,.09);
 }
 
 @media (max-width:800px) {

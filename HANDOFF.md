@@ -173,18 +173,24 @@ It is worded around what turning it *on* does, and it went through "Penkki mukaa
 "Myös penkki" and "+penkki" before that: a switch whose label describes the off state
 reads backwards, and no amount of rewording fixes that. Invert the switch instead.
 
-The paint is `--purple`. Not green or red, which carry meaning in every other column of
-the table, and not the ink colour, which was tried first: mixed into white it lands on the
-same grey-lavender the even rows are already striped with. A rail down the left of the
-row, a wash behind it, a heavier wash if he is that manager's captain, a lighter one if he
-is on their bench, and the captain's name set in reverse in the captain column, on mobile
-too. The player's own card in the expanded squad takes a ring in the same colour.
+The mark is **the name, and nothing else**: an owner's team name is struck with the share
+cards' own lime, `#d1ed19`, using the same
+`linear-gradient(to bottom, transparent 0 46%, bar 46% 92%, transparent 92%)` the cards
+strike a figure with — a highlighter stroke behind black text, never coloured type. The
+captain's name in the captain column is struck the same way when the picked player is the
+one wearing the armband, on mobile too. His card in the expanded squad takes a lime ring.
 
-None of that was enough on its own in a table that is already striped: the wash and the
-stripe carried the same weight, and a highlight you have to compare against the row above
-is not a highlight. **The rows that were not picked drop to 68% opacity**, and come all
-the way back on hover. Half a step, deliberately: at 42% they read as broken rather than
-as secondary, and this is still a table people read rather than a spotlight.
+Washing the whole row was tried at four strengths and in two colours before that, and
+every one of them was either invisible against the table's own striping or too much. The
+row is not the fact; the name is. One accent, one meaning, in both places this league is
+published.
+
+The rows that were not picked drop to **68% opacity** and come all the way back on hover.
+That is what makes a stroke on one word findable in a table of seven rows.
+
+The stroke carries `width:max-content; align-self:flex-start` because both names are
+stretched flex children: without it the bar runs the full width of the cell and reads as a
+filled row again.
 
 The club is in the option label because FPL's short names are not unique — a league can
 easily hold two Fernandes.
