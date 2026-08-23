@@ -207,6 +207,38 @@ filled row again.
 The club is in the option label because FPL's short names are not unique — a league can
 easily hold two Fernandes.
 
+### The squad panel
+
+The eleven are ordered by line and then by squad position. A substitute keeps his bench
+`squadPosition`, so sorting by that alone dropped him after the forwards and opened a
+second midfield heading behind them.
+
+Each card's foot is two bands the width of the card — the score above, the fixture below —
+and the fixture band carries FPL's own 1–5 difficulty as its colour. That is in the API as
+`team_h_difficulty` and `team_a_difficulty` on the fixture and needs no inventing.
+Ownership sits under both, because it is the one figure on the card that is not about this
+match.
+
+### Autosubs count
+
+`pick.multiplier` is 0 for a bench player until FPL settles the fixture, so `gameweekPoints`
+is short by whatever a substitute has already scored. With the autosubs switch on, the
+table showed the substitution and did not count it: Jankon betoni read 54 against LiveFPL's
+56 on 23 Aug, which was Groß's two points sitting in a shirt the total ignored.
+
+`provisionalGameweekPoints()` scores the eleven that is on screen, and `liveManagers` — one
+memo at the top of the component — carries the corrected gameweek and season totals.
+**Everything in the table reads `liveManagers`, never `data.managers`**, so the sort, the
+awards, the medals and the figures cannot disagree about what a manager has scored.
+
+### Overall rank movement
+
+`previousOverallRank` is 0 when there is no previous gameweek, and 0 means *unknown*: the
+row draws no movement at all. It used to fall back to this gameweek's stored rank, which
+compared the live figure against the stale one and called the gap movement — in GW1 a
+manager got a green pill or no pill depending only on which of the two numbers FPL had
+refreshed last.
+
 ### The header
 
 `GW`, the live state and the played count share one card (`.gameweek-status`). The live

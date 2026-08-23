@@ -15,6 +15,8 @@ export interface SquadPlayer {
   minutes: number;
   cost: number;
   ownership: number;
+  /** FPL's own 1–5 fixture difficulty, from the player's side of the tie. */
+  difficulty?: number;
   state: PlayerState;
   fixtures?: Array<{ state: PlayerState }>;
   starter: boolean;

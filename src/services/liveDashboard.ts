@@ -22,7 +22,7 @@ interface Element {
 }
 interface Team { id: number; short_name: string; code: number; }
 interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; game_config?: { settings?: { price_change_deadlines?: string[] } }; }
-interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; }
+interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; team_h_difficulty: number; team_a_difficulty: number; }
 interface LiveElement { id: number; stats: { total_points: number; minutes: number; bonus: number }; explain: Array<{ fixture: number }>; }
 interface LeagueStanding { entry: number; rank: number; last_rank: number; entry_name: string; player_name: string; total: number; }
 interface NewEntry { entry: number; entry_name: string; player_first_name: string; player_last_name: string; }
@@ -129,6 +129,7 @@ async function managerRow(
       minutes: live?.stats.minutes ?? 0,
       cost: element.now_cost / 10,
       ownership: Number(element.selected_by_percent) || 0,
+      difficulty: firstFixture ? (isHome ? firstFixture.team_h_difficulty : firstFixture.team_a_difficulty) : undefined,
       state,
       fixtures: states.length ? states : undefined,
       starter: pick.position <= 11,
@@ -184,7 +185,11 @@ async function managerRow(
     provisionalBonus: 0,
     totalPoints: Math.max(currentHistory.total_points + hit, pointsBeforeGameweek + gameweekPoints),
     overallRank: entry.summary_overall_rank || currentHistory.overall_rank || 0,
-    previousOverallRank: previousHistory?.overall_rank ?? currentHistory.overall_rank ?? 0,
+    // 0 means there is no previous rank. Falling back to this gameweek's stored rank
+    // compared the live figure against the stale one and called the gap movement: in GW1
+    // a manager got a green pill or no pill at all depending only on which of the two
+    // numbers FPL had refreshed last.
+    previousOverallRank: previousHistory?.overall_rank ?? 0,
     captain: captain?.name ?? "—",
     captainPoints: captain ? captain.points * Math.max(1, picks.picks.find((pick) => pick.element === captain.id)?.multiplier ?? 1) : 0,
     transfers: transferRows,

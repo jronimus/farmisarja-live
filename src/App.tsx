@@ -123,6 +123,24 @@ function captainDisplay(manager: ManagerRow, autosubs: boolean) {
   return effective ? { name: effective.name, points: (effective.points + effective.bonus) * multiplier } : { name: manager.captain, points: manager.captainPoints };
 }
 
+/**
+ * What the eleven on screen have scored.
+ *
+ * FPL applies autosubs only once a fixture is settled, so `pick.multiplier` is still 0 for
+ * a bench player who has already come on and `gameweekPoints` is short by whatever he has
+ * scored. With the autosubs switch on the table shows the substitution but was still
+ * adding up the old eleven — Jankon betoni read 54 against LiveFPL's 56 on 23 Aug, which
+ * is Groß's two points sitting in a shirt the total did not count.
+ *
+ * Gross, like `gameweekPoints`: the hit is taken off once, where it is displayed.
+ */
+function provisionalGameweekPoints(manager: ManagerRow, autosubs: boolean) {
+  const squad = provisionalAutosubSquad(manager.squad, autosubs);
+  const scoring = manager.chip === "BB" ? squad : squad.filter((player) => player.starter);
+  return scoring.reduce((sum, player) =>
+    sum + (player.points + player.bonus) * (player.captain ? (manager.chip === "TC" ? 3 : 2) : 1), 0);
+}
+
 function weightedProgress(manager: ManagerRow, autosubs: boolean) {
   const effectiveSquad = provisionalAutosubSquad(manager.squad, autosubs);
   const players = manager.chip === "BB" ? effectiveSquad : effectiveSquad.filter((player) => player.starter);
@@ -188,14 +206,31 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
     {groupLabel && <span className="player-group-label"><b className="desktop-squad-label">{groupLabel}</b><b className="mobile-squad-label">{mobileGroupLabel ?? groupLabel}</b></span>}
     <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /></div>
     <div className="player-name"><span>{player.name}</span></div>
-    <div className="player-bottom"><span className={`player-fixture venue-${player.venue.toLowerCase()}`}><i className={`state-dot ${player.state}`} /><span className="desktop-fixture">vs. {player.opponent} {player.venue}</span><span className="mobile-opponent">{player.opponent}</span><b> · {player.position}</b></span><strong className="player-points"><span className="desktop-player-score">{(player.points + player.bonus) * scoreMultiplier}</span><span className="mobile-player-score">{(player.points + player.bonus) * scoreMultiplier}</span></strong></div>
+    <div className="player-bottom">
+      <strong className="player-points"><span className="desktop-player-score">{(player.points + player.bonus) * scoreMultiplier}</span><span className="mobile-player-score">{(player.points + player.bonus) * scoreMultiplier}</span></strong>
+      {/* FPL's own 1–5 difficulty, from this player's side of the tie. */}
+      <span className={`player-fixture venue-${player.venue.toLowerCase()} fdr-${player.difficulty ?? 0}`}>
+        <i className={`state-dot ${player.state}`} />
+        {/* One label, not a desktop copy and a mobile copy: the band is three characters
+            wide on either. */}
+        <span className="player-opponent">{player.opponent}</span>
+        <b className="player-venue">{player.venue}</b>
+      </span>
+      <span className="player-ownership">{player.ownership.toFixed(1)} %</span>
+    </div>
   </div>;
 }
 
 function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerRow; language: Language; autosubs: boolean; highlighted?: number | null }) {
   const t = translations(language);
   const originalOrder = provisionalAutosubSquad(manager.squad, autosubs);
-  const active = originalOrder.filter((player) => player.starter);
+  // A substitute keeps his bench squadPosition, so sorting by that alone dropped him after
+  // the forwards and opened a second midfield heading behind them. Group first, order
+  // within the group second.
+  const lineOrder = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+  const active = originalOrder
+    .filter((player) => player.starter)
+    .sort((left, right) => lineOrder[left.position] - lineOrder[right.position] || left.squadPosition - right.squadPosition);
   const bench = originalOrder
     .filter((player) => !player.starter)
     .sort((left, right) => Number(right.position === "GK") - Number(left.position === "GK") || left.squadPosition - right.squadPosition);
@@ -317,24 +352,33 @@ export default function App() {
 
   // Ownership is read through the same autosub view as the table, so the armband and the
   // starting eleven it counts are the ones on screen.
-  const ownership = useMemo(() => buildOwnership(data.managers, autosubs, !startersOnly), [data.managers, autosubs, startersOnly]);
+  // Everything below reads this rather than data.managers, so the sort, the awards, the
+  // medals and the figures on screen cannot disagree about what a manager has scored.
+  const liveManagers = useMemo(() => data.managers.map((manager) => {
+    const provisional = provisionalGameweekPoints(manager, autosubs);
+    if (provisional <= manager.gameweekPoints) return manager;
+    const gained = provisional - manager.gameweekPoints;
+    return { ...manager, gameweekPoints: provisional, totalPoints: manager.totalPoints + gained };
+  }), [data.managers, autosubs]);
+
+  const ownership = useMemo(() => buildOwnership(liveManagers, autosubs, !startersOnly), [liveManagers, autosubs, startersOnly]);
   // A highlighted player can be transferred out from under the selection between refreshes.
   const selected = ownership.find((entry) => entry.id === highlighted) ?? null;
 
-  const managers = useMemo(() => [...data.managers].sort((a, b) => {
+  const managers = useMemo(() => [...liveManagers].sort((a, b) => {
     // A gameweek in progress has no settled form behind it yet, so the series can be empty.
     const aValue = sort === "form" ? a.form.reduce((sum, value) => sum + value, 0) / Math.max(1, a.form.length) : a[sort];
     const bValue = sort === "form" ? b.form.reduce((sum, value) => sum + value, 0) / Math.max(1, b.form.length) : b[sort];
     return (aValue - bValue) * (direction === "asc" ? 1 : -1);
-  }), [data.managers, direction, sort]);
+  }), [liveManagers, direction, sort]);
 
   const awardStats = useMemo(() => {
-    const captainScores = data.managers.map((manager) => captainDisplay(manager, autosubs).points);
-    const gwScores = data.managers.map((manager) => manager.gameweekPoints + manager.provisionalBonus - manager.hit);
-    const transferScores = data.managers.map(transferNet).filter(Number.isFinite);
-    const benchScores = data.managers.map((manager) => currentBenchPoints(manager, autosubs));
-    const formAverages = data.managers.map((manager) => manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length));
-    const values = data.managers.map((manager) => manager.teamValue).sort((a, b) => a - b);
+    const captainScores = liveManagers.map((manager) => captainDisplay(manager, autosubs).points);
+    const gwScores = liveManagers.map((manager) => manager.gameweekPoints + manager.provisionalBonus - manager.hit);
+    const transferScores = liveManagers.map(transferNet).filter(Number.isFinite);
+    const benchScores = liveManagers.map((manager) => currentBenchPoints(manager, autosubs));
+    const formAverages = liveManagers.map((manager) => manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length));
+    const values = liveManagers.map((manager) => manager.teamValue).sort((a, b) => a - b);
     const middle = Math.floor(values.length / 2);
     const medianValue = values.length % 2 ? values[middle] : ((values[middle - 1] ?? 0) + (values[middle] ?? 0)) / 2;
     return {
@@ -345,16 +389,16 @@ export default function App() {
       bestForm: Math.max(...formAverages), worstForm: Math.min(...formAverages),
       bestValue: Math.max(...values), lowestValue: Math.min(...values), medianValue,
     };
-  }, [autosubs, data.managers]);
+  }, [autosubs, liveManagers]);
 
   const gwMedalRanks = useMemo(() => {
-    const scores = data.managers.map((manager) => manager.gameweekPoints + manager.provisionalBonus - manager.hit);
-    return new Map(data.managers.flatMap((manager) => {
+    const scores = liveManagers.map((manager) => manager.gameweekPoints + manager.provisionalBonus - manager.hit);
+    return new Map(liveManagers.flatMap((manager) => {
       const score = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
       const rank = 1 + scores.filter((otherScore) => otherScore > score).length;
       return rank <= 3 ? [[manager.id, rank] as const] : [];
     }));
-  }, [data.managers]);
+  }, [liveManagers]);
 
   const awardFor = (kind: "captain" | "gw" | "transfer" | "bench" | "formBest" | "formWorst" | "value", score: number): Award => {
     if (kind === "captain") return { level: score >= 20 ? 3 : score >= 14 ? 2 : score >= 10 ? 1 : 0, tone: "purple" };
@@ -491,7 +535,11 @@ export default function App() {
             const open = expanded === manager.id;
             const displayedGwPoints = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
             const captain = captainDisplay(manager, autosubs);
-            const rankClass = manager.overallRank < manager.previousOverallRank ? "rank-up" : manager.overallRank > manager.previousOverallRank ? "rank-down" : "rank-neutral";
+            // Without a previous rank there is no movement to draw, which is every row
+            // in GW1.
+            const rankClass = !manager.previousOverallRank ? "rank-neutral"
+              : manager.overallRank < manager.previousOverallRank ? "rank-up"
+              : manager.overallRank > manager.previousOverallRank ? "rank-down" : "rank-neutral";
             const progress = weightedProgress(manager, autosubs);
             const transferScore = transferNet(manager);
             const benchScore = currentBenchPoints(manager, autosubs);

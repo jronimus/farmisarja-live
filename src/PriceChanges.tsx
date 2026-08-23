@@ -33,15 +33,11 @@ function Countdown({ deadline, language }: { deadline: string | null; language: 
   </div>;
 }
 
-function Owners({ owners, language }: { owners: PlayerOwner[]; language: Language }) {
-  const t = translations(language);
+function Owners({ owners }: { owners: PlayerOwner[] }) {
   if (!owners.length) return <span className="price-owners empty">—</span>;
   return <span className="price-owners">
-    {owners.map((owner) => <b
-      key={owner.managerId}
-      className={`${owner.captain ? "is-captain" : ""} ${owner.benched ? "is-benched" : ""}`}
-      title={`${owner.teamName} · ${owner.managerName}${owner.captain ? ` · ${t.captain}` : ""}${owner.benched ? ` · ${t.bench}` : ""}`}
-    >{owner.teamName}</b>)}
+    {/* No armband, no bench: both are about a gameweek, and this page is about a price. */}
+    {owners.map((owner) => <b key={owner.managerId} title={`${owner.teamName} · ${owner.managerName}`}>{owner.teamName}</b>)}
   </span>;
 }
 
@@ -155,7 +151,7 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
             <b>{row.name}</b>
             <small>{row.club} · {row.position}</small>
           </span>
-          <span className="price-owners-cell" data-label={t.leagueOwners}><Owners owners={held} language={language} /></span>
+          <span className="price-owners-cell" data-label={t.leagueOwners}><Owners owners={held} /></span>
           <span className="price-progress" data-label={t.priceProgress}>
             <b className={rising ? "up" : "down"}>{row.progress > 0 ? "+" : ""}{percent(row.progress)}</b>
             <i><u className={rising ? "up" : "down"} style={{ width: `${Math.min(100, Math.abs(row.progress))}%` }} /></i>
