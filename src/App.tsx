@@ -175,7 +175,7 @@ function SortHeader({ label, sortKey, active, direction, onSort }: { label: stri
 
 function Shirt({ player }: { player: SquadPlayer }) {
   const kitSet = player.position === "GK" ? "optimized-gk" : "optimized";
-  const source = `${import.meta.env.BASE_URL}kits/${kitSet}/${player.club.toLowerCase()}.webp?v=20260823-gk1`;
+  const source = `${import.meta.env.BASE_URL}kits/${kitSet}/${player.club.toLowerCase()}.webp?v=20260823-gk2`;
   return <div className="shirt"><img className="shirt-image" src={source} alt="" /></div>;
 }
 
@@ -193,7 +193,9 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
   const t = translations(language);
   const originalOrder = provisionalAutosubSquad(manager.squad, autosubs);
   const active = originalOrder.filter((player) => player.starter);
-  const bench = originalOrder.filter((player) => !player.starter);
+  const bench = originalOrder
+    .filter((player) => !player.starter)
+    .sort((left, right) => Number(right.position === "GK") - Number(left.position === "GK") || left.squadPosition - right.squadPosition);
   const scoringPlayers = manager.chip === "BB" ? originalOrder : active;
   const scoreMultiplier = (player: SquadPlayer) => player.captain ? (manager.chip === "TC" ? 3 : 2) : 1;
   // Only settled fixtures are comparable: an unplayed zero is not a low score, and a score from a
