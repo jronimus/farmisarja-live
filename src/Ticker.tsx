@@ -47,13 +47,20 @@ function Owners({ owners }: { owners: PlayerOwner[] }) {
 }
 
 function Item({ event, owners, language, fresh }: { event: FeedEvent; owners: PlayerOwner[]; language: Language; fresh?: boolean }) {
+  const scored = event.kind === "goal" || event.kind === "assist";
   return <span className={`ticker-item kind-${event.kind} ${fresh ? "is-fresh" : ""}`}>
     {/* The match first, and how it stands. Which side the player is on is carried by weight
         alone: the two clubs are the same colour, because one of them being greyed out made
         the line look broken rather than emphasised. */}
     {event.fixture && <i className="ticker-fixture">
       <b className={event.fixture.home === event.club ? "is-own" : ""}>{event.fixture.home}</b>
-      <em>{event.fixture.homeScore}–{event.fixture.awayScore}</em>
+      {/* On a goal or an assist the goal itself is part of the news, so the figure that
+          just moved is set with the club it belongs to. */}
+      <em>
+        <s className={scored && event.fixture.home === event.club ? "is-own" : ""}>{event.fixture.homeScore}</s>
+        –
+        <s className={scored && event.fixture.away === event.club ? "is-own" : ""}>{event.fixture.awayScore}</s>
+      </em>
       <b className={event.fixture.away === event.club ? "is-own" : ""}>{event.fixture.away}</b>
     </i>}
     <EventIcon kind={event.kind} />
