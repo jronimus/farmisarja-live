@@ -363,6 +363,13 @@ The padding sits on every line rather than only the lit one, or a line changes s
 arrives and again as it cools. The highlight is a plain wash with no outline — a ring made
 a lozenge of a line of text.
 
+A line leads with what it is about. A goal or an assist is about the tie, so the tie comes
+first with its score, and the player's half of both — his club and the figure that just
+moved — is set in bold against the same colour. Anything else is about the player, and
+then his club is simply named, written out rather than in three letters. The Worker sends
+`clubName` alongside the three-letter `club` so the page needs no table of its own to keep
+current each season.
+
 **The icons are drawn, not emoji.** Emoji are a different typeface on every platform, they
 ignore the colour they are given, and at 12px on a dark strip half of them came out as grey
 smudges. They are lucide icons now, coloured by what happened: a yellow card is yellow, a

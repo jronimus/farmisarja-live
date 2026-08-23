@@ -286,6 +286,14 @@ const demoPrices = (): DashboardData["prices"] => {
   return { deadlines: ["2026-08-28T17:30:00Z", "2026-08-29T23:00:00Z"], players };
 };
 
+/** The clubs written out, as the Worker sends them with a real event. */
+const clubNames: Record<string, string> = {
+  ARS: "Arsenal", AVL: "Aston Villa", BHA: "Brighton", BOU: "Bournemouth", BRE: "Brentford",
+  CHE: "Chelsea", COV: "Coventry City", CRY: "Crystal Palace", EVE: "Everton", FUL: "Fulham",
+  HUL: "Hull City", IPS: "Ipswich Town", LEE: "Leeds", LIV: "Liverpool", MCI: "Man City",
+  MUN: "Man Utd", NEW: "Newcastle", NFO: "Nott'm Forest", SUN: "Sunderland", TOT: "Spurs",
+};
+
 /** A handful of events so `?demo=1` shows the ticker without a Worker behind it. */
 const demoFeed = (): DashboardData["feed"] => {
   const pool = managers.flatMap((manager) => manager.squad);
@@ -302,7 +310,7 @@ const demoFeed = (): DashboardData["feed"] => {
     return {
       id: `demo-${index}`,
       at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
-      gameweek: 24, element: player.id, player: player.name, club: player.club,
+      gameweek: 24, element: player.id, player: player.name, club: player.club, clubName: clubNames[player.club] ?? player.club,
       kind, value: 1, pointsDelta, points: player.points,
       // A scorer's side cannot be on nought: the line would say he scored and show that
       // nobody has.

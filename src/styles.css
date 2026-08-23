@@ -2047,6 +2047,15 @@ footer a { color:#c4c6d8; }
   letter-spacing:.02em;
 }
 .ticker-fixture b.is-own { font-weight:900; }
+/* When the line is not about a goal, the club is simply named. */
+.ticker-club {
+  color:rgba(255,255,255,.8);
+  font-size:10px;
+  font-style:normal;
+  font-weight:400;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
 .ticker-fixture em {
   display:flex;
   gap:1px;

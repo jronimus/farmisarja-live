@@ -9,6 +9,7 @@ export interface FeedEvent {
   element: number;
   player: string;
   club: string;
+  clubName?: string;
   kind: EventKind;
   value: number;
   pointsDelta: number;

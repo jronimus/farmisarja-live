@@ -19,6 +19,8 @@ export interface FeedEvent {
   element: number;
   player: string;
   club: string;
+  /** The club written out, for the lines that name it instead of the tie. */
+  clubName: string;
   kind: EventKind;
   /** The new total: a second goal is value 2. */
   value: number;
@@ -46,7 +48,7 @@ interface Fixture {
 interface Bootstrap {
   events: Array<{ id: number; is_current: boolean }>;
   elements: Array<{ id: number; web_name: string; team: number }>;
-  teams: Array<{ id: number; short_name: string }>;
+  teams: Array<{ id: number; short_name: string; name: string }>;
 }
 
 export interface EventsEnv {
@@ -135,6 +137,7 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
 
   const live = await fpl<{ elements: LiveElement[] }>(`/event/${event.id}/live/`);
   const teamById = new Map(bootstrap.teams.map((team) => [team.id, team.short_name]));
+  const teamNameById = new Map(bootstrap.teams.map((team) => [team.id, team.name]));
   const elementById = new Map(bootstrap.elements.map((element) => [element.id, element]));
   const fixtureById = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
 
@@ -165,6 +168,7 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
         element: element.id,
         player: meta?.web_name ?? String(element.id),
         club: teamById.get(meta?.team ?? -1) ?? "—",
+        clubName: teamNameById.get(meta?.team ?? -1) ?? "—",
         kind: change.kind,
         value: change.value,
         pointsDelta,
