@@ -2257,3 +2257,8 @@ footer a { color:#c4c6d8; }
    on a desktop and the two rows on a phone both lay out as they always did. */
 .squad-line { display:contents; }
 
+
+/* A dash rather than a nought, and the kick-off rather than the venue letter. The state
+   colour stays on it, but it is no longer carrying the fact on its own. */
+.squad-panel .player-waiting { display:block; line-height:1; }
+.squad-panel .player-upcoming .player-venue { opacity:1; font-weight:800; letter-spacing:-.02em; }

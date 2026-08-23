@@ -210,6 +210,10 @@ function nameStep(name: string) {
 
 function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, groupLabel, mobileGroupLabel, groupKind, highlighted }: { player: SquadPlayer; best: boolean; language: Language; tripleCaptain: boolean; scoreMultiplier: number; groupLabel?: string; mobileGroupLabel?: string; groupKind?: "position" | "bench"; highlighted?: boolean }) {
   const t = translations(language);
+  const waiting = player.state === "upcoming";
+  const kickoffLabel = waiting && player.kickoff
+    ? new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { hour: "2-digit", minute: "2-digit" }).format(new Date(player.kickoff))
+    : "";
   return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${highlighted ? "player-picked" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
     {groupLabel && <span className="player-group-label"><b className="desktop-squad-label">{groupLabel}</b><b className="mobile-squad-label">{mobileGroupLabel ?? groupLabel}</b></span>}
     <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /></div>
@@ -218,13 +222,18 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
         gets at eight to a row. */}
     <div className={`player-name ${nameStep(player.name)}`}><span>{player.name}</span></div>
     <div className="player-bottom">
-      <strong className="player-points"><span className="desktop-player-score">{(player.points + player.bonus) * scoreMultiplier}</span><span className="mobile-player-score">{(player.points + player.bonus) * scoreMultiplier}</span></strong>
+      {/* A player who has not kicked a ball has not scored nought — he has not scored.
+          The dash says which, where a 0 cannot: it is the same 0 a player who played
+          badly gets. The kick-off takes the venue letter's place under it. */}
+      <strong className="player-points">{waiting
+        ? <span className="player-waiting" aria-label={t.toPlay}>–</span>
+        : <><span className="desktop-player-score">{(player.points + player.bonus) * scoreMultiplier}</span><span className="mobile-player-score">{(player.points + player.bonus) * scoreMultiplier}</span></>}</strong>
       {/* FPL's own 1–5 difficulty, from this player's side of the tie. */}
       {/* No state dot: the state is the colour of the band above, which is the same
           coding the legend spells out. A second mark for it read as a stray bullet. */}
       <span className={`player-fixture venue-${player.venue.toLowerCase()} fdr-${player.difficulty ?? 0}`}>
         <span className="player-opponent">{player.opponent}</span>
-        <b className="player-venue">{player.venue}</b>
+        <b className="player-venue">{waiting && kickoffLabel ? kickoffLabel : player.venue}</b>
       </span>
       <span className="player-ownership">{player.ownership.toFixed(1)} %</span>
     </div>

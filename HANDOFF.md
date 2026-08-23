@@ -221,6 +221,11 @@ score carries the state as the colour of the figure, purple settled, green live,
 come, which is what the legend above the squad already spells out. There is no state dot:
 a second mark for the same fact read as a stray bullet.
 
+**A player who has not kicked a ball gets a dash, not a nought**, and the kick-off time in
+place of the venue letter. A colour alone was not enough to carry that at 14px on a light
+band, and the nought was wrong anyway: it is the same nought a player who played badly
+gets, and those are not the same thing. The dash says which without raising its voice.
+
 `.player-bottom` was `position:absolute; left:5px; right:5px; bottom:9px` from an older
 design where the stack floated inside the card's padding. That is why the bands stopped
 short of the edge and why no margin would move them. It is back in the flow.

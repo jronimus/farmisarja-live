@@ -130,6 +130,7 @@ async function managerRow(
       cost: element.now_cost / 10,
       ownership: Number(element.selected_by_percent) || 0,
       difficulty: firstFixture ? (isHome ? firstFixture.team_h_difficulty : firstFixture.team_a_difficulty) : undefined,
+      kickoff: firstFixture?.kickoff_time,
       state,
       fixtures: states.length ? states : undefined,
       starter: pick.position <= 11,
