@@ -112,9 +112,11 @@ players who are realistically ownable, that fit 84.6 % and 69.5 % of possible pa
 rare edge case the earlier note claimed.
 
 Reclaiming the wasted column width, plus a 4px rather than 8px gutter on this one cell,
-took the budget to 125.3px and 115.5px, which is 98.6 % and 96.6 % of pairs. The
-per-transfer points stay. The longest realistically ownable name is now George Hemmings
-at 97px; Alexander-Arnold is no longer in the game at all.
+took the budget to 125.3px and 115.5px, or 98.6 % and 96.6 % of pairs. Folding the form
+column into a popover freed 71px more, and the budget is now **162.9px and 153.1px, which
+is 100 % and 99.9 %**: two of the longest names in the game, on double-digit scores, fit
+whole. The per-transfer points stay. The longest realistically ownable name is George
+Hemmings at 97px; Alexander-Arnold is no longer in the game at all.
 
 ### The form column
 
@@ -128,14 +130,23 @@ running gameweek in the form series therefore disagreed with the GW column besid
 23 Aug the leader read 48 in form and 56 in GW points, an hour into the round. It also
 read as a collapse every Saturday and recovered by itself overnight.
 
-Each figure carries its own gameweek number under it, `GW19 20 21 22 23`, with the prefix
-written once. The label is the ink colour at `--fs-micro`, not grey: `--faint` lands at
-3.6:1 against the light row, and this is the smallest type on the page. It is held back by
-size and weight rather than by contrast. Emphasising the newest figure instead was tried and dropped: emphasis reads
-as *this is now*, and the one thing that figure is not is the running gameweek, which is
-two columns to the right. The labels also make the absence of the running week visible,
-which is the point. Repeating `GW` on all five cost 19px of a column with none to spare
-and said nothing extra.
+The column itself shows **only the average**. The five weeks are behind it, in a popover
+that opens on click and closes on the next click anywhere or on Escape. That took the
+column from 129px to 58px, and the 71px went to the two columns that needed it: the
+captain, whose name now carries a highlight pill, and the transfers.
+
+Inside the popover each figure carries its own gameweek number, `GW19 20 21 22 23`, with
+the prefix written once. The label is the ink colour at `--fs-micro`, not grey: `--faint`
+lands at 3.6:1 against the light row, and this is the smallest type on the page. It is
+held back by size and weight rather than by contrast. Emphasising the newest figure
+instead was tried and dropped: emphasis reads as *this is now*, and the one thing that
+figure is not is the running gameweek, which is two columns to the right.
+
+The popover is centred on its row and measures 134 × 43, so it never reaches past the 82px
+row it belongs to — which is what keeps it clear of the table's own `overflow:hidden` on
+the first and last rows. Its selector carries `.form-popover` rather than the bare element
+because an earlier layer flattens every direct span of that cell:
+`.manager-row .form-cell > span { padding:0; border-radius:0 }`.
 
 ### Highlighting one player
 
@@ -152,13 +163,22 @@ him. `buildOwnership()` in `src/services/ownership.ts` reads the squads through
 `provisionalAutosubSquad`, so the armband and the eleven it counts are the ones the table
 is showing under the current autosubs setting.
 
+The switch beside the select decides whether a squad that owns him but has left him on the
+bench counts. With it off those managers drop out of the list and out of the paint
+altogether. Effective ownership does not move either way, because a benched player was
+already worth nothing in it.
+
 The paint is `--purple`. Not green or red, which carry meaning in every other column of
 the table, and not the ink colour, which was tried first: mixed into white it lands on the
-same grey-lavender the even rows are already striped with, and a highlight you have to
-compare against the row above is not a highlight. A rail down the left of the row, a wash
-behind it, a heavier wash if he is that manager's captain, a lighter one if he is on their
-bench, and the captain's name set in reverse in the captain column. The player's own card
-in the expanded squad takes a ring in the same colour.
+same grey-lavender the even rows are already striped with. A rail down the left of the
+row, a wash behind it, a heavier wash if he is that manager's captain, a lighter one if he
+is on their bench, and the captain's name set in reverse in the captain column, on mobile
+too. The player's own card in the expanded squad takes a ring in the same colour.
+
+None of that was enough on its own in a table that is already striped: the wash and the
+stripe carried the same weight, and a highlight you have to compare against the row above
+is not a highlight. **The rows that were not picked drop to 42% opacity.** That is what
+makes the selection read as the filter it is.
 
 The club is in the option label because FPL's short names are not unique — a league can
 easily hold two Fernandes.

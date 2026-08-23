@@ -32,11 +32,15 @@ export function pickMultiplier(player: SquadPlayer, chip: ManagerRow["chip"]): n
 /**
  * Ownership across the league, ordered by effective ownership.
  *
+ * With `includeBench` off the count is of the players actually on the pitch: a squad that
+ * owns him but has left him on the bench drops out of the list entirely. Effective
+ * ownership does not move, because a benched player was already worth nothing in it.
+ *
  * The squads are read through `provisionalAutosubSquad` so the numbers agree with what
  * the table is showing: with autosubs on, a bench player who has come on counts as a
  * starter, and a vice-captain who has inherited the armband counts double.
  */
-export function buildOwnership(managers: ManagerRow[], autosubs: boolean): PlayerOwnership[] {
+export function buildOwnership(managers: ManagerRow[], autosubs: boolean, includeBench = true): PlayerOwnership[] {
   const total = managers.length;
   if (!total) return [];
   const byPlayer = new Map<number, PlayerOwnership & { multiplierSum: number }>();
@@ -44,6 +48,7 @@ export function buildOwnership(managers: ManagerRow[], autosubs: boolean): Playe
   for (const manager of managers) {
     for (const player of provisionalAutosubSquad(manager.squad, autosubs)) {
       const multiplier = pickMultiplier(player, manager.chip);
+      if (!includeBench && multiplier === 0) continue;
       const entry = byPlayer.get(player.id) ?? {
         id: player.id, name: player.name, club: player.club, position: player.position,
         owners: 0, captains: 0, benched: 0, ownedPercent: 0, effectivePercent: 0, multiplierSum: 0,
@@ -68,14 +73,14 @@ export function buildOwnership(managers: ManagerRow[], autosubs: boolean): Playe
       || a.name.localeCompare(b.name));
 }
 
+const nobody = { owns: false, captains: false, benched: false };
+
 /** Whether a manager holds the player, and whether he is their captain. */
-export function ownershipOf(manager: ManagerRow, playerId: number | null, autosubs: boolean) {
-  if (!playerId) return { owns: false, captains: false, benched: false };
+export function ownershipOf(manager: ManagerRow, playerId: number | null, autosubs: boolean, includeBench = true) {
+  if (!playerId) return nobody;
   const player = provisionalAutosubSquad(manager.squad, autosubs).find((item) => item.id === playerId);
-  if (!player) return { owns: false, captains: false, benched: false };
-  return {
-    owns: true,
-    captains: Boolean(player.captain),
-    benched: pickMultiplier(player, manager.chip) === 0,
-  };
+  if (!player) return nobody;
+  const benched = pickMultiplier(player, manager.chip) === 0;
+  if (benched && !includeBench) return nobody;
+  return { owns: true, captains: Boolean(player.captain), benched };
 }

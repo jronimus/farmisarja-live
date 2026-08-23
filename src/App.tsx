@@ -238,6 +238,8 @@ export default function App() {
   const [mobileDetails, setMobileDetails] = useState(true);
   const [period, setPeriod] = useState("total");
   const [highlighted, setHighlighted] = useState<number | null>(null);
+  const [includeBench, setIncludeBench] = useState(true);
+  const [formOpen, setFormOpen] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(demoMode ? null : 101);
   const [sort, setSort] = useState<SortKey>("position");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
@@ -297,7 +299,7 @@ export default function App() {
 
   // Ownership is read through the same autosub view as the table, so the armband and the
   // starting eleven it counts are the ones on screen.
-  const ownership = useMemo(() => buildOwnership(data.managers, autosubs), [data.managers, autosubs]);
+  const ownership = useMemo(() => buildOwnership(data.managers, autosubs, includeBench), [data.managers, autosubs, includeBench]);
   // A highlighted player can be transferred out from under the selection between refreshes.
   const selected = ownership.find((entry) => entry.id === highlighted) ?? null;
 
@@ -354,6 +356,16 @@ export default function App() {
 
   const monthFormatter = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { month: "long" });
   // Finnish month names are lower case, but they read better capitalised beside the other menu labels.
+  // The form popover is a transient overlay: anything that is not the popover closes it.
+  useEffect(() => {
+    if (formOpen === null) return;
+    const close = () => setFormOpen(null);
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setFormOpen(null); };
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", escape);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", escape); };
+  }, [formOpen]);
+
   // Finnish sets a space before the percent sign; English does not.
   const percent = (value: number) => language === "fi" ? `${Math.round(value)} %` : `${Math.round(value)}%`;
   const monthLabel = (month: string) => { const name = monthFormatter.format(new Date(`${month}-01T12:00:00Z`)); return name.charAt(0).toUpperCase() + name.slice(1); };
@@ -405,31 +417,36 @@ export default function App() {
       <small>{language === "fi" ? "Uutta yritystä tehdään automaattisesti. Vanhentunutta tai demodataa ei näytetä." : "Retrying automatically. Stale or demo data is not shown."}</small>
     </section> : !liveReady ? <div className="initial-loading" aria-label={language === "fi" ? "Ladataan FPL-dataa" : "Loading FPL data"} /> : <>
       <div className="toolbar">
-        <select className="period-select" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label={language === "fi" ? "Valitse ajanjakso" : "Select period"}>
-          <option value="total">Total</option>
-          {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
-        </select>
-        {!data.rosterOnly && ownership.length > 0 && <div className="player-filter">
-          <select
-            className="period-select player-select"
-            value={selected?.id ?? ""}
-            onChange={(event) => setHighlighted(event.target.value ? Number(event.target.value) : null)}
-            aria-label={t.highlightPlayer}
-          >
-            <option value="">{t.allPlayers}</option>
-            {/* The club disambiguates: FPL's short names are not unique, and a league can
-                easily hold two Fernandes. */}
-            {ownership.map((entry) => <option value={entry.id} key={entry.id}>
-              {entry.name} ({entry.club}) — {percent(entry.effectivePercent)} ({entry.owners}/{data.managers.length})
-            </option>)}
+        <div className="toolbar-selects">
+          <select className="period-select" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label={language === "fi" ? "Valitse ajanjakso" : "Select period"}>
+            <option value="total">Total</option>
+            {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
           </select>
-          {selected && <span className="ownership-readout">
-            <b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
-            {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
-            {selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}
-            <i title={t.effectiveOwnership}>EO {percent(selected.effectivePercent)}</i>
-          </span>}
-        </div>}
+          {!data.rosterOnly && ownership.length > 0 && <>
+            <select
+              className="period-select player-select"
+              value={selected?.id ?? ""}
+              onChange={(event) => setHighlighted(event.target.value ? Number(event.target.value) : null)}
+              aria-label={t.highlightPlayer}
+            >
+              <option value="">{t.allPlayers}</option>
+              {/* The club disambiguates: FPL's short names are not unique, and a league can
+                  easily hold two Fernandes. */}
+              {ownership.map((entry) => <option value={entry.id} key={entry.id}>
+                {entry.name} ({entry.club}) — {percent(entry.effectivePercent)} ({entry.owners}/{data.managers.length})
+              </option>)}
+            </select>
+            <label className="autosub-toggle bench-toggle">
+              <span>{t.withBench}</span>
+              <button role="switch" aria-checked={includeBench} onClick={() => setIncludeBench((value) => !value)} className={includeBench ? "enabled" : ""}><i /></button>
+            </label>
+            {selected && <span className="ownership-readout">
+              <b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
+              {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
+              {includeBench && selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}
+            </span>}
+          </>}
+        </div>
         <div className="toolbar-toggles"><label className="details-toggle"><span>{t.details}</span><button role="switch" aria-checked={mobileDetails} onClick={() => setMobileDetails((value) => !value)} className={mobileDetails ? "enabled" : ""}><i /></button></label><label className="autosub-toggle"><span>{t.autosubs}</span><button role="switch" aria-checked={autosubs} onClick={() => setAutosubs((value) => !value)} className={autosubs ? "enabled" : ""}><i /></button></label></div>
       </div>
 
@@ -437,7 +454,7 @@ export default function App() {
         <Clock3 />
         <strong>{language === "fi" ? "Peliviikon joukkueita päivitetään" : "Gameweek teams are being updated"}</strong>
         <span>{language === "fi" ? "Taulukko avautuu automaattisesti heti, kun FPL-data on saatavilla." : "The table will open automatically as soon as the FPL data is available."}</span>
-      </section> : <section className="league-table">
+      </section> : <section className={`league-table ${selected ? "has-highlight" : ""}`}>
         <div className="table-head">{headers.map(([label, key], index) => <SortHeader key={`${label}-${index}`} label={label} sortKey={key} active={sort} direction={direction} onSort={handleSort} />)}</div>
         <div className="rows">
           <div className="mobile-simple-head"><b>{t.position}</b><b>{t.manager}</b><b>GW</b><b>{t.total}</b></div>
@@ -461,7 +478,7 @@ export default function App() {
               : awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.worstForm ? awardFor("formWorst", formAverage) : undefined;
             const gwAward = awardsAvailable && awardStats.bestGw > awardStats.lowestGw && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
             const gwMedalRank = awardsAvailable ? gwMedalRanks.get(manager.id) : undefined;
-            const picked = ownershipOf(manager, selected?.id ?? null, autosubs);
+            const picked = ownershipOf(manager, selected?.id ?? null, autosubs, includeBench);
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""} ${picked.owns ? "owns-picked" : ""} ${picked.captains ? "captains-picked" : ""} ${picked.benched ? "benches-picked" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
                 <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
@@ -472,7 +489,19 @@ export default function App() {
                 <ChipsCell manager={manager} label={t.chips} />
                 <TeamValueCell manager={manager} label={t.teamValue} award={valueAward} available={!data.rosterOnly} />
                 <BenchPointsCell manager={manager} label={t.benchPoints} award={benchAward} available={!data.rosterOnly} autosubs={autosubs} />
-                <div className={`form-cell ${formAward ? "award-cell" : ""}`} data-label={t.form}><span className="form-values">{manager.form.map((value, index) => <b key={index} data-gw={manager.formGameweeks[index]} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span><span className="form-meta">{manager.form.length > 0 && <strong className="form-average">{language === "fi" ? "KA" : "AVG"} {formAverage.toFixed(1)}</strong>}</span></div>
+                <div className={`form-cell ${formAward ? "award-cell" : ""} ${formOpen === manager.id ? "form-open" : ""}`} data-label={t.form}>
+                  {manager.form.length > 0 && <button
+                    className="form-trigger"
+                    aria-expanded={formOpen === manager.id}
+                    aria-label={`${t.form}: ${t.lastFive}`}
+                    onClick={(event) => { event.stopPropagation(); setFormOpen(formOpen === manager.id ? null : manager.id); }}
+                  >
+                    <strong className="form-average">{language === "fi" ? "KA" : "AVG"} {formAverage.toFixed(1)}</strong>
+                  </button>}
+                  {formOpen === manager.id && <span className="form-popover" role="dialog" aria-label={t.lastFive} onClick={(event) => event.stopPropagation()}>
+                    <span className="form-values">{manager.form.map((value, index) => <b key={index} data-gw={manager.formGameweeks[index]} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span>
+                  </span>}
+                </div>
                 <div className={`points-cell ${gwAward ? "award-cell" : ""}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwMedalRank ? `has-medal medal-rank-${gwMedalRank}` : ""}`}>{gwMedalRank && <Medal aria-label={language === "fi" ? `Kierroksen ${gwMedalRank}. paras` : `Gameweek rank ${gwMedalRank}`} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span></div>
                 <div className="progress-cell" data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints + manager.provisionalBonus - manager.hit)}</strong></div>

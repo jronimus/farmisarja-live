@@ -1429,13 +1429,13 @@ footer a { color:#c4c6d8; }
    Widths (content | header, whichever is larger):
      70  position   10. + movement       |  56
      140 manager    flexible, truncates  |  77 wrapped
-     106 captain    fits every name but the very longest, then ellipsis
-     217 transfers  flexible, the point of this pass
+     134 captain    every name in the game, and the highlight pill around it
+     260 transfers  flexible, the point of this pass
      61  season tf  33                   |  61 wrapped
      125 chips      four tags            |  51
      78  value      £104.2m +0.4m        |  48
      58  bench      35                   |  58
-     129 form       five figures + KA    |  42, at a 5px gap, labels included
+     58  form       the average only; the five weeks are a popover  |  42
      67  gw points  146 + formula        |  63 wrapped
      72  played     PROVISIONAL at micro |  67
      77  total      2400                 |  77, single word, cannot wrap
@@ -1448,7 +1448,7 @@ footer a { color:#c4c6d8; }
   .manager-row {
     min-width:1224px;
     padding:0 12px;
-    grid-template-columns:70px minmax(140px,1fr) 106px minmax(217px,1.5fr) 61px 125px 78px 58px 129px 67px 72px 77px;
+    grid-template-columns:70px minmax(140px,1fr) 134px minmax(260px,1.5fr) 61px 125px 78px 58px 58px 67px 72px 77px;
   }
 
   /* PROVISIONAL is the longest string this column can hold and it was set at --fs-lead,
@@ -1544,29 +1544,19 @@ footer a { color:#c4c6d8; }
   white-space:nowrap;
 }
 .ownership-readout b { font-weight:800; }
-.ownership-readout i {
-  margin-left:7px;
-  padding:3px 7px;
-  border-radius:999px;
-  background:var(--purple);
-  color:#fff;
-  font-style:normal;
-  font-size:10px;
-  font-weight:800;
-}
 
 .manager-block.owns-picked {
-  background:color-mix(in srgb,var(--purple) 11%,#fff);
+  background:color-mix(in srgb,var(--purple) 16%,#fff);
   box-shadow:inset 4px 0 0 var(--purple),inset 0 1px 0 rgba(255,255,255,.95);
 }
 /* The captain is worth twice what the rest of the row is, so the row says so twice:
    a heavier wash, and the name itself set in reverse in the captain column. */
 .manager-block.owns-picked.captains-picked {
-  background:color-mix(in srgb,var(--purple) 20%,#fff);
+  background:color-mix(in srgb,var(--purple) 28%,#fff);
 }
 /* Holding a player who is on your bench is a different fact from fielding him. */
 .manager-block.owns-picked.benches-picked {
-  background:color-mix(in srgb,var(--purple) 6%,#fff);
+  background:color-mix(in srgb,var(--purple) 8%,#fff);
   box-shadow:inset 4px 0 0 color-mix(in srgb,var(--purple) 45%,transparent),inset 0 1px 0 rgba(255,255,255,.95);
 }
 .manager-block.owns-picked .manager-row:hover {
@@ -1585,8 +1575,84 @@ footer a { color:#c4c6d8; }
 }
 
 @media (max-width:800px) {
-  .player-filter { order:3; flex:1 1 100%; }
-  .player-select { max-width:none; flex:1 1 auto; }
-  .ownership-readout { font-size:10px; }
-  .ownership-readout i { font-size:9px; }
+  /* The left group takes the whole width under the toggles rather than fighting them
+     for it: two selects, a switch and a sentence do not fit beside anything. */
+  .toolbar-selects { order:3; flex:1 1 100%; flex-wrap:wrap; gap:8px; }
+  .toolbar-selects .period-select { flex:0 1 auto; }
+  .player-select { max-width:none; flex:1 1 150px; }
+  .ownership-readout { flex:1 1 100%; font-size:10px; }
 }
+
+/* --------------------------------------------------------------------------
+   The toolbar's left group, the form popover, and what a highlight does to the
+   rows it did not pick.
+   -------------------------------------------------------------------------- */
+.toolbar-selects {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+.bench-toggle { white-space:nowrap; }
+
+/* A wash alone was not enough to find the picked rows in a striped table — the even
+   rows are already tinted. The rest of the table steps back instead, which turns the
+   selection into the filter it actually is. */
+.league-table.has-highlight .manager-block:not(.owns-picked) {
+  opacity:.42;
+}
+.league-table.has-highlight .manager-block:not(.owns-picked):hover {
+  opacity:.72;
+}
+
+/* Form: the average is the whole column, and the five weeks behind it are one click
+   away. The popover is centred on the row so it never reaches past it — a row is 82px
+   and the popover is well under that, which is what keeps it clear of the table's own
+   overflow:hidden on the first and last rows. */
+.form-cell { position:relative; }
+.form-trigger {
+  display:flex;
+  align-items:center;
+  gap:4px;
+  min-width:0;
+  padding:2px 0;
+  border:0;
+  background:none;
+  color:inherit;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+.form-trigger::after {
+  content:"";
+  flex:none;
+  width:0;
+  height:0;
+  border:3px solid transparent;
+  border-top-color:currentColor;
+  transform:translateY(1px);
+  opacity:.55;
+}
+.form-cell.form-open .form-trigger::after { transform:rotate(180deg); }
+/* The selector carries .form-popover rather than the bare element because an earlier
+   layer flattens every direct span of this cell: `.manager-row .form-cell > span
+   { padding:0; border-radius:0 }`. Without the extra class the popover renders as a
+   dark rectangle with no padding at all. */
+.manager-row .form-cell > .form-popover {
+  position:absolute;
+  z-index:6;
+  top:50%;
+  left:-10px;
+  /* An absolutely positioned box shrinks to fit its containing block, and the containing
+     block here is a 58px column. Without this the five weeks are squeezed into it. */
+  width:max-content;
+  transform:translateY(-50%);
+  padding:9px 11px;
+  border-radius:9px;
+  background:var(--text);
+  box-shadow:0 12px 30px rgba(8,18,40,.28);
+}
+.manager-row .form-popover .form-values > b { color:#fff; }
+.manager-row .form-popover .form-values > b.rank-up { color:#45df91; }
+.manager-row .form-popover .form-values > b.rank-down { color:#ff8ba0; }
+.manager-row .form-popover .form-values > b::after { color:rgba(255,255,255,.62); }
