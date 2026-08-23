@@ -4,6 +4,7 @@ import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
+import { buildOwnership, ownershipOf } from "./services/ownership";
 import ShareCard, { type CardKind } from "./ShareCard";
 import type { DashboardData, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
 
@@ -179,9 +180,9 @@ function Shirt({ player }: { player: SquadPlayer }) {
   return <div className="shirt"><img className="shirt-image" src={source} alt="" /></div>;
 }
 
-function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, groupLabel, mobileGroupLabel, groupKind }: { player: SquadPlayer; best: boolean; language: Language; tripleCaptain: boolean; scoreMultiplier: number; groupLabel?: string; mobileGroupLabel?: string; groupKind?: "position" | "bench" }) {
+function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, groupLabel, mobileGroupLabel, groupKind, highlighted }: { player: SquadPlayer; best: boolean; language: Language; tripleCaptain: boolean; scoreMultiplier: number; groupLabel?: string; mobileGroupLabel?: string; groupKind?: "position" | "bench"; highlighted?: boolean }) {
   const t = translations(language);
-  return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
+  return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${highlighted ? "player-picked" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
     {groupLabel && <span className="player-group-label"><b className="desktop-squad-label">{groupLabel}</b><b className="mobile-squad-label">{mobileGroupLabel ?? groupLabel}</b></span>}
     <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /></div>
     <div className="player-name"><span>{player.name}</span></div>
@@ -189,7 +190,7 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
   </div>;
 }
 
-function Squad({ manager, language, autosubs }: { manager: ManagerRow; language: Language; autosubs: boolean }) {
+function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerRow; language: Language; autosubs: boolean; highlighted?: number | null }) {
   const t = translations(language);
   const originalOrder = provisionalAutosubSquad(manager.squad, autosubs);
   const active = originalOrder.filter((player) => player.starter);
@@ -213,7 +214,7 @@ function Squad({ manager, language, autosubs }: { manager: ManagerRow; language:
     : { GK: "GK", DEF: "DEF", MID: "MID", FWD: "FWD" };
   const renderPlayer = (player: SquadPlayer, groupLabel?: string, mobileGroupLabel?: string, groupKind?: "position" | "bench") => {
     const liveScore = (player.points + player.bonus) * scoreMultiplier(player);
-    return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} />;
+    return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} highlighted={player.id === highlighted} />;
   };
   return <div className="squad-panel">
     <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span>{hasSpread && <><span className="legend-best"><i />{t.best}</span></>}</div></div>
@@ -236,6 +237,7 @@ export default function App() {
   const [autosubs, setAutosubs] = useState(true);
   const [mobileDetails, setMobileDetails] = useState(true);
   const [period, setPeriod] = useState("total");
+  const [highlighted, setHighlighted] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(demoMode ? null : 101);
   const [sort, setSort] = useState<SortKey>("position");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
@@ -293,6 +295,12 @@ export default function App() {
     return () => { active = false; if (refreshTimer) window.clearTimeout(refreshTimer); };
   }, [demoMode]);
 
+  // Ownership is read through the same autosub view as the table, so the armband and the
+  // starting eleven it counts are the ones on screen.
+  const ownership = useMemo(() => buildOwnership(data.managers, autosubs), [data.managers, autosubs]);
+  // A highlighted player can be transferred out from under the selection between refreshes.
+  const selected = ownership.find((entry) => entry.id === highlighted) ?? null;
+
   const managers = useMemo(() => [...data.managers].sort((a, b) => {
     // A gameweek in progress has no settled form behind it yet, so the series can be empty.
     const aValue = sort === "form" ? a.form.reduce((sum, value) => sum + value, 0) / Math.max(1, a.form.length) : a[sort];
@@ -346,6 +354,8 @@ export default function App() {
 
   const monthFormatter = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { month: "long" });
   // Finnish month names are lower case, but they read better capitalised beside the other menu labels.
+  // Finnish sets a space before the percent sign; English does not.
+  const percent = (value: number) => language === "fi" ? `${Math.round(value)} %` : `${Math.round(value)}%`;
   const monthLabel = (month: string) => { const name = monthFormatter.format(new Date(`${month}-01T12:00:00Z`)); return name.charAt(0).toUpperCase() + name.slice(1); };
   const headers: Array<[string, SortKey | null]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form"], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
   const gameweekFixtures = data.fixtures ?? [];
@@ -399,6 +409,27 @@ export default function App() {
           <option value="total">Total</option>
           {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
         </select>
+        {!data.rosterOnly && ownership.length > 0 && <div className="player-filter">
+          <select
+            className="period-select player-select"
+            value={selected?.id ?? ""}
+            onChange={(event) => setHighlighted(event.target.value ? Number(event.target.value) : null)}
+            aria-label={t.highlightPlayer}
+          >
+            <option value="">{t.allPlayers}</option>
+            {/* The club disambiguates: FPL's short names are not unique, and a league can
+                easily hold two Fernandes. */}
+            {ownership.map((entry) => <option value={entry.id} key={entry.id}>
+              {entry.name} ({entry.club}) — {percent(entry.effectivePercent)} ({entry.owners}/{data.managers.length})
+            </option>)}
+          </select>
+          {selected && <span className="ownership-readout">
+            <b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
+            {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
+            {selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}
+            <i title={t.effectiveOwnership}>EO {percent(selected.effectivePercent)}</i>
+          </span>}
+        </div>}
         <div className="toolbar-toggles"><label className="details-toggle"><span>{t.details}</span><button role="switch" aria-checked={mobileDetails} onClick={() => setMobileDetails((value) => !value)} className={mobileDetails ? "enabled" : ""}><i /></button></label><label className="autosub-toggle"><span>{t.autosubs}</span><button role="switch" aria-checked={autosubs} onClick={() => setAutosubs((value) => !value)} className={autosubs ? "enabled" : ""}><i /></button></label></div>
       </div>
 
@@ -430,11 +461,12 @@ export default function App() {
               : awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.worstForm ? awardFor("formWorst", formAverage) : undefined;
             const gwAward = awardsAvailable && awardStats.bestGw > awardStats.lowestGw && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
             const gwMedalRank = awardsAvailable ? gwMedalRanks.get(manager.id) : undefined;
-            return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""}`} key={manager.id}>
+            const picked = ownershipOf(manager, selected?.id ?? null, autosubs);
+            return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""} ${picked.owns ? "owns-picked" : ""} ${picked.captains ? "captains-picked" : ""} ${picked.benched ? "benches-picked" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
                 <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
-                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
-                <div className={`captain-cell ${captainAward ? "award-cell" : ""}`} data-label={t.captain}><strong>{captain.name}</strong><span className={captainAward ? `award-target award-${captainAward.tone} award-level-${captainAward.level}` : ""}>{captain.points} pts</span></div>
+                <div className="manager-cell"><a href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
+                <div className={`captain-cell ${captainAward ? "award-cell" : ""}`} data-label={t.captain}><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><span className={captainAward ? `award-target award-${captainAward.tone} award-level-${captainAward.level}` : ""}>{captain.points} pts</span></div>
                 <TransferCell manager={manager} language={language} award={transferAward} gameweek={data.gameweek} />
                 <SeasonTransfersCell manager={manager} label={t.seasonTransfers} />
                 <ChipsCell manager={manager} label={t.chips} />
@@ -447,7 +479,7 @@ export default function App() {
               </div>
               {open && (data.rosterOnly
                 ? <div className="squad-panel squad-unavailable">{language === "fi" ? "Pelaajat tulevat näkyviin, kun peliviikon deadline on sulkeutunut." : "Players will appear after the gameweek deadline has passed."}</div>
-                : <Squad manager={manager} language={language} autosubs={autosubs} />)}
+                : <Squad manager={manager} language={language} autosubs={autosubs} highlighted={selected?.id ?? null} />)}
             </div>;
           })}
         </div>

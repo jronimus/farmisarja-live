@@ -39,6 +39,7 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/ShareCard.tsx` | The four Telegram cards |
 | `src/cards.css` | Card styles, everything prefixed `sc-` |
 | `src/services/awards.ts` | Award rules, thresholds, rarity, selection |
+| `src/services/ownership.ts` | League ownership and effective ownership, for the player highlight |
 | `src/services/liveDashboard.ts` | FPL response mapping and dashboard composition |
 | `src/services/fplRules.ts` | Chips, free transfers, provisional autosubs |
 | `src/i18n.ts` | FI/EN strings |
@@ -135,6 +136,32 @@ as *this is now*, and the one thing that figure is not is the running gameweek, 
 two columns to the right. The labels also make the absence of the running week visible,
 which is the point. Repeating `GW` on all five cost 19px of a column with none to spare
 and said nothing extra.
+
+### Highlighting one player
+
+The select above the table lists every player anyone in the league owns, ordered by
+**effective ownership**, and picking one paints the managers who hold him.
+
+Effective ownership is FPL's own measure and the reason the figure passes 100 %: each
+squad holding the player counts once, his captains twice, three times under a triple
+captain, and a benched player counts nothing at all. Seven managers all captaining the
+same player is 100 % owned and 200 % effective. Real GW1 numbers, which is the clearest
+argument for showing it: Haaland 143 % from six squads, B.Fernandes 71 % from three
+because two of them captain him, Calvert-Lewin 29 % from four because most of them bench
+him. `buildOwnership()` in `src/services/ownership.ts` reads the squads through
+`provisionalAutosubSquad`, so the armband and the eleven it counts are the ones the table
+is showing under the current autosubs setting.
+
+The paint is `--purple`. Not green or red, which carry meaning in every other column of
+the table, and not the ink colour, which was tried first: mixed into white it lands on the
+same grey-lavender the even rows are already striped with, and a highlight you have to
+compare against the row above is not a highlight. A rail down the left of the row, a wash
+behind it, a heavier wash if he is that manager's captain, a lighter one if he is on their
+bench, and the captain's name set in reverse in the captain column. The player's own card
+in the expanded squad takes a ring in the same colour.
+
+The club is in the option label because FPL's short names are not unique — a league can
+easily hold two Fernandes.
 
 ### The header
 
@@ -344,3 +371,8 @@ These cost real debugging time. Do not re-derive them from assumptions.
 - **Do not size a column by eye, and do not trust a width already in the file.** Clone the
   row, set `grid-template-columns:repeat(12,max-content)`, substitute the worst content
   each cell can hold, and read the widths back. Half the table's widths were wrong.
+- **A cell's worst case is not what it holds today.** The progress column was measured
+  while every manager still had fixtures left, so the measurement never saw `PROVISIONAL`,
+  the string that appears only once a squad has finished — 94px of it, in a 67px column,
+  drawn straight across the season total. Enumerate a cell's states from the code that
+  renders it, not from the data on screen.
