@@ -220,6 +220,10 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
   </div>;
 }
 
+// TEMPORARY: three candidate mobile layouts side by side, chosen with ?squad=a|b|c.
+// Delete the losers and this parameter once one is picked.
+const squadVariant = new URLSearchParams(location.search).get("squad") ?? "";
+
 function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerRow; language: Language; autosubs: boolean; highlighted?: number | null }) {
   const t = translations(language);
   const originalOrder = provisionalAutosubSquad(manager.squad, autosubs);
@@ -252,10 +256,20 @@ function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerR
     const liveScore = (player.points + player.bonus) * scoreMultiplier(player);
     return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} highlighted={player.id === highlighted} />;
   };
-  return <div className="squad-panel">
+  return <div className="squad-panel" data-squad={squadVariant}>
     <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span>{hasSpread && <><span className="legend-best"><i />{t.best}</span></>}</div></div>
     <div className="squad-players">
-      <div className="squad-grid starters">{active.map((player, index) => renderPlayer(player, index === 0 || active[index - 1].position !== player.position ? positionLabels[player.position] : undefined, index === 0 || active[index - 1].position !== player.position ? mobilePositionLabels[player.position] : undefined, "position"))}</div>
+      {/* One container per line. On a desktop they are display:contents and the eleven read
+          as one strip; on a phone each is a flex row that centres itself, which a grid
+          cannot do for a part-filled row. */}
+      <div className="squad-grid starters">
+        {(["GK", "DEF", "MID", "FWD"] as const)
+          .map((line) => [line, active.filter((player) => player.position === line)] as const)
+          .filter(([, players]) => players.length > 0)
+          .map(([line, players]) => <div className={`squad-line line-${line.toLowerCase()}`} key={line}>
+            {players.map((player, index) => renderPlayer(player, index === 0 ? positionLabels[line] : undefined, index === 0 ? mobilePositionLabels[line] : undefined, "position"))}
+          </div>)}
+      </div>
       <div className="squad-heading bench-heading"><span>{t.bench}</span></div>
       <div className={`squad-grid bench ${manager.chip === "BB" ? "bench-boost" : ""}`}><span className="bench-frame-label">{t.bench}{manager.chip === "BB" && <b>BB</b>}</span>{bench.map((player) => renderPlayer(player))}</div>
     </div>

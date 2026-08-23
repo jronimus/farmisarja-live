@@ -2251,3 +2251,96 @@ footer a { color:#c4c6d8; }
   .squad-panel .player-points { font-size:16px; }
   .squad-panel .player-fixture { font-size:8px; }
 }
+
+/* The lines. Contents on a desktop, so the eleven still read as one strip; a centred flex
+   row on a phone, which is the one thing a grid cannot do for a row that is not full. */
+.squad-line { display:contents; }
+
+@media (max-width:800px) {
+  .squad-panel .squad-players { display:flex; flex-direction:column; gap:20px; }
+  .squad-panel .squad-grid.starters { display:flex; flex-direction:column; gap:20px; }
+  .squad-panel .squad-line {
+    display:flex;
+    justify-content:center;
+    gap:5px;
+  }
+  /* Every card is a fifth of the row whatever the formation, so a back three sits centred
+     under a midfield four without either changing size. */
+  .squad-panel .squad-line > .player { flex:0 0 calc((100% - 4 * 5px) / 5); }
+  .squad-panel .squad-grid.bench { display:grid; }
+}
+
+/* ==========================================================================
+   TEMPORARY: three candidate mobile squad layouts, ?squad=a|b|c
+   Delete the two that lose, and the data-squad attribute with them.
+   ========================================================================== */
+@media (max-width:800px) {
+  /* A — the same formation, tighter. One band carries the score, the fixture and the
+     ownership, so a card is about 70px instead of 132. */
+  .squad-panel[data-squad="a"] .player { min-height:0; padding:4px 3px 0; }
+  .squad-panel[data-squad="a"] .player-visual { height:30px; }
+  .squad-panel[data-squad="a"] .shirt { width:54px; height:50px; }
+  .squad-panel[data-squad="a"] .player-name { min-height:0; margin-top:3px; font-size:8px; }
+  .squad-panel[data-squad="a"] .player-bottom {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:3px;
+    margin:4px -3px 0;
+    padding:3px 4px;
+    border-radius:0 0 7px 7px;
+    background:#fff;
+  }
+  .squad-panel[data-squad="a"] .player-points { width:auto; padding:0; background:none; font-size:12px; }
+  .squad-panel[data-squad="a"] .player-fixture { padding:1px 3px; border-radius:3px; font-size:7px; }
+  .squad-panel[data-squad="a"] .player-ownership { padding:0; border-radius:0; background:none; font-size:7px; white-space:nowrap; }
+  .squad-panel[data-squad="a"] .player-fixture { flex:none; padding:1px 3px; }
+  /* Three figures on one 66px line only fit if one of them gives something up: the venue
+     letter goes, the opponent and its difficulty colour stay. */
+  .squad-panel[data-squad="a"] .player-venue { display:none; }
+
+  /* B and C — the card turns on its side: shirt left, name and figures right. */
+  .squad-panel[data-squad="b"] .player,
+  .squad-panel[data-squad="c"] .player {
+    display:grid;
+    grid-template-columns:34px minmax(0,1fr);
+    grid-template-rows:auto auto;
+    align-items:center;
+    column-gap:7px;
+    min-height:0;
+    padding:5px 7px 5px 5px;
+    text-align:left;
+  }
+  .squad-panel[data-squad="b"] .player-visual,
+  .squad-panel[data-squad="c"] .player-visual { grid-row:1 / 3; height:34px; }
+  .squad-panel[data-squad="b"] .shirt,
+  .squad-panel[data-squad="c"] .shirt { width:44px; height:40px; }
+  .squad-panel[data-squad="b"] .player-name,
+  .squad-panel[data-squad="c"] .player-name {
+    grid-column:2; grid-row:1; justify-content:flex-start; min-height:0; margin:0; font-size:10px;
+  }
+  .squad-panel[data-squad="b"] .player-bottom,
+  .squad-panel[data-squad="c"] .player-bottom {
+    grid-column:2; grid-row:2;
+    display:flex; align-items:center; gap:6px;
+    margin:2px 0 0; padding:0; background:none;
+  }
+  .squad-panel[data-squad="b"] .player-points,
+  .squad-panel[data-squad="c"] .player-points { width:auto; padding:0; background:none; font-size:14px; }
+  .squad-panel[data-squad="b"] .player-fixture,
+  .squad-panel[data-squad="c"] .player-fixture { padding:1px 4px; border-radius:3px; font-size:7px; }
+  .squad-panel[data-squad="b"] .player-ownership,
+  .squad-panel[data-squad="c"] .player-ownership { margin-left:auto; padding:0; border-radius:0; background:none; font-size:8px; }
+  .squad-panel[data-squad="b"] .player-group-label,
+  .squad-panel[data-squad="c"] .player-group-label { left:0; }
+
+  /* B — two to a row, the lines only named by their headings. */
+  .squad-panel[data-squad="b"] .squad-line { flex-wrap:wrap; }
+  .squad-panel[data-squad="b"] .squad-line > .player { flex:0 0 calc((100% - 5px) / 2); }
+  .squad-panel[data-squad="b"] .squad-grid.bench { grid-template-columns:repeat(2,minmax(0,1fr)); }
+
+  /* C — three to a row, so a long line wraps and stays centred. */
+  .squad-panel[data-squad="c"] .squad-line { flex-wrap:wrap; }
+  .squad-panel[data-squad="c"] .squad-line > .player { flex:0 0 calc((100% - 2 * 5px) / 3); }
+  .squad-panel[data-squad="c"] .squad-grid.bench { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
