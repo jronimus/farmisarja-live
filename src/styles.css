@@ -1605,10 +1605,14 @@ footer a { color:#c4c6d8; }
    are already tinted — so the rest of the table steps back as well. Half a step: at .42
    the unpicked rows read as broken rather than secondary, and the table is still a table
    that people read. Hovering one brings it all the way back. */
-.league-table.has-highlight .manager-block:not(.owns-picked) {
-  opacity:.68;
+/* The contents fade, never the block. Every row background here is translucent over a
+   dark page, so fading the block itself lets that dark ground through and turns a light
+   stripe into a muddy third colour — measured at rgb(212,217,226) where the stripe it
+   belongs to is rgb(237,239,245). Fading only the children leaves the striping alone. */
+.league-table.has-highlight .manager-block:not(.owns-picked) > * {
+  opacity:.6;
 }
-.league-table.has-highlight .manager-block:not(.owns-picked):hover {
+.league-table.has-highlight .manager-block:not(.owns-picked):hover > * {
   opacity:1;
 }
 

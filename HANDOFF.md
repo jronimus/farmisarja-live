@@ -185,8 +185,14 @@ every one of them was either invisible against the table's own striping or too m
 row is not the fact; the name is. One accent, one meaning, in both places this league is
 published.
 
-The rows that were not picked drop to **68% opacity** and come all the way back on hover.
-That is what makes a stroke on one word findable in a table of seven rows.
+The rows that were not picked have their **contents** dropped to 60% opacity, and come all
+the way back on hover. That is what makes a stroke on one word findable in a table of
+seven rows.
+
+The contents, never the block. Every row background here is translucent over a dark page,
+so fading the block itself lets that dark ground through and turns a light stripe into a
+muddy third colour: measured at rgb(212,217,226) where the stripe it belongs to is
+rgb(237,239,245). It looked like the striping had broken, because it had.
 
 The stroke carries `width:max-content; align-self:flex-start` because both names are
 stretched flex children: without it the bar runs the full width of the cell and reads as a
