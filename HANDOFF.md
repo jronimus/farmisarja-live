@@ -378,7 +378,14 @@ goal is the accent, a sending-off is red.
 There is no rail down the left of the panel rows. It marked the lines involving one of our
 players, which is what the team name printed under each of them already says.
 
-Owned players are struck in the same lime as everywhere else. One accent, one meaning.
+Our teams are **named, not painted**. The lime stroke belongs to the table, where it answers
+"which rows"; a ticker line is already about one player, so painting the name there was
+decoration. A captain is marked `(C)` after the team.
+
+Two separators, because there are two kinds of gap: a middle dot between the team names
+inside a line, and a hairline rule between the lines themselves. There is no clock — on a
+strip that says *just happened* by lighting up, the wall-clock time was the least of what a
+line had to carry.
 
 **The Worker must be deployed for any of this to have data**: `npx wrangler deploy`. Until
 then `/events` answers 404 and the ticker says it is waiting.
