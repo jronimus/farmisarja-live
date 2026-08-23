@@ -239,8 +239,9 @@ export default function App() {
   const [period, setPeriod] = useState("total");
   const [highlighted, setHighlighted] = useState<number | null>(null);
   // The switch reads "Vain avaus", so it is off by default and turning it on narrows the
-  // count to the eleven on the pitch.
-  const [startersOnly, setStartersOnly] = useState(false);
+  // count to the eleven on the pitch. It is a preference rather than a view, so it
+  // outlives the session the way the language does.
+  const [startersOnly, setStartersOnly] = useState(() => localStorage.getItem("farmisarja-starters-only") === "true");
   const [formOpen, setFormOpen] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(demoMode ? null : 101);
   const [sort, setSort] = useState<SortKey>("position");
@@ -261,6 +262,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("farmisarja-language", language);
   }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem("farmisarja-starters-only", String(startersOnly));
+  }, [startersOnly]);
 
   useEffect(() => {
     if (demoMode) return;
