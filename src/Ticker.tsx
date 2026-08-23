@@ -54,6 +54,13 @@ function Item({ event, owners, language, fresh }: { event: FeedEvent; owners: Pl
     <EventIcon kind={event.kind} />
     <b>{kindLabel(event.kind, language)}</b>
     <span className="ticker-player">{event.player}</span>
+    {/* Which match, with the player's own side in bold — the tie reads the same way round
+        as it does everywhere else, and you can see at a glance which half he is. */}
+    {event.fixture && <i className="ticker-fixture">
+      <b className={event.fixture.home === event.club ? "is-own" : ""}>{event.fixture.home}</b>
+      <em>–</em>
+      <b className={event.fixture.away === event.club ? "is-own" : ""}>{event.fixture.away}</b>
+    </i>}
     {event.pointsDelta !== 0 && <u className={event.pointsDelta > 0 ? "up" : "down"}>{event.pointsDelta > 0 ? "+" : "−"}{Math.abs(event.pointsDelta)}</u>}
     <Owners owners={owners} />
   </span>;

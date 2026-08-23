@@ -2038,6 +2038,17 @@ footer a { color:#c4c6d8; }
 .ticker-icon.icon-bonus { color:#ffd166; }
 .ticker-item b { color:#fff; font-size:10px; font-weight:900; letter-spacing:.06em; }
 .ticker-item .ticker-player { color:rgba(255,255,255,.9); }
+/* The tie, three letters a side. The player's own club is the bold half. */
+.ticker-fixture { display:flex; align-items:baseline; gap:1px; font-style:normal; }
+.ticker-fixture b,
+.ticker-fixture em {
+  color:rgba(255,255,255,.42);
+  font-size:10px;
+  font-style:normal;
+  font-weight:700;
+  letter-spacing:.02em;
+}
+.ticker-fixture b.is-own { color:rgba(255,255,255,.92); font-weight:900; }
 .ticker-item u,
 .ticker-row u {
   padding:1px 6px;
