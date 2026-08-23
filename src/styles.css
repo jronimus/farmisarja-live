@@ -1378,6 +1378,23 @@ footer a { color:#c4c6d8; }
   .manager-row .transfer-equals { flex:none; }
   .manager-row .transfer-cell { grid-template-columns:minmax(0,1fr); }
   .manager-row .form-values { gap:6px; }
+
+  /* Which end of the series is the newest gameweek is not guessable from a row of
+     figures, and the colour is already spoken for: it carries the overall-rank
+     movement of each week. So the newest one is marked by shape instead, with a rule
+     under it, which stays readable whether the figure is green, red or neutral. */
+  .manager-row .form-values > b { position:relative; }
+  .manager-row .form-values > b.current::after {
+    content:"";
+    position:absolute;
+    left:-1px;
+    right:-1px;
+    bottom:-3px;
+    height:2px;
+    border-radius:2px;
+    background:currentColor;
+    opacity:.7;
+  }
   .manager-row .wildcard-transfer > strong { font-size:var(--fs-lead); }
   .manager-row .wildcard-transfer > b { font-size:var(--fs-sub); }
   .manager-row .wildcard-transfer > small { font-size:var(--fs-meta); }

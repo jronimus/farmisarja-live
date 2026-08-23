@@ -134,7 +134,11 @@ async function managerRow(
   const usedChips = usedChipsForHalf(history.chips, event.id);
   const currentHistory = history.current.find((row) => row.event === event.id) ?? picks.entry_history;
   const earlierHistory = history.current.filter((row) => row.event < event.id);
-  const formRows = history.current.slice(-5);
+  // Form is a series of settled results. FPL leaves the stored points of a live gameweek at
+  // their last processed value, so a running gameweek in this series both disagrees with the
+  // live GW column beside it and reads as a collapse until the stored value catches up. The
+  // current gameweek joins the series once the event is finished.
+  const formRows = (event.finished ? history.current : earlierHistory).slice(-5);
   const captain = squad.find((player) => player.captain);
   const currentTransfers = transfers.filter((transfer) => transfer.event === event.id).sort((a, b) => a.time.localeCompare(b.time));
   const transferRows = currentTransfers.map((transfer) => ({

@@ -115,6 +115,22 @@ took the budget to 119.3px and 109.5px, which is 97.6 % and 94.2 % of pairs. The
 per-transfer points stay. The longest realistically ownable name is now George Hemmings
 at 97px; Alexander-Arnold is no longer in the game at all.
 
+### The form column
+
+Form is a series of **settled** gameweeks, the last five of them, and the gameweek in
+progress is not one of them. It joins the series when `event.finished` turns true.
+
+This is not a style choice. `history.current[].points` is the stored entry total, and FPL
+leaves that at its last processed value while matches are running — the same trap as the
+gameweek total, which is why that one is composed from live element scores instead. A
+running gameweek in the form series therefore disagreed with the GW column beside it: on
+23 Aug the leader read 48 in form and 56 in GW points, an hour into the round. It also
+read as a collapse every Saturday and recovered by itself overnight.
+
+The colour of each figure is spoken for — it carries that week's overall-rank movement —
+so the newest week is marked by shape, a rule under the figure. Without it a row of five
+numbers gives no clue which end is this week.
+
 ### The header
 
 `GW`, the live state and the played count share one card (`.gameweek-status`). The live

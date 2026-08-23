@@ -294,8 +294,9 @@ export default function App() {
   }, [demoMode]);
 
   const managers = useMemo(() => [...data.managers].sort((a, b) => {
-    const aValue = sort === "form" ? a.form.reduce((sum, value) => sum + value, 0) / a.form.length : a[sort];
-    const bValue = sort === "form" ? b.form.reduce((sum, value) => sum + value, 0) / b.form.length : b[sort];
+    // A gameweek in progress has no settled form behind it yet, so the series can be empty.
+    const aValue = sort === "form" ? a.form.reduce((sum, value) => sum + value, 0) / Math.max(1, a.form.length) : a[sort];
+    const bValue = sort === "form" ? b.form.reduce((sum, value) => sum + value, 0) / Math.max(1, b.form.length) : b[sort];
     return (aValue - bValue) * (direction === "asc" ? 1 : -1);
   }), [data.managers, direction, sort]);
 
