@@ -220,10 +220,6 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
   </div>;
 }
 
-// TEMPORARY: three candidate mobile layouts side by side, chosen with ?squad=a|b|c.
-// Delete the losers and this parameter once one is picked.
-const squadVariant = new URLSearchParams(location.search).get("squad") ?? "";
-
 function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerRow; language: Language; autosubs: boolean; highlighted?: number | null }) {
   const t = translations(language);
   const originalOrder = provisionalAutosubSquad(manager.squad, autosubs);
@@ -256,7 +252,7 @@ function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerR
     const liveScore = (player.points + player.bonus) * scoreMultiplier(player);
     return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} highlighted={player.id === highlighted} />;
   };
-  return <div className="squad-panel" data-squad={squadVariant}>
+  return <div className="squad-panel">
     <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span>{hasSpread && <><span className="legend-best"><i />{t.best}</span></>}</div></div>
     <div className="squad-players">
       {/* One container per line. On a desktop they are display:contents and the eleven read
