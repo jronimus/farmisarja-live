@@ -175,7 +175,7 @@ function SortHeader({ label, sortKey, active, direction, onSort }: { label: stri
 
 function Shirt({ player }: { player: SquadPlayer }) {
   const kitSet = player.position === "GK" ? "optimized-gk" : "optimized";
-  const source = `${import.meta.env.BASE_URL}kits/${kitSet}/${player.club.toLowerCase()}.webp?v=20260823-gk2`;
+  const source = `${import.meta.env.BASE_URL}kits/${kitSet}/${player.club.toLowerCase()}.webp?v=20260823-gk3`;
   return <div className="shirt"><img className="shirt-image" src={source} alt="" /></div>;
 }
 
