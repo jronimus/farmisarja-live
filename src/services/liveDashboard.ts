@@ -12,7 +12,7 @@ async function api<T>(workerPath: string, officialPath: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-interface EventData { id: number; deadline_time: string; finished: boolean; data_checked: boolean; is_current: boolean; is_next: boolean; }
+interface EventData { id: number; deadline_time: string; finished: boolean; data_checked: boolean; is_current: boolean; is_next: boolean; average_entry_score?: number; }
 interface Element {
   id: number; web_name: string; team: number; element_type: number; now_cost: number; selected_by_percent: string;
   // FPL publishes its own price-change progress; see services/priceChanges.ts.
@@ -224,6 +224,12 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
 
   // FPL's own price-change numbers ride along on the bootstrap that is already loaded, so
   // the price page costs no extra request and refreshes on the same tick as the table.
+  // A form figure means nothing without something to measure it against, and FPL publishes
+  // exactly that: the average score of every entry in the game, gameweek by gameweek.
+  const gameweekAverages = Object.fromEntries(bootstrap.events
+    .filter((entry) => (entry.average_entry_score ?? 0) > 0)
+    .map((entry) => [entry.id, entry.average_entry_score as number]));
+
   const prices = buildPriceMarket(
     bootstrap.elements,
     bootstrap.teams,
@@ -278,6 +284,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       activeMonths: startedMonths,
       fixtures: fixtureList,
       managers,
+      gameweekAverages,
       prices,
     };
   }
@@ -293,6 +300,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     activeMonths: startedMonths,
     fixtures: fixtureList,
     managers: rosterManagers(),
+    gameweekAverages,
     prices,
   });
   let liveById: Map<number, LiveElement>;
@@ -323,6 +331,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     activeMonths: startedMonths,
     fixtures: fixtureList,
     managers: rows.filter((row): row is ManagerRow => row !== null),
+    gameweekAverages,
     prices,
   };
 }

@@ -1430,12 +1430,12 @@ footer a { color:#c4c6d8; }
      70  position   10. + movement       |  56
      140 manager    flexible, truncates  |  77 wrapped
      134 captain    every name in the game, and the highlight pill around it
-     260 transfers  flexible, the point of this pass
+     252 transfers  flexible, the point of this pass
      61  season tf  33                   |  61 wrapped
      125 chips      four tags            |  51
      78  value      £104.2m +0.4m        |  48
      58  bench      35                   |  58
-     58  form       the average only; the five weeks are a popover  |  42
+     66  form       the figure and its standing; the weeks are a popover  |  42
      67  gw points  146 + formula        |  63 wrapped
      72  played     PROVISIONAL at micro |  67
      77  total      2400                 |  77, single word, cannot wrap
@@ -1448,7 +1448,7 @@ footer a { color:#c4c6d8; }
   .manager-row {
     min-width:1224px;
     padding:0 12px;
-    grid-template-columns:70px minmax(140px,1fr) 134px minmax(260px,1.5fr) 61px 125px 78px 58px 58px 67px 72px 77px;
+    grid-template-columns:70px minmax(140px,1fr) 134px minmax(252px,1.5fr) 61px 125px 78px 58px 66px 67px 72px 77px;
   }
 
   /* PROVISIONAL is the longest string this column can hold and it was set at --fs-lead,
@@ -2263,3 +2263,33 @@ footer a { color:#c4c6d8; }
 .squad-panel .player-waiting { display:block; line-height:1; }
 .squad-panel .player-upcoming .player-venue { opacity:1; font-weight:800; letter-spacing:-.02em; }
 
+
+/* The form figure, and its standing against the average score of the same gameweeks.
+   The colour is not a mood: 1.25 of the average is a different season from 0.75 of it,
+   and the small figure beside it says by how much so the colour never has to be trusted
+   on its own. */
+.manager-row .form-trigger { gap:5px; }
+.manager-row .form-average {
+  font-size:var(--fs-lead);
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em;
+}
+.manager-row .form-delta {
+  padding:1px 4px;
+  border-radius:999px;
+  font-size:var(--fs-micro);
+  font-style:normal;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+}
+.manager-row .form-average.tier-high { color:#046b3c; }
+.manager-row .form-average.tier-up { color:#0a7c48; }
+.manager-row .form-average.tier-flat { color:var(--text); }
+.manager-row .form-average.tier-down { color:#b8324f; }
+.manager-row .form-average.tier-low { color:#93122f; }
+.manager-row .form-delta.tier-high { background:#046b3c; color:#eafff4; }
+.manager-row .form-delta.tier-up { background:color-mix(in srgb,#0a7c48 16%,transparent); color:#0a7c48; }
+.manager-row .form-delta.tier-flat { background:color-mix(in srgb,var(--faint) 22%,transparent); color:var(--soft); }
+.manager-row .form-delta.tier-down { background:color-mix(in srgb,#b8324f 14%,transparent); color:#b8324f; }
+.manager-row .form-delta.tier-low { background:#93122f; color:#ffe8ee; }

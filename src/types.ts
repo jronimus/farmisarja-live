@@ -124,6 +124,8 @@ export interface DashboardData {
   activeMonths: string[];
   fixtures?: GameweekFixture[];
   managers: ManagerRow[];
+  /** FPL's own average score per gameweek, which is what form is measured against. */
+  gameweekAverages?: Record<number, number>;
   prices?: PriceMarket;
   /** Only demo data carries its own feed; live data reads it from the Worker. */
   feed?: FeedEvent[];

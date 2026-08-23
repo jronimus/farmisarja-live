@@ -136,7 +136,18 @@ running gameweek in the form series therefore disagreed with the GW column besid
 23 Aug the leader read 48 in form and 56 in GW points, an hour into the round. It also
 read as a collapse every Saturday and recovered by itself overnight.
 
-The column itself shows **only the average**. The five weeks are behind it, in a popover
+The column shows the average **and where it stands**. FPL publishes
+`average_entry_score` for every gameweek, so the figure is measured against the average of
+the very same gameweeks — the manager's mean over his last five against everyone's mean
+over those same five, not against one week's average — and the small figure beside it is
+the difference. The tiers are ratios of that benchmark, 1.25 and 1.08 up, 0.92 and 0.75
+down, which keeps them meaningful in a 30-point week and a 70-point one alike. The colour
+never has to be trusted on its own, because the number beside it says by how much.
+
+The label is gone. `KA 74.0` spent a third of a 66px column telling the reader what column
+they were looking at.
+
+Beyond that the column shows **only the average**. The five weeks are behind it, in a popover
 that opens on click and closes on the next click anywhere or on Escape. That took the
 column from 129px to 58px, and the 71px went to the two columns that needed it: the
 captain, whose name now carries a highlight pill, and the transfers.

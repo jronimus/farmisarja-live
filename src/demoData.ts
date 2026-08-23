@@ -122,6 +122,7 @@ const demoFeed = (): DashboardData["feed"] => {
 export const demoData: DashboardData = {
   leagueName: "Farmisarja", gameweek: 1, deadline: "2026-08-21T17:30:00Z", updatedAt: new Date().toISOString(), isPreview: true, pointsFinalized: false, activeMonths: ["2026-08"], fixtures: demoFixtures,
   managers: demoManagers,
+  gameweekAverages: { 19: 48, 20: 51, 21: 44, 22: 57, 23: 53 },
   prices: demoPrices(),
   feed: demoFeed(),
 };

@@ -218,6 +218,26 @@ function kickoffLabel(iso: string, language: Language) {
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric" }).format(date);
 }
 
+/**
+ * Where a form figure stands against the game.
+ *
+ * FPL publishes `average_entry_score` for every gameweek, so form can be measured against
+ * the average of the very same weeks rather than a threshold somebody picked. The tiers are
+ * ratios of that average, which keeps them meaningful in a 30-point week and a 70-point
+ * one alike.
+ */
+function standingAgainstAverage(manager: ManagerRow, formAverage: number, averages?: Record<number, number>) {
+  // Both sides cover the same weeks: the manager's mean over his last five gameweeks
+  // against everyone's mean over those same five. Not against one week's average.
+  const benchmarks = manager.formGameweeks.map((gameweek) => averages?.[gameweek]).filter((value): value is number => typeof value === "number");
+  if (!benchmarks.length) return { tier: "flat", delta: null as number | null, benchmark: null as number | null };
+  const benchmark = benchmarks.reduce((sum, value) => sum + value, 0) / benchmarks.length;
+  const delta = Math.round(formAverage - benchmark);
+  const ratio = formAverage / benchmark;
+  const tier = ratio >= 1.25 ? "high" : ratio >= 1.08 ? "up" : ratio <= 0.75 ? "low" : ratio <= 0.92 ? "down" : "flat";
+  return { tier, delta, benchmark: Math.round(benchmark) };
+}
+
 /** 8px, 7px or 6px, by the longest piece of the name that cannot be broken. */
 function nameStep(name: string) {
   const longest = Math.max(...name.split(/[\s]/).map((part) => part.length));
@@ -589,6 +609,7 @@ export default function App() {
             const transferScore = transferNet(manager);
             const benchScore = currentBenchPoints(manager, autosubs);
             const formAverage = manager.form.reduce((sum, value) => sum + value, 0) / Math.max(1, manager.form.length);
+            const formStanding = standingAgainstAverage(manager, formAverage, data.gameweekAverages);
             const awardsAvailable = !data.rosterOnly && gameweekComplete;
             const hasSeasonPoints = manager.totalPoints !== 0 || manager.gameweekPoints !== 0;
             const captainAward = awardsAvailable && awardStats.bestCaptain > awardStats.lowestCaptain && captain.points === awardStats.bestCaptain ? awardFor("captain", captain.points) : undefined;
@@ -618,7 +639,15 @@ export default function App() {
                     aria-label={`${t.form}: ${t.lastFive}`}
                     onClick={(event) => { event.stopPropagation(); setFormOpen(formOpen === manager.id ? null : manager.id); }}
                   >
-                    <strong className="form-average">{language === "fi" ? "KA" : "AVG"} {formAverage.toFixed(1)}</strong>
+                    {/* The figure alone, and its colour says what the label used to: how it
+                        stands against the average score of the very same gameweeks. */}
+                    <strong className={`form-average tier-${formStanding.tier}`}>{Math.round(formAverage)}</strong>
+                    {formStanding.delta !== null && <em
+                      className={`form-delta tier-${formStanding.tier}`}
+                      title={`${t.form} ${Math.round(formAverage)} · ${t.gameAverage} ${formStanding.benchmark} (GW${manager.formGameweeks.join(", ")})`}
+                    >
+                      {formStanding.delta === 0 ? "0" : `${formStanding.delta > 0 ? "+" : "−"}${Math.abs(formStanding.delta)}`}
+                    </em>}
                   </button>}
                   {formOpen === manager.id && <span className="form-popover" role="dialog" aria-label={t.lastFive} onClick={(event) => event.stopPropagation()}>
                     <span className="form-values">{manager.form.map((value, index) => <b key={index} data-gw={manager.formGameweeks[index]} className={`${manager.formRankMovement[index] > 0 ? "rank-up" : manager.formRankMovement[index] < 0 ? "rank-down" : "rank-neutral"} ${index === manager.form.length - 1 ? "current" : ""}`}>{value}</b>)}</span>
