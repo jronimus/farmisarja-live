@@ -8,7 +8,7 @@ const copy = {
     overall: "Kokonaiskilpailu", gameweek: "Kierros", month: "Kuukausi", allMonths: "Koko kausi", noTransfers: "Ei siirtoja",
     starting: "Avaus", squad: "Kokoonpano", bench: "Penkki", best: "Paras", worst: "Heikoin", provisional: "Alustava bonus",
     highlightPlayer: "Korosta pelaaja", allPlayers: "Valitse pelaaja", inSquads: "joukkueessa", asCaptain: "kapteenina", onBench: "penkillä", effectiveOwnership: "Tehollinen omistus", startersOnly: "Vain avaus", lastFive: "Viisi viimeistä",
-    gameAverage: "kaikkien keskiarvo samoilta kierroksilta", formNote: "VIIM. 5 GW", formVersus: "vs. kaikkien KA samoilta kierroksilta:", feed: "TAPAHTUMAT", feedWaiting: "Odotetaan tapahtumia…", feedAll: "Kaikki tapahtumat", feedHideLowImpact: "Piilota pikkujutut", feedOnlyOurs: "Vain meidän pelaajat",
+    gameAverage: "maailman keskiarvo samoilta kierroksilta", formNote: "VIIM. 5 GW", formVersus: "vs. maailman KA samoilta kierroksilta:", feed: "TAPAHTUMAT", feedWaiting: "Odotetaan tapahtumia…", feedAll: "Kaikki tapahtumat", feedHideLowImpact: "Piilota pikkujutut", feedOnlyOurs: "Vain meidän pelaajat",
     nextPriceChange: "Seuraava hintamuutos", atClock: "klo", searchPlayer: "Hae pelaajaa", allTeams: "Kaikki joukkueet", allPositions: "Kaikki pelipaikat", allClubs: "Kaikki seurat",
     risers: "Nousijat", fallers: "Laskijat", allPlayersFilter: "Kaikki", player: "Pelaaja", leagueOwners: "Omistajat", priceProgress: "Edistyminen", priceOutlook: "Ennuste", perHour: "Vauhti / h",
     ownership: "Omistus", price: "Hinta", willRise: "Nousee", willFall: "Laskee", outlookToday: "tänään", outlookTomorrow: "huomenna", outlookTwoDays: "2 pv", noChangeAhead: "Ei muutosta näkyvissä",
