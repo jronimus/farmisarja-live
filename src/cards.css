@@ -225,3 +225,84 @@
 }
 .sc-move.sc-up { color: #0f8a4a; }
 .sc-move.sc-down { color: #d0492f; }
+
+/* --- deadline card --------------------------------------------------------- */
+/*
+ * Same 103px bands as the other table cards, but the row carries two blocks on the right
+ * instead of one figure: the captain with the hit and the chip, and under it the transfers
+ * themselves. Nothing here is grey — the plate runs from white to saturated colour and a
+ * mid-tone loses its legibility somewhere on it, so the hierarchy is size and weight only.
+ */
+.sc-row.sc-drow {
+  grid-template-columns: 66px 1fr auto;
+  gap: 20px;
+}
+.sc-drow .sc-pos { align-self: center; font-size: 29px; color: var(--sc-ink); }
+.sc-drow .sc-team { font-size: 34px; line-height: 1.15; }
+.sc-drow .sc-meta { font-size: 19px; font-weight: 500; color: var(--sc-ink); }
+
+/* Capped rather than fixed, so a row with one transfer hands the width it does not need
+   back to the team name instead of clipping it. */
+.sc-side {
+  min-width: 0;
+  max-width: 566px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+.sc-cap { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.sc-cap-name {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.sc-armband {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: var(--sc-ink);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+}
+.sc-marks { display: flex; align-items: center; gap: 10px; font-size: 19px; font-weight: 800; }
+
+/* The transfers wrap by pair rather than being cut short. A line measures 25px and the
+   band leaves 67px below the captain, so two lines fit and a third would run into the
+   next row's band: the card lists at most four transfers for that reason, and this cap
+   is the backstop that keeps a pathological row inside its own band regardless. */
+.sc-moves {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  column-gap: 28px;
+  row-gap: 1px;
+  line-height: 1.26;
+  max-height: 51px;
+  overflow: hidden;
+}
+.sc-move-pair { white-space: nowrap; font-size: 19px; }
+/* The player leaving stays black but light and the one arriving is heavy, so the
+   direction of the move is read from weight and needs no second colour. */
+.sc-out { font-weight: 500; }
+.sc-in { font-weight: 800; }
+.sc-arrow { font-weight: 500; padding: 0 6px; }
+.sc-moves-none { font-size: 19px; font-weight: 500; }
+
+/* The same struck bar the other cards use for an accent, as a class of its own. */
+.sc-bar {
+  background-image: linear-gradient(to bottom, transparent 0 44%, var(--sc-bar) 44% 94%, transparent 94%);
+  padding: 0 8px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.sc-bar-neg { --sc-bar: var(--sc-bar-neg); }

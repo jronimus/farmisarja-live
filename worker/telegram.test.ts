@@ -33,7 +33,7 @@ describe("deadline reminder timing", () => {
   });
 });
 
-describe("table-ready Telegram notification", () => {
+describe("deadline card Telegram notification", () => {
   it("does not call external services while notifications are disabled", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -58,7 +58,7 @@ describe("table-ready Telegram notification", () => {
     await runTelegramSchedule(env);
 
     expect(fetchMock).toHaveBeenCalledTimes(6);
-    expect(env.TELEGRAM_STATE.put).toHaveBeenCalledWith("table-ready:gw:1", expect.any(String));
+    expect(env.TELEGRAM_STATE.put).toHaveBeenCalledWith("deadline-card:gw:1", expect.any(String));
   });
 
   it("formats the remaining deadline without seconds", () => {

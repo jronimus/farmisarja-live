@@ -229,9 +229,9 @@ export default function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const demoMode = urlParams.has("demo");
   const screenshotMode = urlParams.has("screenshot");
-  // ?card=round|total|awards renders a single share card at its delivered size and nothing else.
+  // ?card=round|total|awards|deadline renders a single share card at its delivered size and nothing else.
   const cardParam = urlParams.get("card");
-  const cardKind: CardKind | null = cardParam === "round" || cardParam === "total" || cardParam === "awards" ? cardParam : null;
+  const cardKind: CardKind | null = cardParam === "round" || cardParam === "total" || cardParam === "awards" || cardParam === "deadline" ? cardParam : null;
   const [language, setLanguage] = useState<Language>(() => localStorage.getItem("farmisarja-language") === "en" ? "en" : "fi");
   const [autosubs, setAutosubs] = useState(true);
   const [mobileDetails, setMobileDetails] = useState(true);

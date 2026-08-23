@@ -35,25 +35,26 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | --- | --- |
 | `src/App.tsx` | Dashboard UI, table, sorting, header, award labels |
 | `src/styles.css` | Dashboard styles, ~1100 lines, heavily layered overrides |
-| `src/ShareCard.tsx` | The three Telegram cards |
+| `src/ShareCard.tsx` | The four Telegram cards |
 | `src/cards.css` | Card styles, everything prefixed `sc-` |
 | `src/services/awards.ts` | Award rules, thresholds, rarity, selection |
 | `src/services/liveDashboard.ts` | FPL response mapping and dashboard composition |
 | `src/services/fplRules.ts` | Chips, free transfers, provisional autosubs |
 | `src/i18n.ts` | FI/EN strings |
 | `src/demoData.ts` | Ten-manager stress data for `?demo=1` |
-| `worker/index.ts` | Proxy routes, webhook, protected screenshot endpoint |
+| `worker/index.ts` | Proxy routes, webhook, protected `/admin/card-screenshot?card=` endpoint |
 | `worker/telegram.ts` | Reminders, card capture, staged report, bot commands |
 | `public/cards/*.webp` | Card backgrounds, 1080×1350 |
 
 ## Share cards
 
-Three cards, each rendered by the app itself from live data at its delivered size of
+Four cards, each rendered by the app itself from live data at its delivered size of
 **1080 × 1350**:
 
 - `?card=round` — Kierroksen pisteet, ranked by gameweek points, captain in the meta line
 - `?card=total` — Kokonaistilanne, ranked by total points, with rank movement arrows
 - `?card=awards` — Kierroksen palkinnot, conditional award tiles
+- `?card=deadline` — Siirrot ja kapteenit, sent once picks are readable after a deadline
 
 Add `&demo=1` to render any card from demo data, which is the only way to see rank
 movement and the transfer, chip and history awards before they can occur.
@@ -63,7 +64,12 @@ movement and the transfer, chip and history awards before they can occur.
 - The artwork carries its own row bands of **103px starting at y=320**. Row blocks are
   pinned to them; do not "improve" the spacing without re-measuring the plate.
 - Backgrounds exist in 7-row and 8-row variants. `plateFor()` picks by row count. A
-  table card stops at **8 rows** because the artwork has no more bands.
+  table card stops at **8 rows** because the artwork has no more bands. The plates are
+  named after the card, so `plateFor()` is `${kind}-${size}.webp` and adding a card means
+  adding artwork under that name.
+- The plates are the **v2 set**, which carries film grain. That grain does not compress:
+  they are webp q90 at ~350 KB each, against ~20 KB for the smooth v1 plates. Dropping to
+  q85 would halve it and keep 82 % of the grain, measured as mean absolute row difference.
 - Award tiles: 2 columns × up to 4 rows, tile 466 × 244, gap 20. The block centres
   itself between the title (ends y=163) and the foot (starts y=1240).
 - Layout: title top left, GW and state top right, brand bottom left, url bottom right.
@@ -72,6 +78,32 @@ movement and the transfer, chip and history awards before they can occur.
 - Accents: lime `#d1ed19` for positive, coral `#ff9d88` for negative, both as a bar
   struck behind black text. Never colour the type itself — the plate runs from white to
   saturated colour and any mid-tone fails somewhere on it.
+
+### The deadline card
+
+`?card=deadline` is the one card whose subject is not points. It is titled *Siirrot ja
+kapteenit* and the row carries, from the left: place, team, manager and the settled total,
+then on the right the hit and the chip, the captain, and under them the transfers written
+out as `out → in` pairs.
+
+Decisions worth not re-litigating:
+
+- **The standing does not subtract this week's hit.** `totalPoints` from
+  `liveDashboard.ts` is gross, with the hit added back, and the other cards subtract it. Do
+  that here and a manager who takes a −4 drops down the table before a ball has been kicked.
+  Rows are ordered by `manager.position`, FPL's own league rank, and the figure shown is
+  `totalPoints - gameweekPoints`, which is the total carried into the gameweek. It is
+  hidden at GW1, where it is zero for everyone. There are no movement arrows on this card.
+- **Nothing on the card is grey.** The plate runs from white to saturated colour, so a
+  mid-tone loses legibility somewhere on it. Every string is `--sc-ink`; hierarchy is size
+  and weight alone. The player leaving is weight 500 and the one arriving 800, so the
+  direction of a move is read without a second colour.
+- **The transfer list is capped at four.** A transfer line measures 25px and the band
+  leaves 67px under the captain, so two lines fit and three do not. Measured: four pairs of
+  even the longest names still pack onto two lines, five spill onto a third. Beyond four,
+  and on a wildcard or free hit which can move eleven players, the row states the count.
+  `.sc-moves` also carries a `max-height` backstop so no row can bleed into the next band.
+- Chips are named the way FPL names them: Wildcard, Free Hit, Bench Boost, Triple Captain.
 
 ### Awards
 
@@ -96,7 +128,7 @@ Cron runs every two minutes.
 | Trigger | Message |
 | --- | --- |
 | 24h and 2h before deadline | Text reminder with link button |
-| Picks published after deadline | **Old wide `.league-table` screenshot — still the old design** |
+| Picks published after deadline | The deadline card, alone, with the link button and no caption |
 | 10 min after the last fixture reaches full time | Two messages, see below |
 | `/farmisarja` | Link message |
 | `/deadline` | Time to next deadline |
@@ -160,22 +192,20 @@ These cost real debugging time. Do not re-derive them from assumptions.
 
 ## Open tasks
 
-1. **Deadline card.** The post-deadline moment still sends the old wide
-   `.league-table` screenshot, which is the design that was dropped. It needs its own
-   card: total points, form (from GW3), transfers, captain and chip if played. Note
-   that in GW1 all of these are empty except the captain, so decide whether that card
-   starts at GW1 as a captains card or from GW2. `captureTable` and `sendTablePhoto`
-   in `worker/telegram.ts` exist only to serve this and can go once it is replaced.
-2. **Revisit the dashboard table.** Explicitly deferred to look at again.
-3. **Rename the dashboard award labels.** The table still uses the old shouted labels
+1. **Revisit the dashboard table.** Explicitly deferred to look at again.
+2. **Rename the dashboard award labels.** The table still uses the old shouted labels
    (ÖLJYPOHATTA, EI SAATANA, MELAPISTEET, SYÖKSYKIERRE). The cards moved to nicknames
    with an explanatory subtitle. Align the two so the same event is not named twice.
-4. **Verify the first automatic report.** GW1 ends with FUL–CHE on Monday 24 Aug at
+3. **Verify the first automatic report.** GW1 ends with FUL–CHE on Monday 24 Aug at
    22:00 local. The report should arrive about 16 minutes after full time. If nothing
    comes, `npx wrangler tail --format json` and look for `album_card_ready` and
    `album_sent`. Note the log is pretty-printed multi-line JSON, so split on `\n{`.
-5. **Eighth manager.** `round-8.webp` and `total-8.webp` are ready. Nothing else needs
-   changing; the card picks the plate by row count.
+4. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
+   Nothing else needs changing; the card picks the plate by row count.
+5. **Verify the deadline card against real picks.** It has only been rendered from demo
+   data, where the settled totals and `manager.position` disagree because the demo sits
+   mid-gameweek. At a real deadline `gameweekPoints` is 0 and the two agree. GW2's
+   deadline is the first chance to see it fire.
 
 ## Rules that keep being learned the hard way
 

@@ -36,7 +36,7 @@ async function sendLinkMessage(env: TelegramEnv, chatId: number | string, text: 
   await telegramApi(env, "sendMessage", { chat_id: chatId, text, reply_markup: button(env), disable_web_page_preview: true });
 }
 
-export type ShareCardKind = "round" | "total" | "awards";
+export type ShareCardKind = "round" | "total" | "awards" | "deadline";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -142,28 +142,13 @@ export async function advanceAlbum(env: TelegramEnv, key: string): Promise<boole
   console.log(JSON.stringify({ event: "album_sent", key }));
   return true;
 }
-export async function captureTable(env: TelegramEnv, demo = false, lightTheme = false): Promise<Blob> {
-  const query = new URLSearchParams({ screenshot: "1" });
-  if (demo) query.set("demo", "1");
-  if (lightTheme) query.set("theme", "light");
-  const response = await env.BROWSER.quickAction("screenshot", {
-    url: `${env.PUBLIC_SITE_URL}?${query.toString()}`,
-    selector: ".league-table",
-    viewport: { width: 1340, height: 1200, deviceScaleFactor: 1 },
-    gotoOptions: { waitUntil: "networkidle0", timeout: 45_000 },
-    screenshotOptions: { type: "png" },
-  });
-  if (!response.ok) throw new Error(`Screenshot failed: ${response.status} ${await response.text()}`);
-  return response.blob();
-}
-
-async function sendTablePhoto(env: TelegramEnv, chatId: number | string, caption: string): Promise<void> {
+/** One card, the link button, and no caption: the card already says what it is. */
+async function sendCardPhoto(env: TelegramEnv, chatId: number | string, kind: ShareCardKind): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
   const form = new FormData();
   form.set("chat_id", String(chatId));
-  form.set("caption", caption);
   form.set("reply_markup", JSON.stringify(button(env)));
-  form.set("photo", await captureTable(env, false, true), "farmisarja-live.png");
+  form.set("photo", await captureCard(env, kind), `${kind}.png`);
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: form });
   if (!response.ok) throw new Error(`Telegram sendPhoto failed: ${response.status} ${await response.text()}`);
 }
@@ -220,12 +205,13 @@ async function checkDeadlineReminders(env: TelegramEnv, events: FplEvent[], now:
   }
 }
 
-async function checkTableReady(env: TelegramEnv, event: FplEvent, now: number): Promise<void> {
+/** Once every manager's picks are readable, the deadline card can be drawn from them. */
+async function checkDeadlineCard(env: TelegramEnv, event: FplEvent, now: number): Promise<void> {
   if (!env.TELEGRAM_CHAT_ID || now < new Date(event.deadline_time).getTime()) return;
   const league = await fpl<LeagueResponse>(`/leagues-classic/${env.FPL_LEAGUE_ID}/standings/?page_standings=1&page_new_entries=1`);
   const entries = league.standings.results.length ? league.standings.results : league.new_entries.results;
   if (!await picksAvailable(event.id, entries)) return;
-  await sendOnce(env, `table-ready:gw:${event.id}`, () => sendTablePhoto(env, env.TELEGRAM_CHAT_ID!, `🏁 GW${event.id} on käynnissä!`));
+  await sendOnce(env, `deadline-card:gw:${event.id}`, () => sendCardPhoto(env, env.TELEGRAM_CHAT_ID!, "deadline"));
 }
 
 async function checkPostGame(env: TelegramEnv, event: FplEvent, now: number): Promise<void> {
@@ -251,7 +237,7 @@ export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): P
   await checkDeadlineReminders(env, bootstrap.events, now);
   const current = bootstrap.events.find((event) => event.is_current);
   if (!current) return;
-  await checkTableReady(env, current, now);
+  await checkDeadlineCard(env, current, now);
   await checkPostGame(env, current, now);
   // One capture per tick keeps every invocation well inside its time budget.
   if (await advanceAlbum(env, "album:preview")) return;

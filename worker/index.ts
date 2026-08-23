@@ -1,4 +1,6 @@
-import { captureTable, handleTelegramWebhook, runTelegramSchedule, type TelegramEnv } from "./telegram";
+import { captureCard, handleTelegramWebhook, runTelegramSchedule, type ShareCardKind, type TelegramEnv } from "./telegram";
+
+const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
 
 const FPL_ORIGIN = "https://fantasy.premierleague.com";
 
@@ -51,11 +53,13 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     const url = new URL(request.url);
     if (request.method === "POST" && url.pathname === "/telegram/webhook") return handleTelegramWebhook(request, env as TelegramEnv, ctx);
-    if (request.method === "GET" && url.pathname === "/admin/table-screenshot") {
+    if (request.method === "GET" && url.pathname === "/admin/card-screenshot") {
       const telegramEnv = env as TelegramEnv;
       if (!telegramEnv.SCREENSHOT_PREVIEW_SECRET || request.headers.get("Authorization") !== `Bearer ${telegramEnv.SCREENSHOT_PREVIEW_SECRET}`) return new Response("Unauthorized", { status: 401 });
+      const kind = CARD_KINDS.find((candidate) => candidate === url.searchParams.get("card"));
+      if (!kind) return json({ error: `card must be one of ${CARD_KINDS.join(", ")}` }, request, env, 400);
       try {
-        const screenshot = await captureTable(telegramEnv, url.searchParams.get("demo") === "1", url.searchParams.get("theme") === "light");
+        const screenshot = await captureCard(telegramEnv, kind);
         return new Response(screenshot, { headers: { "Content-Type": "image/png", "Cache-Control": "no-store" } });
       } catch (error) {
         return json({ error: error instanceof Error ? error.message : String(error) }, request, env, 502);
