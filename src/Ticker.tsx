@@ -1,14 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Ban, ChevronDown, ChevronUp, Hand, RectangleVertical, Shield, Star, Volleyball, Zap } from "lucide-react";
 import { translations } from "./i18n";
 import { loadFeed, type EventKind, type FeedEvent } from "./services/liveFeed";
 import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
 import type { DashboardData, Language } from "./types";
 
-const ICONS: Record<EventKind, string> = {
-  goal: "⚽", assist: "🅰", own_goal: "🥅", yellow: "🟨", red: "🟥",
-  penalty_save: "🧤", penalty_miss: "❌", save_point: "🧤", defcon: "🛡", bonus: "⭐",
+/**
+ * Drawn icons, not emoji. Emoji are a different typeface on every platform, they ignore
+ * the colour they are given, and at 12px on a dark strip half of them came out as grey
+ * smudges. These are the same line icons the rest of the app uses and they take a colour.
+ */
+const ICONS: Record<EventKind, typeof Volleyball> = {
+  goal: Volleyball, assist: Zap, own_goal: Ban, yellow: RectangleVertical, red: RectangleVertical,
+  penalty_save: Hand, penalty_miss: Ban, save_point: Hand, defcon: Shield, bonus: Star,
 };
+
+function EventIcon({ kind }: { kind: EventKind }) {
+  const Glyph = ICONS[kind];
+  return <i className={`ticker-icon icon-${kind}`} aria-hidden="true"><Glyph /></i>;
+}
 
 /** Bonus moves by a point at a time and moves back again; it is the noise in this feed. */
 const LOW_IMPACT: EventKind[] = ["bonus"];
@@ -41,7 +51,7 @@ function Item({ event, owners, language, fresh }: { event: FeedEvent; owners: Pl
     .format(new Date(event.at));
   return <span className={`ticker-item kind-${event.kind} ${fresh ? "is-fresh" : ""}`}>
     <i className="ticker-clock">{clock}</i>
-    <i className="ticker-icon" aria-hidden="true">{ICONS[event.kind]}</i>
+    <EventIcon kind={event.kind} />
     <b>{kindLabel(event.kind, language)}</b>
     <span className="ticker-player">{event.player}</span>
     {event.pointsDelta !== 0 && <u className={event.pointsDelta > 0 ? "up" : "down"}>{event.pointsDelta > 0 ? "+" : "−"}{Math.abs(event.pointsDelta)}</u>}
@@ -156,8 +166,8 @@ export default function Ticker({ data, language, autosubs, demo }: { data: Dashb
       <div className="ticker-list">
         {visible.map((event) => {
           const held = ownersFor(event.element);
-          return <div className={`ticker-row ${held.length ? "is-held" : ""}`} key={event.id}>
-            <i className="ticker-icon" aria-hidden="true">{ICONS[event.kind]}</i>
+          return <div className="ticker-row" key={event.id}>
+            <EventIcon kind={event.kind} />
             <div className="ticker-headline">
               <b>{kindLabel(event.kind, language)} — {event.player}</b>
               <small>

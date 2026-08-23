@@ -359,6 +359,18 @@ filter.
 Nothing is marked fresh on the first read: everything already in the log when the page
 opens is history, not news.
 
+The padding sits on every line rather than only the lit one, or a line changes shape as it
+arrives and again as it cools. The highlight is a plain wash with no outline — a ring made
+a lozenge of a line of text.
+
+**The icons are drawn, not emoji.** Emoji are a different typeface on every platform, they
+ignore the colour they are given, and at 12px on a dark strip half of them came out as grey
+smudges. They are lucide icons now, coloured by what happened: a yellow card is yellow, a
+goal is the accent, a sending-off is red.
+
+There is no rail down the left of the panel rows. It marked the lines involving one of our
+players, which is what the team name printed under each of them already says.
+
 Owned players are struck in the same lime as everywhere else. One accent, one meaning.
 
 **The Worker must be deployed for any of this to have data**: `npx wrangler deploy`. Until
@@ -383,6 +395,16 @@ because it does in the game.
 
 It also covers the states the table has to draw: all five fixture-difficulty colours, seven
 unplayed players showing a dash, and kick-off labels in each of their three forms.
+
+**Managers share players, as a league does.** Haaland is in eight of the ten squads,
+B.Fernandes in six, Calafiori in four — which is what the ownership column and the
+highlight exist to show, and what nothing in the old set could demonstrate.
+
+That was not only a data choice. Every squad player carried an id of `seed * 1000 + index`,
+so the same footballer in two squads was two different players to every piece of code that
+joins on an id, which is all of them. Ids come from the pool now, one per footballer, and
+his live score is derived from that id too — two managers holding him cannot be shown two
+different numbers.
 
 The pool is 119 players, which is 7 × 17 — a squad builder walking it with a stride of 7 or
 17 sees a fraction of it and comes back short. The strides are coprime with it, and a squad

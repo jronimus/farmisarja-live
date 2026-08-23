@@ -80,6 +80,16 @@ fixtureTable.forEach(([home, away, state], index) => {
   clubFixture.set(away, { opponent: home, venue: "A", state, difficulty: 1 + ((index + 2) % 5), kickoff });
 });
 
+/**
+ * One id per footballer, not per squad slot.
+ *
+ * The ids used to be `seed * 1000 + index`, so the same player in two squads was two
+ * different players to every piece of code that joins on an id — which is all of them.
+ * Nothing could ever be shared, and the ownership column and the highlight had nothing to
+ * find in a ten-manager league.
+ */
+const poolIds = new Map(playerPool.map((entry, index) => [entry[0] + entry[1], index + 1]));
+
 /** A settled score has a shape: mostly ones and twos, the occasional haul. */
 const SCORES = [1, 2, 2, 2, 3, 5, 6, 8, 9, 13] as const;
 const hash = (value: number) => Math.abs(Math.imul(value, 2654435761)) % 1_000_003;
@@ -98,6 +108,19 @@ function makeSquad(seed: number): SquadPlayer[] {
   const taken: PoolEntry[] = [];
   const perClub = new Map<string, number>();
   const need: Record<string, number> = { ...squadQuota };
+
+  // The popular players first, in as many squads as their ownership suggests. A league
+  // where nobody shares a player is not a league, and the ownership highlight has nothing
+  // to find in one: Haaland is in eight of the ten here, B.Fernandes in six, Calafiori in
+  // four, exactly the case that column exists for.
+  for (const [name, inSquads] of [["Haaland", 8], ["B.Fernandes", 6], ["Calafiori", 4], ["Szoboszlai", 3]] as const) {
+    if (seed > inSquads) continue;
+    const entry = playerPool.find((player) => player[0] === name)!;
+    need[entry[3]] -= 1;
+    perClub.set(entry[1], (perClub.get(entry[1]) ?? 0) + 1);
+    taken.push(entry);
+  }
+
   const start = hash(seed * 97) % playerPool.length;
   // Coprime with the pool size, which is 119 = 7 x 17: a stride sharing a factor with it
   // walks a fraction of the pool and the squad comes back short.
@@ -130,9 +153,11 @@ function makeSquad(seed: number): SquadPlayer[] {
   return ordered.map((entry, index) => {
     const [name, club, clubCode, position, cost, ownership] = entry;
     const fixture = clubFixture.get(club)!;
-    const settled = SCORES[hash(seed * 31 + index * 7) % SCORES.length];
+    // The same player scores the same for everyone, which is the other half of sharing an
+    // id: two managers holding him cannot see two different numbers.
+    const settled = SCORES[hash(poolIds.get(name + club)! * 31) % SCORES.length];
     return {
-      id: seed * 1000 + index,
+      id: poolIds.get(name + club)!,
       squadPosition: index + 1,
       name, club, clubCode, position, cost, ownership,
       opponent: fixture.opponent,

@@ -1980,21 +1980,25 @@ footer a { color:#c4c6d8; }
 
 /* An arrival announces itself: it slides in from the left, pushing the older lines along,
    and holds a lit surround for twenty-five seconds. Long enough to catch on a second
-   monitor, short enough that two goals a minute apart are still told apart. */
+   monitor, short enough that two goals a minute apart are still told apart.
+   The padding is on every line, not only the lit one — adding it with the highlight made
+   the line change shape as it arrived and again as it cooled. */
+.ticker-item {
+  padding:3px 9px;
+  margin:0 -9px;
+  border-radius:6px;
+}
 .ticker-item.is-fresh {
-  padding:3px 8px;
-  margin:0 -4px;
-  border-radius:7px;
   animation:ticker-arrive .45s cubic-bezier(.22,1,.36,1), ticker-glow 25s ease-out forwards;
 }
 @keyframes ticker-arrive {
   from { opacity:0; transform:translateX(-14px); }
   to { opacity:1; transform:translateX(0); }
 }
+/* A wash, no outline. The ring made a lozenge of a line of text. */
 @keyframes ticker-glow {
-  0% { background:rgba(209,237,25,.28); box-shadow:0 0 0 1px rgba(209,237,25,.5); }
-  8% { background:rgba(209,237,25,.28); box-shadow:0 0 0 1px rgba(209,237,25,.5); }
-  100% { background:transparent; box-shadow:0 0 0 1px transparent; }
+  0%, 30% { background:rgba(255,255,255,.13); }
+  100% { background:transparent; }
 }
 @media (prefers-reduced-motion:reduce) {
   .ticker-item.is-fresh { animation:ticker-glow 25s ease-out forwards; }
@@ -2002,7 +2006,22 @@ footer a { color:#c4c6d8; }
 
 .ticker-item { display:flex; align-items:center; gap:7px; white-space:nowrap; color:rgba(255,255,255,.85); font-size:11px; font-weight:700; }
 .ticker-clock { color:rgba(255,255,255,.42); font-style:normal; font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
-.ticker-icon { font-style:normal; font-size:12px; }
+/* Drawn, and coloured by what happened: a yellow card is yellow, a goal is the accent, a
+   sending-off is red. Emoji could do none of that. */
+.ticker-icon { display:grid; place-items:center; flex:none; }
+.ticker-icon svg { width:13px; height:13px; }
+.ticker-icon.icon-goal { color:var(--pick); }
+.ticker-icon.icon-assist { color:#9fd8ff; }
+.ticker-icon.icon-yellow { color:#f5c518; }
+.ticker-icon.icon-red,
+.ticker-icon.icon-own_goal,
+.ticker-icon.icon-penalty_miss { color:#ff6a7f; }
+.ticker-icon.icon-yellow svg,
+.ticker-icon.icon-red svg { width:9px; height:13px; fill:currentColor; }
+.ticker-icon.icon-defcon,
+.ticker-icon.icon-penalty_save,
+.ticker-icon.icon-save_point { color:#7fe3b0; }
+.ticker-icon.icon-bonus { color:#ffd166; }
 .ticker-item b { color:#fff; font-size:10px; font-weight:900; letter-spacing:.06em; }
 .ticker-item .ticker-player { color:rgba(255,255,255,.9); }
 .ticker-item u,
@@ -2073,7 +2092,6 @@ footer a { color:#c4c6d8; }
   padding:9px 0;
   border-top:1px solid rgba(255,255,255,.06);
 }
-.ticker-row.is-held { box-shadow:inset 3px 0 0 var(--pick); padding-left:11px; }
 .ticker-headline { flex:1 1 auto; min-width:0; display:grid; row-gap:2px; }
 .ticker-headline b { color:#fff; font-size:12px; font-weight:800; }
 .ticker-headline small { color:rgba(255,255,255,.45); font-size:10px; font-weight:600; }
