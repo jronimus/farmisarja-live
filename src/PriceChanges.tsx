@@ -77,10 +77,11 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     });
     const value = (row: PriceRow) => {
       if (sort === "name") return 0;
-      // With both directions on screen at once, the biggest movers are the ones furthest
-      // from nothing, whichever way they are going.
-      if (sort === "progress") return direction === "fallers" ? -row.progress : direction === "risers" ? row.progress : Math.abs(row.progress);
-      if (sort === "perHour") return direction === "fallers" ? -row.perHour : direction === "risers" ? row.perHour : Math.abs(row.perHour);
+      // The signed number, always. Ranking by distance from nothing interleaved risers and
+      // fallers, and flipping the sign for one filter made the same column mean two
+      // different things: a header sorts its column and nothing else.
+      if (sort === "progress") return row.progress;
+      if (sort === "perHour") return row.perHour;
       if (sort === "ownership") return row.ownership;
       return row.cost;
     };

@@ -388,9 +388,13 @@ timestamp on 38 players at a time, so the page can both list them and say when e
 comes free.
 
 The direction filter defaults to **all**, like FPL's own page. Splitting risers from
-fallers is a filter, not a default — "what is moving" comes before "which way" — and with
-both on screen the progress sort ranks by distance from nothing, so the biggest movers lead
-whichever way they are going.
+fallers is a filter, not a default: "what is moving" comes before "which way".
+
+The progress sort is on the **signed** number, plus to minus, and nothing about the filter
+changes that. Ranking by distance from nothing was tried and is wrong — it interleaves
+risers and fallers, and a −57 landing above a +55 reads as no order at all. Flipping the
+sign for the fallers filter was wrong for the same reason: a header sorts its column, and
+the column has to mean one thing.
 
 Deliberately left out: a watchlist, which needs storage nobody asked for, and purchase and
 selling prices, which are per manager rather than per player and belong to a squad view.
