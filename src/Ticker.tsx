@@ -85,8 +85,9 @@ export default function Ticker({ data, language, autosubs }: { data: DashboardDa
 
   const live = data.managers.some((manager) => manager.live > 0);
 
-  if (!events) return null;
-
+  // The bar stays, whatever the answer was. A feed that cannot be read, a log that is
+  // empty and a gameweek with no football left all look the same from here, and a strip
+  // that says it is waiting is more use than one that silently is not there.
   return <div className={`ticker ${open ? "is-open" : ""}`}>
     <div className="ticker-bar">
       <span className={`ticker-badge ${live ? "is-live" : ""}`}>{live ? t.live : t.feed}</span>

@@ -1982,17 +1982,16 @@ footer a { color:#c4c6d8; }
 .ticker-item u.down,
 .ticker-row u.down { background:rgba(255,101,119,.18); color:#ff8ba0; }
 
-/* Our own teams, struck in the same lime the table and the price page use. */
-.ticker-owners { display:flex; gap:5px; }
+/* Our own teams are named, not painted. The lime stroke belongs to the table, where it
+   answers "which rows", and a ticker line is already about one player. */
+.ticker-owners { display:flex; gap:8px; }
 .ticker-owners b {
-  padding:0 2px;
-  color:#0c1316;
-  background:var(--pick);
+  color:rgba(255,255,255,.62);
   font-size:10px;
-  font-weight:800;
+  font-weight:700;
   letter-spacing:0;
 }
-.ticker-owners b.is-captain { box-shadow:inset 0 -3px 0 rgba(12,19,22,.35); }
+.ticker-owners b.is-captain::after { content:" (C)"; color:rgba(255,255,255,.42); }
 
 .ticker-empty { color:rgba(255,255,255,.4); font-size:11px; font-weight:700; }
 .ticker-toggle {
