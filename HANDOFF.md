@@ -150,6 +150,12 @@ under `VIRE` reading `VIIM. 5 GW`, 44px of it in a 50px opening — and the popo
 the rest: the average, the difference, and the sentence that says what the difference is
 against. The colour in the column never has to be taken on faith.
 
+The popover is 178 × 106 and every part of it is doing something. The five figures are set
+larger than they are in the column and spread across the whole width — the popover exists
+to show them — and the sentence wraps under them rather than setting the width of the box.
+Left as one line it made the box twice as wide as the numbers and left them in a corner
+of it.
+
 Beyond that the column shows **only the average**. The five weeks are behind it, in a popover
 that opens on click and closes on the next click anywhere or on Escape. That took the
 column from 129px to 58px, and the 71px went to the two columns that needed it: the
