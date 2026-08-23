@@ -45,6 +45,14 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `worker/index.ts` | Proxy routes, webhook, protected `/admin/card-screenshot?card=` endpoint |
 | `worker/telegram.ts` | Reminders, card capture, staged report, bot commands |
 | `public/cards/*.webp` | Card backgrounds, 1080×1350 |
+| `public/kits/generated-gk/*.png` | Long-sleeve goalkeeper shirt source artwork, one per club code |
+| `public/kits/optimized-gk/*.webp` | 512px transparent goalkeeper shirts used by the squad UI |
+
+Goalkeepers use their own long-sleeve kit set. `Shirt` in `src/App.tsx` selects
+`optimized-gk/` for `player.position === "GK"` and keeps `optimized/` for every
+outfield player. The goalkeeper artwork follows the real 2026–27 goalkeeper-kit
+references while reusing each club's Farmisarja sponsor treatment from its home kit.
+Run `python scripts/prepare_gk_kits.py` after replacing goalkeeper source artwork.
 
 ## The dashboard table
 

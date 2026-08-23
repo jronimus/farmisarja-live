@@ -1,6 +1,8 @@
 # Premier League kit assets
 
-Place the original transparent PNG files in `source/`.
+Outfield source PNGs live in `generated/`; their dashboard WebP files live in
+`optimized/`. Goalkeeper source PNGs live in `generated-gk/`; their dashboard
+WebP files live in `optimized-gk/`.
 
 Use the lowercase three-letter FPL club code as the filename:
 
@@ -27,4 +29,6 @@ whu.png
 wol.png
 ```
 
-Keep the 1312 x 1199 source images unchanged. Optimized transparent WebP files generated for the dashboard belong in `optimized/`.
+Keep the source PNGs unchanged. Goalkeeper shirts are deliberately long-sleeved.
+`src/App.tsx` selects `optimized-gk/` only when the FPL player position is `GK`.
+Run `python scripts/prepare_gk_kits.py` after changing a goalkeeper source PNG.
