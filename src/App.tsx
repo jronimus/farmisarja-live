@@ -238,7 +238,9 @@ export default function App() {
   const [mobileDetails, setMobileDetails] = useState(true);
   const [period, setPeriod] = useState("total");
   const [highlighted, setHighlighted] = useState<number | null>(null);
-  const [includeBench, setIncludeBench] = useState(true);
+  // The switch reads "Vain avaus", so it is off by default and turning it on narrows the
+  // count to the eleven on the pitch.
+  const [startersOnly, setStartersOnly] = useState(false);
   const [formOpen, setFormOpen] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<number | null>(demoMode ? null : 101);
   const [sort, setSort] = useState<SortKey>("position");
@@ -299,7 +301,7 @@ export default function App() {
 
   // Ownership is read through the same autosub view as the table, so the armband and the
   // starting eleven it counts are the ones on screen.
-  const ownership = useMemo(() => buildOwnership(data.managers, autosubs, includeBench), [data.managers, autosubs, includeBench]);
+  const ownership = useMemo(() => buildOwnership(data.managers, autosubs, !startersOnly), [data.managers, autosubs, startersOnly]);
   // A highlighted player can be transferred out from under the selection between refreshes.
   const selected = ownership.find((entry) => entry.id === highlighted) ?? null;
 
@@ -437,13 +439,13 @@ export default function App() {
               </option>)}
             </select>
             <label className="autosub-toggle bench-toggle">
-              <span>{t.withBench}</span>
-              <button role="switch" aria-checked={includeBench} onClick={() => setIncludeBench((value) => !value)} className={includeBench ? "enabled" : ""}><i /></button>
+              <span>{t.startersOnly}</span>
+              <button role="switch" aria-checked={startersOnly} onClick={() => setStartersOnly((value) => !value)} className={startersOnly ? "enabled" : ""}><i /></button>
             </label>
             {selected && <span className="ownership-readout">
               <b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
               {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
-              {includeBench && selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}
+              {!startersOnly && selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}
             </span>}
           </>}
         </div>
@@ -478,7 +480,7 @@ export default function App() {
               : awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.worstForm ? awardFor("formWorst", formAverage) : undefined;
             const gwAward = awardsAvailable && awardStats.bestGw > awardStats.lowestGw && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
             const gwMedalRank = awardsAvailable ? gwMedalRanks.get(manager.id) : undefined;
-            const picked = ownershipOf(manager, selected?.id ?? null, autosubs, includeBench);
+            const picked = ownershipOf(manager, selected?.id ?? null, autosubs, !startersOnly);
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""} ${picked.owns ? "owns-picked" : ""} ${picked.captains ? "captains-picked" : ""} ${picked.benched ? "benches-picked" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
                 <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>

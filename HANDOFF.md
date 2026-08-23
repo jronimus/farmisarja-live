@@ -163,10 +163,15 @@ him. `buildOwnership()` in `src/services/ownership.ts` reads the squads through
 `provisionalAutosubSquad`, so the armband and the eleven it counts are the ones the table
 is showing under the current autosubs setting.
 
-The switch beside the select decides whether a squad that owns him but has left him on the
-bench counts. With it off those managers drop out of the list and out of the paint
-altogether. Effective ownership does not move either way, because a benched player was
-already worth nothing in it.
+The switch beside the select reads **Vain avaus** and is off by default: turning it on
+narrows the count to the eleven on the pitch, and the managers who own him but have
+benched him drop out of the list and out of the paint. Effective ownership does not move
+either way, because a benched player was already worth nothing in it — real numbers:
+Calvert-Lewin 4/7 and 29 % with the switch off, 2/7 and 29 % with it on.
+
+It is worded around what turning it *on* does, and it went through "Penkki mukaan",
+"Myös penkki" and "+penkki" before that: a switch whose label describes the off state
+reads backwards, and no amount of rewording fixes that. Invert the switch instead.
 
 The paint is `--purple`. Not green or red, which carry meaning in every other column of
 the table, and not the ink colour, which was tried first: mixed into white it lands on the
