@@ -177,8 +177,9 @@ too. The player's own card in the expanded squad takes a ring in the same colour
 
 None of that was enough on its own in a table that is already striped: the wash and the
 stripe carried the same weight, and a highlight you have to compare against the row above
-is not a highlight. **The rows that were not picked drop to 42% opacity.** That is what
-makes the selection read as the filter it is.
+is not a highlight. **The rows that were not picked drop to 68% opacity**, and come all
+the way back on hover. Half a step, deliberately: at 42% they read as broken rather than
+as secondary, and this is still a table people read rather than a spotlight.
 
 The club is in the option label because FPL's short names are not unique — a league can
 easily hold two Fernandes.

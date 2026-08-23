@@ -1546,17 +1546,17 @@ footer a { color:#c4c6d8; }
 .ownership-readout b { font-weight:800; }
 
 .manager-block.owns-picked {
-  background:color-mix(in srgb,var(--purple) 16%,#fff);
+  background:color-mix(in srgb,var(--purple) 11%,#fff);
   box-shadow:inset 4px 0 0 var(--purple),inset 0 1px 0 rgba(255,255,255,.95);
 }
 /* The captain is worth twice what the rest of the row is, so the row says so twice:
    a heavier wash, and the name itself set in reverse in the captain column. */
 .manager-block.owns-picked.captains-picked {
-  background:color-mix(in srgb,var(--purple) 28%,#fff);
+  background:color-mix(in srgb,var(--purple) 19%,#fff);
 }
 /* Holding a player who is on your bench is a different fact from fielding him. */
 .manager-block.owns-picked.benches-picked {
-  background:color-mix(in srgb,var(--purple) 8%,#fff);
+  background:color-mix(in srgb,var(--purple) 6%,#fff);
   box-shadow:inset 4px 0 0 color-mix(in srgb,var(--purple) 45%,transparent),inset 0 1px 0 rgba(255,255,255,.95);
 }
 .manager-block.owns-picked .manager-row:hover {
@@ -1595,14 +1595,15 @@ footer a { color:#c4c6d8; }
 }
 .bench-toggle { white-space:nowrap; }
 
-/* A wash alone was not enough to find the picked rows in a striped table — the even
-   rows are already tinted. The rest of the table steps back instead, which turns the
-   selection into the filter it actually is. */
+/* A wash alone was not enough to find the picked rows in a striped table — the even rows
+   are already tinted — so the rest of the table steps back as well. Half a step: at .42
+   the unpicked rows read as broken rather than secondary, and the table is still a table
+   that people read. Hovering one brings it all the way back. */
 .league-table.has-highlight .manager-block:not(.owns-picked) {
-  opacity:.42;
+  opacity:.68;
 }
 .league-table.has-highlight .manager-block:not(.owns-picked):hover {
-  opacity:.72;
+  opacity:1;
 }
 
 /* Form: the average is the whole column, and the five weeks behind it are one click
