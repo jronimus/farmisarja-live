@@ -548,7 +548,7 @@ export default function App() {
       </div>
     </header>
 
-    {liveReady && !liveError && <Ticker data={data} language={language} autosubs={autosubs} />}
+    {liveReady && !liveError && <Ticker data={data} language={language} autosubs={autosubs} demo={demoMode} />}
 
     <main>{liveError ? <section className="data-pending data-error" role="alert">
       <strong>FPL DATA ERROR</strong>

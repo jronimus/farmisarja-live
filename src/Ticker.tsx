@@ -36,10 +36,10 @@ function Owners({ owners }: { owners: PlayerOwner[] }) {
   </span>;
 }
 
-function Item({ event, owners, language }: { event: FeedEvent; owners: PlayerOwner[]; language: Language }) {
+function Item({ event, owners, language, fresh }: { event: FeedEvent; owners: PlayerOwner[]; language: Language; fresh?: boolean }) {
   const clock = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { hour: "2-digit", minute: "2-digit" })
     .format(new Date(event.at));
-  return <span className={`ticker-item kind-${event.kind}`}>
+  return <span className={`ticker-item kind-${event.kind} ${fresh ? "is-fresh" : ""}`}>
     <i className="ticker-clock">{clock}</i>
     <i className="ticker-icon" aria-hidden="true">{ICONS[event.kind]}</i>
     <b>{kindLabel(event.kind, language)}</b>
@@ -49,16 +49,39 @@ function Item({ event, owners, language }: { event: FeedEvent; owners: PlayerOwn
   </span>;
 }
 
-export default function Ticker({ data, language, autosubs }: { data: DashboardData; language: Language; autosubs: boolean }) {
+export default function Ticker({ data, language, autosubs, demo }: { data: DashboardData; language: Language; autosubs: boolean; demo?: boolean }) {
   const t = translations(language);
   const [events, setEvents] = useState<FeedEvent[] | null>(data.feed ?? null);
   const [open, setOpen] = useState(false);
   const [hideLowImpact, setHideLowImpact] = useState(true);
   const [onlyOurs, setOnlyOurs] = useState(false);
-  const track = useRef<HTMLDivElement>(null);
+  // Which lines arrived on the last poll, so an arrival can announce itself. Null until the
+  // first read: everything already in the log when the page opens is history, not news.
+  const seen = useRef<Set<string> | null>(null);
+  const [fresh, setFresh] = useState<string[]>([]);
 
   const owners = useMemo(() => ownersByPlayer(data.managers, autosubs), [data.managers, autosubs]);
   const ownersFor = (element: number) => owners.get(element) ?? [];
+
+  // Demo only: a live gameweek is the only other way to watch a line arrive, and there is
+  // not one most of the week. One every fifteen seconds is enough to see the behaviour.
+  useEffect(() => {
+    if (!demo) return;
+    const kinds: EventKind[] = ["goal", "assist", "yellow", "defcon", "save_point", "red"];
+    const timer = window.setInterval(() => setEvents((current) => {
+      const source = (current ?? [])[Math.floor(Math.random() * Math.max(1, (current ?? []).length))];
+      if (!source) return current;
+      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      return [{
+        ...source,
+        id: `demo-live-${Date.now()}`,
+        at: new Date().toISOString(),
+        kind,
+        pointsDelta: kind === "yellow" ? -1 : kind === "red" ? -3 : kind === "goal" ? 6 : 3,
+      }, ...(current ?? [])];
+    }), 15_000);
+    return () => window.clearInterval(timer);
+  }, [demo]);
 
   useEffect(() => {
     if (data.feed) return; // demo data brings its own
@@ -77,6 +100,18 @@ export default function Ticker({ data, language, autosubs }: { data: DashboardDa
     return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", read); };
   }, [data.gameweek, data.feed]);
 
+  useEffect(() => {
+    if (!events) return;
+    const ids = events.map((event) => event.id);
+    if (seen.current === null) { seen.current = new Set(ids); return; }
+    const arrived = ids.filter((id) => !seen.current!.has(id));
+    for (const id of ids) seen.current.add(id);
+    if (!arrived.length) return;
+    setFresh(arrived);
+    const timer = window.setTimeout(() => setFresh([]), 25_000);
+    return () => window.clearTimeout(timer);
+  }, [events]);
+
   const visible = useMemo(() => (events ?? []).filter((event) => {
     if (hideLowImpact && LOW_IMPACT.includes(event.kind) && Math.abs(event.pointsDelta) < 2) return false;
     if (onlyOurs && !ownersFor(event.element).length) return false;
@@ -93,12 +128,17 @@ export default function Ticker({ data, language, autosubs }: { data: DashboardDa
       <span className={`ticker-badge ${live ? "is-live" : ""}`}>{live ? t.live : t.feed}</span>
       <div className="ticker-window">
         {visible.length
-          // The track is rendered twice so the loop has no seam. Hovering stops it, and
-          // prefers-reduced-motion stops it for good in CSS.
-          ? <div className="ticker-track" ref={track} style={{ animationDuration: `${Math.max(30, visible.length * 6)}s` }}>
-            {[0, 1].map((copy) => <div className="ticker-run" key={copy} aria-hidden={copy === 1}>
-              {visible.slice(0, 24).map((event) => <Item key={`${copy}-${event.id}`} event={event} owners={ownersFor(event.element)} language={language} />)}
-            </div>)}
+          // Standing still, newest at the left. A line that is always moving is a line you
+          // cannot read, and the one thing worth noticing here — that something just
+          // happened — is exactly what constant motion hides.
+          ? <div className="ticker-track">
+            {visible.slice(0, 24).map((event) => <Item
+              key={event.id}
+              event={event}
+              owners={ownersFor(event.element)}
+              language={language}
+              fresh={fresh.includes(event.id)}
+            />)}
           </div>
           : <span className="ticker-empty">{t.feedWaiting}</span>}
       </div>

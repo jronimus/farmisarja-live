@@ -1965,16 +1965,39 @@ footer a { color:#c4c6d8; }
 
 /* The mask fades what is sliding in and out of the strip. A standing message is not
    sliding anywhere, and the fade ate the first two letters of it. */
-.ticker-window { flex:1 1 auto; min-width:0; overflow:hidden; }
-.ticker-window:has(.ticker-track) { mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent); }
-.ticker-track { display:flex; width:max-content; animation:ticker-scroll linear infinite; }
-.ticker-run { display:flex; align-items:center; gap:26px; padding-right:26px; }
-.ticker:hover .ticker-track,
-.ticker-track:focus-within { animation-play-state:paused; }
-@keyframes ticker-scroll { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+/* Standing still. The strip scrolls by hand if you want to look back, and fades at its
+   right edge where the older lines run out of room. */
+.ticker-window {
+  flex:1 1 auto;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:none;
+}
+.ticker-window::-webkit-scrollbar { display:none; }
+.ticker-window:has(.ticker-track) { mask-image:linear-gradient(90deg,#000 calc(100% - 40px),transparent); }
+.ticker-track { display:flex; align-items:center; gap:22px; width:max-content; }
+
+/* An arrival announces itself: it slides in from the left, pushing the older lines along,
+   and holds a lit surround for twenty-five seconds. Long enough to catch on a second
+   monitor, short enough that two goals a minute apart are still told apart. */
+.ticker-item.is-fresh {
+  padding:3px 8px;
+  margin:0 -4px;
+  border-radius:7px;
+  animation:ticker-arrive .45s cubic-bezier(.22,1,.36,1), ticker-glow 25s ease-out forwards;
+}
+@keyframes ticker-arrive {
+  from { opacity:0; transform:translateX(-14px); }
+  to { opacity:1; transform:translateX(0); }
+}
+@keyframes ticker-glow {
+  0% { background:rgba(209,237,25,.28); box-shadow:0 0 0 1px rgba(209,237,25,.5); }
+  8% { background:rgba(209,237,25,.28); box-shadow:0 0 0 1px rgba(209,237,25,.5); }
+  100% { background:transparent; box-shadow:0 0 0 1px transparent; }
+}
 @media (prefers-reduced-motion:reduce) {
-  .ticker-track { animation:none; }
-  .ticker-run:nth-child(2) { display:none; }
+  .ticker-item.is-fresh { animation:ticker-glow 25s ease-out forwards; }
 }
 
 .ticker-item { display:flex; align-items:center; gap:7px; white-space:nowrap; color:rgba(255,255,255,.85); font-size:11px; font-weight:700; }
