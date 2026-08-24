@@ -41,13 +41,13 @@ interface LiveStats {
 }
 interface LiveElement { id: number; stats: LiveStats; explain: Array<{ fixture: number }> }
 interface Fixture {
-  id: number; event: number | null; team_h: number; team_a: number;
+  id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number;
   team_h_score: number | null; team_a_score: number | null;
   minutes: number; started: boolean; finished: boolean; finished_provisional: boolean;
 }
 interface Bootstrap {
   events: Array<{ id: number; is_current: boolean }>;
-  elements: Array<{ id: number; web_name: string; team: number }>;
+  elements: Array<{ id: number; web_name: string; team: number; element_type: number }>;
   teams: Array<{ id: number; short_name: string; name: string }>;
 }
 
@@ -79,6 +79,21 @@ const KIND_BY_STAT: Partial<Record<(typeof WATCHED)[number], EventKind>> = {
 const MAX_EVENTS = 300;
 /** Bonus is still being recalculated for a while after full time. */
 const GRACE_MS = 30 * 60_000;
+/**
+ * How early a baseline is taken. A snapshot written before the whistle gives the first tick
+ * after it something to diff against; without one, everything that happened before that
+ * first tick is already in the baseline and is never reported. That is how a goal in the
+ * first minute went missing while the points column had it.
+ */
+const KICKOFF_LEAD_MS = 12 * 60_000;
+
+/**
+ * Defensive contribution is a running count of clearances, blocks, interceptions and
+ * tackles, not a score: it ticks up several times a minute for half the pitch. What is
+ * worth reporting is the moment it buys the two points, which happens once, at 10 for a
+ * defender and 12 for anyone else, and never stacks. Goalkeepers do not score it at all.
+ */
+export const DEFCON_THRESHOLD: Record<number, number> = { 2: 10, 3: 12, 4: 12 };
 
 const feedKey = (gameweek: number) => `feed:gw:${gameweek}`;
 
@@ -98,7 +113,11 @@ async function fpl<T>(path: string): Promise<T> {
  * Saves are the one counter that is not an event on its own: three of them are worth a
  * point, so the feed reports the point rather than every stop.
  */
-export function eventsForPlayer(previous: number[] | undefined, current: number[]): Array<{ kind: EventKind; value: number }> {
+export function eventsForPlayer(
+  previous: number[] | undefined,
+  current: number[],
+  position?: number,
+): Array<{ kind: EventKind; value: number }> {
   const before = previous ?? WATCHED.map(() => 0);
   const out: Array<{ kind: EventKind; value: number }> = [];
   WATCHED.forEach((stat, index) => {
@@ -107,6 +126,14 @@ export function eventsForPlayer(previous: number[] | undefined, current: number[
     if (stat === "saves") {
       const gained = Math.floor(current[index] / 3) - Math.floor(before[index] / 3);
       if (gained > 0) out.push({ kind: "save_point", value: Math.floor(current[index] / 3) });
+      return;
+    }
+    // The count itself is not the event; crossing the threshold for the position is.
+    if (stat === "defensive_contribution") {
+      const threshold = position === undefined ? undefined : DEFCON_THRESHOLD[position];
+      if (threshold !== undefined && before[index] < threshold && current[index] >= threshold) {
+        out.push({ kind: "defcon", value: current[index] });
+      }
       return;
     }
     if (stat === "total_points") return;
@@ -119,6 +146,12 @@ export function eventsForPlayer(previous: number[] | undefined, current: number[
 /** Whether there is any football to watch, which is the only time this writes to KV. */
 export function isLive(fixtures: Fixture[], lastLiveAt: string | undefined, now: number): boolean {
   if (fixtures.some((fixture) => fixture.started && !fixture.finished_provisional)) return true;
+  // Just before a kick-off too, to lay the baseline the first live tick will diff against.
+  if (fixtures.some((fixture) => {
+    if (fixture.started || !fixture.kickoff_time) return false;
+    const kickoff = new Date(fixture.kickoff_time).getTime();
+    return kickoff > now && kickoff - now <= KICKOFF_LEAD_MS;
+  })) return true;
   return Boolean(lastLiveAt && now - new Date(lastLiveAt).getTime() < GRACE_MS);
 }
 
@@ -142,6 +175,11 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
   const fixtureById = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
 
   const previous = stored?.snapshot ?? {};
+  // Only the very first write of a gameweek seeds in silence. After that a player who was
+  // not in the last snapshot is one whose match has just kicked off or who has just come
+  // on, and what he has done since is news — which is what the opening minutes of a match
+  // used to be swallowed by.
+  const bootstrapping = !stored;
   const snapshot: Record<string, number[]> = {};
   const fresh: FeedEvent[] = [];
   const at = new Date(now).toISOString();
@@ -152,12 +190,12 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
     if (element.stats.minutes === 0 && current.every((value) => value === 0)) continue;
     snapshot[element.id] = current;
     const before = previous[element.id];
-    // A player seen for the first time is not a burst of events; only a change is.
-    if (!before) continue;
-    const changes = eventsForPlayer(before, current);
-    if (!changes.length) continue;
+    if (!before && bootstrapping) continue;
 
     const meta = elementById.get(element.id);
+    const changes = eventsForPlayer(before, current, meta?.element_type);
+    if (!changes.length) continue;
+
     const fixture = fixtureById.get(element.explain[element.explain.length - 1]?.fixture ?? -1);
     const pointsDelta = current[WATCHED.indexOf("total_points")] - before[WATCHED.indexOf("total_points")];
     for (const change of changes) {
