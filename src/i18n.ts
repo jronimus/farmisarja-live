@@ -16,7 +16,7 @@ const copy = {
     pricesUnavailable: "Hintadataa ei ole juuri nyt saatavilla", navTable: "Taulukko", navPrices: "Hinnat", priceSource: "Hintamuutosdata tulee suoraan FPL:stä.",
     rankEstimate: "Arvioitu live-yleissija", dataPreview: "GW1-data ei ole vielä avautunut — näkymässä on esikatseludata", transfer: "siirto", transfersCount: "siirtoa", net: "netto", oldTeam: "Vanha", currentTeam: "Nykyinen", nextMatch: "Seuraava peli", fixtures: "GW-ottelut", fixturesPlayed: "pelattu", fixtureUpcoming: "Tulossa", fixtureLive: "Käynnissä", fixtureProvisional: "Alustava", fixtureFinal: "Vahvistettu",
     close: "Sulje", fixtureNoStats: "Tilastot tulevat kun ottelu alkaa", statGoals: "Maalit", statOwnGoals: "Omat maalit", statAssists: "Syötöt", statCards: "Kortit", statBonus: "Bonuspisteet", statBps: "Bps", statDefCon: "Puolustuspisteet", statSaves: "Torjunnat", statPenalties: "Rangaistuspotkut",
-    defConNote: "2 pistettä: puolustajat 10:stä, muut 12:sta", defConReached: "Ylitti puolustuspisterajan",
+    defConNote: "2 pistettä: puolustajat 10:stä, muut 12:sta", defConReached: "Ylitti puolustuspisterajan", bpsNote: "Ratkaisee bonuspisteet, kolme parasta per ottelu",
   },
   en: {
     live: "LIVE", preview: "PREVIEW", updated: "Updated", position: "Pos", manager: "Team / manager",
@@ -33,7 +33,7 @@ const copy = {
     pricesUnavailable: "Price data is not available right now", navTable: "Table", navPrices: "Prices", priceSource: "Price change data comes directly from FPL.",
     rankEstimate: "Estimated live overall rank", dataPreview: "GW1 data is not available yet — showing preview data", transfer: "transfer", transfersCount: "transfers", net: "net", oldTeam: "Previous", currentTeam: "Current", nextMatch: "Next game", fixtures: "GW fixtures", fixturesPlayed: "played", fixtureUpcoming: "Upcoming", fixtureLive: "Live", fixtureProvisional: "Provisional", fixtureFinal: "Final",
     close: "Close", fixtureNoStats: "Stats appear once the match kicks off", statGoals: "Goals", statOwnGoals: "Own goals", statAssists: "Assists", statCards: "Cards", statBonus: "Bonus points", statBps: "Bps", statDefCon: "Def. contributions", statSaves: "Saves", statPenalties: "Penalties",
-    defConNote: "2 points: defenders from 10, others from 12", defConReached: "Reached the defensive contribution threshold",
+    defConNote: "2 points: defenders from 10, others from 12", defConReached: "Reached the defensive contribution threshold", bpsNote: "Decides bonus points, top three per match",
   },
 } as const;
 

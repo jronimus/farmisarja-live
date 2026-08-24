@@ -34,6 +34,7 @@ function FixtureStats({ fixture, language }: { fixture: GameweekFixture; languag
   return <div className="fixture-stats">
     {fixture.stats.map((category) => <div className="fixture-stat-category" key={category.key}>
       <b>{statLabel[category.key]}</b>
+      {category.key === "bps" && <small className="fixture-stat-note">{t.bpsNote}</small>}
       {category.key === "defCon" && <small className="fixture-stat-note">{t.defConNote}</small>}
       <ul>
         {category.entries.map((entry, index) => <li key={index} className={defConReached(entry) ? "stat-reached" : ""}>
