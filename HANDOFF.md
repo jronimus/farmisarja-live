@@ -1,6 +1,6 @@
 # Farmisarja Live — handoff
 
-Updated: 2026-08-24
+Updated: 2026-08-25
 
 Source of truth for continuing the project in a new conversation. Read it completely
 before making changes.
@@ -327,20 +327,48 @@ because it would have cost the table half its columns on exactly the screen it i
 feed of this kind, LiveFPL's included, derives its events by diffing successive snapshots
 and stamping the time itself, and so does this one.
 
-The diff runs in `worker/events.ts` on the cron that already ticks every two minutes. It
-compares eleven counters per player — goals, assists, own goals, cards, penalties saved and
-missed, bonus, defensive contribution, saves — against the previous snapshot, and writes
-both the snapshot and the log into **one** KV value under `feed:gw:N`.
+The diff runs in `worker/events.ts` on the cron that ticks every minute. It compares eleven
+counters per player — goals, assists, own goals, cards, penalties saved and missed, bonus,
+defensive contribution, saves — against the previous snapshot, and writes both the snapshot
+and the log into **one** KV value under `feed:gw:N`.
 
-One value, because the free KV plan allows 1,000 writes a day and a two-minute tick around
-the clock is 720 of them. Writes only happen while football is being played: any fixture
-`started && !finished_provisional`, plus a 30-minute grace so the bonus recalculations are
-caught. A heavy Saturday costs about 200 writes.
+One value, because the free KV plan allows 1,000 writes a day. Writes only happen while
+football is being played: any fixture `started && !finished_provisional`, a 30-minute grace
+so the bonus recalculations are caught, and the twelve minutes before a kick-off. A heavy
+Saturday costs about 400 writes at a minute a tick, 200 at two.
 
-Two counters are not events in themselves. **Saves** are worth a point per three, so the
-feed reports the point and not every stop. **Bonus** moves by a point at a time and moves
-back again, which is why it is filtered out by default and why a counter going *down* never
-emits anything.
+**A baseline before the whistle is what makes the opening minutes visible.** Without one,
+the first tick of a match seeds the snapshot in silence and anything already scored is
+inside that baseline for good — a goal in the first minute was lost that way on 24 Aug while
+the points column had it. Only the very first write of a gameweek is silent now; after that
+a player absent from the last snapshot has just kicked off or just come on, and what he has
+done since is reported.
+
+Three counters are not events in themselves:
+
+- **Saves** are worth a point per three, so the feed reports the point and not every stop.
+- **Defensive contribution** is a running count of clearances, blocks, interceptions and
+  tackles that ticks up several times a minute for half the pitch. Reporting every increment
+  buried the goals under it. It fires once, where the two points land — 10 for a defender,
+  12 for anyone else, never for a keeper.
+- **Bonus** is the one counter that legitimately falls: three, two and one go to the top of
+  the bonus points system and a player is promoted and demoted between those places while
+  the match runs. A line carries the place left as well as the place taken, and fires both
+  ways. A bare "+2" after a bare "+3" reads as five gained, and a demotion read as a gain.
+
+**A line is worth what that event is worth, not what the player gained on the tick.** FPL
+publishes it per stat in `explain`, so the feed stores that beside the counters; modelling
+the scoring from position and rules would only go stale. Without it a goal and the bonus
+that landed with it both read +8.
+
+`repairEvents` mends logs written before those rules, behind `REPAIR_VERSION`. It runs
+inside the cron because that is the only writer of the key: editing the KV value from
+outside is overwritten by the next tick, which cost three attempts to learn on 24 Aug.
+
+**There is no event time to be had.** The fixture stats carry the player and the count and
+nothing else, and every `pulse_id` FPL returned for GW1 was 0, so the Premier League's own
+timings cannot be keyed from it either. A line is stamped when the feed noticed it, which is
+why the match minute is not printed beside it.
 
 The page reads `GET /events?gw=N`, cached 30 s, every 60 s and on window focus. Which of
 our teams own the player is joined **client-side** from the squads already loaded, so the
@@ -592,13 +620,13 @@ Maximum eight tiles. GW1 produced six after deduplication from eight raw hits.
 
 ## Telegram
 
-Cron runs every two minutes.
+Cron runs every minute.
 
 | Trigger | Message |
 | --- | --- |
 | 24h and 2h before deadline | Text reminder with link button |
 | Picks published after deadline | The deadline card, alone, with the link button and no caption |
-| 10 min after the last fixture reaches full time | Two messages, see below |
+| The last fixture reaches full time | Two messages, see below |
 | `/farmisarja` | Link message |
 | `/deadline` | Time to next deadline |
 | `/id` | Answers with the id of the chat it was sent in |
@@ -608,6 +636,11 @@ The post-gameweek report is **two messages**: first the gameweek card alone with
 FARMISARJA LIVE button, then the standings and awards as a pair with no caption, no
 link and nothing else. Telegram allows an inline keyboard on a single photo but not on
 an album, which is why it is split.
+
+It is queued the moment FPL calls the last match, with no wait of its own. Ten minutes used
+to sit here to let the bonus settle; watching GW1 out showed nothing to wait for, since a
+finished match's bonus did not move while the last one was still running. Queueing is not
+sending either — the album still takes a card per tick, so minutes pass regardless.
 
 ### Why the report is assembled across cron ticks
 
@@ -661,35 +694,60 @@ These cost real debugging time. Do not re-derive them from assumptions.
 
 ## Open tasks
 
-1. **Deploy the Worker.** `npx wrangler deploy`. Nothing else on this list is blocked by
-   code — the event ticker is, and only by this. Until the Worker runs the new
-   `worker/events.ts`, `/events` answers 404, the KV feed is never written, and the strip
-   under the header says it is waiting. Pages deploys itself from `main`; the Worker never
-   does.
-2. **Watch the ticker fill during a live gameweek.** The first cron tick after kick-off
-   only takes a snapshot — a player seen for the first time is not a burst of events — so
-   the first lines appear on the second tick, two to four minutes in. If nothing arrives,
-   `npx wrangler tail --format json` and look for `feed_events_added` and
-   `feed_update_error`. The log is pretty-printed multi-line JSON, so split on `
-{`.
-3. **Verify the first automatic Telegram report.** GW1 ends with FUL–CHE on **Monday
-   24 Aug at 22:00 local**, and the report should arrive about 16 minutes after full time.
-   If nothing comes, tail the Worker and look for `album_card_ready` and `album_sent`.
-   This has been waiting since the 23rd, and it is the same evening as the ticker's first
-   real test.
-4. **Verify the deadline card's totals and transfer lines against real picks.** The card
+The first three of these were done on the evening of 24 Aug, during GW1's last match. The
+Worker is deployed, the ticker filled with real events, and the automatic Telegram report
+arrived with all three cards correct.
+
+1. **Verify the deadline card's totals and transfer lines against real picks.** The card
    was rendered from real GW1 picks on 23 Aug and is in
    `artifacts/cards/deadline-real.png`: real names, real captains, ordered by
    `manager.position`. Two parts of it are still unseen, because GW1 cannot show them —
    the settled total, which is hidden at GW1 where it is zero, and an actual `out → in`
    list, since nobody had transfers before the first deadline. **GW2's deadline is 28 Aug
    at 20:30**, and it is the first time both appear.
-5. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
+2. **Watch a gameweek's first match with the pre-kick-off baseline in place.** GW1 could
+   not test it: the Worker was deployed mid-gameweek, so the first match it ever saw was
+   already in progress. `feed:gw:2` starts empty, a baseline should be written in the
+   twelve minutes before the first kick-off, and the opening minutes should appear. If they
+   do not, `npx wrangler tail --format json` and look for `feed_events_added` and
+   `feed_update_error`. The log is pretty-printed multi-line JSON, so split on `
+{`.
+3. **Watch the write budget now the cron ticks every minute.** A heavy Saturday was
+   measured at about 200 writes at two minutes a tick and should be about 400 at one,
+   against the free plan's 1,000 a day. GW1 was a light test of this — one live match.
+4. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
    Nothing else needs changing; the card picks the plate by row count.
+5. **`feed:gw:1` carries about twenty stray bonus lines.** `repairEvents` wound every
+   player's stored bonus back to the last one reported, including players whose match had
+   long finished and whose bonus had never been reported at all, so one tick emitted a
+   `0 → N` line for each of them. Harmless, invisible from GW2 on, and left alone
+   deliberately: the fix belongs in the next repair version if it is ever worth one.
 
 Nothing is half-built. The working tree is clean, everything is pushed, and the four
-checks — `npm test` (25 passing), `npm run build`, `npm run worker:check` and
+checks — `npm test` (31 passing), `npm run build`, `npm run worker:check` and
 `node scripts/check-overflow.mjs` (28 passing) — all pass as of the last commit.
+
+## What the first live gameweek corrected, 24 Aug
+
+The ticker's first real test. Everything below was wrong in a way no amount of demo data
+could have shown, and each was found by reading the Worker's log or the live API rather
+than by looking at the page.
+
+- **Defensive contribution flooded the feed.** Thirteen of the fourteen events stored that
+  evening were sub-threshold defcon at a points delta of zero. The counter is raw CBIT, not
+  a score. It now fires where the two points land.
+- **A goal in the first minute never appeared.** No snapshot existed when the match kicked
+  off, so it went into the baseline. Hence the pre-kick-off baseline.
+- **Every line showed the player's whole gain on the tick**, so a goal and the bonus beside
+  it both read +8. `explain` prices each stat; the feed stores it.
+- **A bonus fall emitted nothing**, so two players stood at three bonus at once.
+- **Editing the KV value by hand does not hold.** The cron reads the key, appends to what it
+  read and writes the whole thing back, so a hand-edit is gone within a tick. Three attempts
+  went that way before the repair was moved inside the cron where it belongs.
+
+One thing that looked like a finding was not: a burst of bonus lines from long-finished
+matches, which read as FPL recalculating hours later. It was `repairEvents` re-emitting
+them. Check what your own repair did before drawing a conclusion from the data it wrote.
 
 ## What was built on 24 Aug
 
