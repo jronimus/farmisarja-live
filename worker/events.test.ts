@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { eventsForPlayer, isLive } from "./events";
+import { eventsForPlayer, isLive, repairEvents } from "./events";
+import type { FeedEvent } from "./events";
 
 // goals, assists, own goals, yellow, red, pen saved, pen missed, bonus, defcon, saves, points
 const counters = (over: Partial<Record<number, number>> = {}) => {
@@ -95,5 +96,42 @@ describe("live feed", () => {
     const soon = (minutes: number) => new Date(now + minutes * 60_000).toISOString();
     expect(isLive([fixture({ started: false, kickoff_time: soon(5) })], undefined, now)).toBe(true);
     expect(isLive([fixture({ started: false, kickoff_time: soon(30) })], undefined, now)).toBe(false);
+  });
+
+  /**
+   * The lines written before a line carried its own worth stored the player's whole gain on
+   * the tick, so a goal and the bonus beside it both read the same figure.
+   */
+  it("prices old lines from what FPL says each stat is worth", () => {
+    const live = [{
+      id: 7,
+      stats: { minutes: 90, goals_scored: 1, assists: 0, own_goals: 0, yellow_cards: 0,
+        red_cards: 0, penalties_saved: 0, penalties_missed: 0, bonus: 3,
+        defensive_contribution: 12, saves: 0, total_points: 12 },
+      explain: [{ fixture: 1, stats: [
+        { identifier: "goals_scored", points: 5 },
+        { identifier: "bonus", points: 3 },
+        { identifier: "defensive_contribution", points: 2 },
+      ] }],
+    }];
+    const at = (m: string) => `2026-08-24T19:${m}:00.000Z`;
+    const line = (over: Partial<FeedEvent>): FeedEvent => ({
+      id: "x", at: at("30"), gameweek: 1, element: 7, player: "Rogers", club: "AVL",
+      clubName: "Aston Villa", kind: "goal", value: 1, pointsDelta: 12, points: 12, ...over,
+    });
+    const events = [
+      line({ kind: "bonus", value: 3, at: at("46"), pointsDelta: 12 }),
+      line({ kind: "bonus", value: 1, at: at("40"), pointsDelta: 12 }),
+      line({ kind: "goal", value: 1, at: at("30"), pointsDelta: 12 }),
+      line({ kind: "defcon", value: 12, at: at("30"), pointsDelta: 12 }),
+    ];
+    repairEvents(events, live as never);
+    // The goal is worth its own five, not the twelve the player had by then.
+    expect(events.find((e) => e.kind === "goal")!.pointsDelta).toBe(5);
+    // Two points, whole: it lands once and is not divided by the tackles behind it.
+    expect(events.find((e) => e.kind === "defcon")!.pointsDelta).toBe(2);
+    // First to third place is worth one, then two more.
+    const bonus = events.filter((e) => e.kind === "bonus").sort((a, b) => a.at.localeCompare(b.at));
+    expect(bonus.map((e) => [e.previous, e.value, e.pointsDelta])).toEqual([[0, 1, 1], [1, 3, 2]]);
   });
 });

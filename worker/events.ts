@@ -69,6 +69,8 @@ interface StoredFeed {
    * from the position and the rules. Absent on feeds written before this was stored.
    */
   points?: Record<string, number[]>;
+  /** Set once the one-off repair below has run over this gameweek's log. */
+  repaired?: boolean;
   events: FeedEvent[];
   lastLiveAt?: string;
 }
@@ -84,6 +86,14 @@ const KIND_BY_STAT: Partial<Record<(typeof WATCHED)[number], EventKind>> = {
   yellow_cards: "yellow", red_cards: "red",
   penalties_saved: "penalty_save", penalties_missed: "penalty_miss",
   bonus: "bonus", defensive_contribution: "defcon",
+};
+
+/** Which counter is behind each kind of line, for pricing one after the fact. */
+const STAT_BY_KIND: Partial<Record<EventKind, (typeof WATCHED)[number]>> = {
+  goal: "goals_scored", assist: "assists", own_goal: "own_goals",
+  yellow: "yellow_cards", red: "red_cards",
+  penalty_save: "penalties_saved", penalty_miss: "penalties_missed",
+  save_point: "saves", defcon: "defensive_contribution",
 };
 
 const MAX_EVENTS = 300;
@@ -194,6 +204,45 @@ export async function readFeed(env: EventsEnv, gameweek: number): Promise<Stored
   return await env.TELEGRAM_STATE.get<StoredFeed>(feedKey(gameweek), "json");
 }
 
+/**
+ * A one-off pass over lines written before a line carried its own worth. Those stored the
+ * player's whole gain on the tick, so a goal and the bonus that arrived beside it both read
+ * the same figure. Nothing is guessed: FPL publishes what each stat is worth per player, and
+ * every unit of a stat is worth the same to that player, so one unit is the whole over the
+ * count. Bonus points are the place itself, so a move is worth the difference between the
+ * place left and the place taken, recovered by walking a player's lines oldest first.
+ *
+ * It runs inside the cron because that is the only writer of this key; editing it from
+ * outside is overwritten by the next tick.
+ */
+export function repairEvents(events: FeedEvent[], live: LiveElement[]): void {
+  const byId = new Map(live.map((element) => [element.id, element]));
+
+  const lastBonus = new Map<number, number>();
+  for (const event of [...events].sort((a, b) => a.at.localeCompare(b.at))) {
+    if (event.kind !== "bonus") continue;
+    const from = lastBonus.get(event.element) ?? 0;
+    event.previous = from;
+    event.pointsDelta = event.value - from;
+    lastBonus.set(event.element, event.value);
+  }
+
+  for (const event of events) {
+    if (event.kind === "bonus") continue;
+    const stat = STAT_BY_KIND[event.kind];
+    const element = byId.get(event.element);
+    if (!stat || !element) continue;
+    const points = pointsFor(element)[WATCHED.indexOf(stat)];
+    // A save point is one point by definition, and a defensive contribution is the whole
+    // two: it lands once and never stacks, so it is not divided by the count behind it.
+    if (event.kind === "save_point") { event.pointsDelta = 1; continue; }
+    if (event.kind === "defcon") { event.pointsDelta = points; continue; }
+    const count = Number(element.stats[stat] ?? 0);
+    if (!count) continue;
+    event.pointsDelta = Math.round(points / count);
+  }
+}
+
 export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ written: boolean; added: number }> {
   const bootstrap = await fpl<Bootstrap>("/bootstrap-static/");
   const event = bootstrap.events.find((entry) => entry.is_current);
@@ -277,12 +326,14 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
   const known = new Set((stored?.events ?? []).map((entry) => entry.id));
   const added = fresh.filter((entry) => !known.has(entry.id));
   const events = [...added, ...(stored?.events ?? [])].slice(0, MAX_EVENTS);
+  if (!stored?.repaired) repairEvents(events, live.elements);
   const stillLive = fixtures.some((fixture) => fixture.started && !fixture.finished_provisional);
 
   await env.TELEGRAM_STATE.put(feedKey(event.id), JSON.stringify({
     gameweek: event.id,
     snapshot,
     points,
+    repaired: true,
     events,
     lastLiveAt: stillLive ? at : stored?.lastLiveAt ?? at,
   } satisfies StoredFeed));
