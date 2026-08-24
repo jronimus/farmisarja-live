@@ -181,14 +181,20 @@ export default function Ticker({ data, language, autosubs, demo }: { data: Dashb
           return <div className="ticker-row" key={event.id}>
             <EventIcon kind={event.kind} />
             <div className="ticker-headline">
-              <b>{kindLabel(event.kind, language)} — {event.player}</b>
+              {/* The figure belongs to the event, so it sits with it rather than out at the
+                  far edge of the row where the eye has to travel back to pair them up. The
+                  match minute is gone: it was the minute the feed noticed, not the minute
+                  the goal went in, and FPL publishes no time to put there instead. */}
+              <b>
+                {kindLabel(event.kind, language)} — {event.player}
+                {event.pointsDelta !== 0 && <u className={event.pointsDelta > 0 ? "up" : "down"}>{event.pointsDelta > 0 ? "+" : "−"}{Math.abs(event.pointsDelta)}</u>}
+              </b>
               <small>
                 {new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { hour: "2-digit", minute: "2-digit" }).format(new Date(event.at))}
-                {event.fixture && ` · ${event.fixture.home}–${event.fixture.away} · ${event.fixture.homeScore}–${event.fixture.awayScore} · ${event.fixture.minutes}'`}
+                {event.fixture && ` · ${event.fixture.home} ${event.fixture.homeScore}–${event.fixture.awayScore} ${event.fixture.away}`}
               </small>
               <Owners owners={held} />
             </div>
-            {event.pointsDelta !== 0 && <u className={event.pointsDelta > 0 ? "up" : "down"}>{event.pointsDelta > 0 ? "+" : "−"}{Math.abs(event.pointsDelta)}</u>}
           </div>;
         })}
         {!visible.length && <div className="ticker-empty-list">{t.feedWaiting}</div>}

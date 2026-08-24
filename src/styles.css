@@ -2563,7 +2563,19 @@ footer a { color:#c4c6d8; }
   border-top:1px solid rgba(255,255,255,.06);
 }
 .ticker-headline { flex:1 1 auto; min-width:0; display:grid; row-gap:2px; }
-.ticker-headline b { color:#fff; font-size:12px; font-weight:800; }
+/* The headline carries its own figure now, so it is a row rather than a line of text. */
+.ticker-headline b { display:flex; align-items:center; gap:7px; color:#fff; font-size:12px; font-weight:800; }
+/* Sized down from the strip's chip: inline beside the name it belongs to, it does not need
+   to carry the row on its own the way the old right-hand column did. */
+.ticker-headline b u {
+  flex:none;
+  padding:1px 6px;
+  border-radius:5px;
+  font-size:11px;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+  text-decoration:none;
+}
 .ticker-headline small { color:rgba(255,255,255,.45); font-size:10px; font-weight:600; }
 .ticker-empty-list { padding:20px 0; color:rgba(255,255,255,.4); font-size:12px; text-align:center; }
 

@@ -24,7 +24,8 @@ export interface FeedEvent {
   kind: EventKind;
   /** The new total: a second goal is value 2. */
   value: number;
-  /** Points the player gained on this tick, which is what makes an event worth reading. */
+  /** What this event is worth, not what the player gained on the tick: a goal and the
+   *  bonus that lands with it are separate lines and each carries its own figure. */
   pointsDelta: number;
   points: number;
   fixture?: { home: string; away: string; homeScore: number; awayScore: number; minutes: number };
@@ -39,7 +40,8 @@ interface LiveStats {
   yellow_cards: number; red_cards: number; penalties_saved: number; penalties_missed: number;
   bonus: number; defensive_contribution: number; saves: number; total_points: number;
 }
-interface LiveElement { id: number; stats: LiveStats; explain: Array<{ fixture: number }> }
+interface ExplainStat { identifier: string; points: number }
+interface LiveElement { id: number; stats: LiveStats; explain: Array<{ fixture: number; stats: ExplainStat[] }> }
 interface Fixture {
   id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number;
   team_h_score: number | null; team_a_score: number | null;
@@ -59,6 +61,12 @@ interface StoredFeed {
   gameweek: number;
   /** element id → the watched counters, in WATCHED order. Only players who have appeared. */
   snapshot: Record<string, number[]>;
+  /**
+   * element id → what each of those counters is currently worth, in the same order. FPL
+   * publishes it per stat in `explain`, so a goal's own points never have to be modelled
+   * from the position and the rules. Absent on feeds written before this was stored.
+   */
+  points?: Record<string, number[]>;
   events: FeedEvent[];
   lastLiveAt?: string;
 }
@@ -99,6 +107,17 @@ const feedKey = (gameweek: number) => `feed:gw:${gameweek}`;
 
 const counters = (stats: LiveStats): number[] => WATCHED.map((name) => Number(stats[name] ?? 0));
 
+/** What each watched counter is currently worth, summed over the player's fixtures. */
+const pointsFor = (element: LiveElement): number[] => {
+  const byIdentifier = new Map<string, number>();
+  for (const entry of element.explain ?? []) {
+    for (const stat of entry.stats ?? []) {
+      byIdentifier.set(stat.identifier, (byIdentifier.get(stat.identifier) ?? 0) + stat.points);
+    }
+  }
+  return WATCHED.map((name) => byIdentifier.get(name) ?? 0);
+};
+
 async function fpl<T>(path: string): Promise<T> {
   const response = await fetch(`https://fantasy.premierleague.com/api${path}`, {
     headers: { Accept: "application/json", "User-Agent": "Farmisarja-Live/0.1" },
@@ -117,28 +136,28 @@ export function eventsForPlayer(
   previous: number[] | undefined,
   current: number[],
   position?: number,
-): Array<{ kind: EventKind; value: number }> {
+): Array<{ kind: EventKind; value: number; stat: (typeof WATCHED)[number] }> {
   const before = previous ?? WATCHED.map(() => 0);
-  const out: Array<{ kind: EventKind; value: number }> = [];
+  const out: Array<{ kind: EventKind; value: number; stat: (typeof WATCHED)[number] }> = [];
   WATCHED.forEach((stat, index) => {
     const delta = current[index] - before[index];
     if (delta <= 0) return;
     if (stat === "saves") {
       const gained = Math.floor(current[index] / 3) - Math.floor(before[index] / 3);
-      if (gained > 0) out.push({ kind: "save_point", value: Math.floor(current[index] / 3) });
+      if (gained > 0) out.push({ kind: "save_point", value: Math.floor(current[index] / 3), stat });
       return;
     }
     // The count itself is not the event; crossing the threshold for the position is.
     if (stat === "defensive_contribution") {
       const threshold = position === undefined ? undefined : DEFCON_THRESHOLD[position];
       if (threshold !== undefined && before[index] < threshold && current[index] >= threshold) {
-        out.push({ kind: "defcon", value: current[index] });
+        out.push({ kind: "defcon", value: current[index], stat });
       }
       return;
     }
     if (stat === "total_points") return;
     const kind = KIND_BY_STAT[stat];
-    if (kind) out.push({ kind, value: current[index] });
+    if (kind) out.push({ kind, value: current[index], stat });
   });
   return out;
 }
@@ -175,12 +194,14 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
   const fixtureById = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
 
   const previous = stored?.snapshot ?? {};
+  const previousPoints = stored?.points ?? {};
   // Only the very first write of a gameweek seeds in silence. After that a player who was
   // not in the last snapshot is one whose match has just kicked off or who has just come
   // on, and what he has done since is news — which is what the opening minutes of a match
   // used to be swallowed by.
   const bootstrapping = !stored;
   const snapshot: Record<string, number[]> = {};
+  const points: Record<string, number[]> = {};
   const fresh: FeedEvent[] = [];
   const at = new Date(now).toISOString();
 
@@ -188,7 +209,9 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
     const current = counters(element.stats);
     // Players who have not appeared stay out of the snapshot; absent reads as all zeroes.
     if (element.stats.minutes === 0 && current.every((value) => value === 0)) continue;
+    const currentPoints = pointsFor(element);
     snapshot[element.id] = current;
+    points[element.id] = currentPoints;
     const before = previous[element.id];
     if (!before && bootstrapping) continue;
 
@@ -201,8 +224,12 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
     // come on, which is the case the bootstrap guard above deliberately lets through; an
     // absent snapshot reads as nought, the same way eventsForPlayer treats it.
     const pointsIndex = WATCHED.indexOf("total_points");
-    const pointsDelta = current[pointsIndex] - (before ? before[pointsIndex] : 0);
+    const beforePoints = previousPoints[element.id];
     for (const change of changes) {
+      // What this one event is worth. The tick's whole gain would put the same figure on
+      // every line it produced — a goal and the bonus that arrived with it both reading +8.
+      const statIndex = WATCHED.indexOf(change.stat);
+      const gained = currentPoints[statIndex] - (beforePoints ? beforePoints[statIndex] : 0);
       fresh.push({
         id: `${event.id}:${element.id}:${change.kind}:${change.value}`,
         at,
@@ -213,7 +240,7 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
         clubName: teamNameById.get(meta?.team ?? -1) ?? "—",
         kind: change.kind,
         value: change.value,
-        pointsDelta,
+        pointsDelta: gained,
         points: current[pointsIndex],
         fixture: fixture ? {
           home: teamById.get(fixture.team_h) ?? "—",
@@ -234,6 +261,7 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
   await env.TELEGRAM_STATE.put(feedKey(event.id), JSON.stringify({
     gameweek: event.id,
     snapshot,
+    points,
     events,
     lastLiveAt: stillLive ? at : stored?.lastLiveAt ?? at,
   } satisfies StoredFeed));
