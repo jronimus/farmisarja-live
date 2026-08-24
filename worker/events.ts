@@ -197,7 +197,11 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
     if (!changes.length) continue;
 
     const fixture = fixtureById.get(element.explain[element.explain.length - 1]?.fixture ?? -1);
-    const pointsDelta = current[WATCHED.indexOf("total_points")] - before[WATCHED.indexOf("total_points")];
+    // `before` is undefined for a player whose match has just kicked off or who has just
+    // come on, which is the case the bootstrap guard above deliberately lets through; an
+    // absent snapshot reads as nought, the same way eventsForPlayer treats it.
+    const pointsIndex = WATCHED.indexOf("total_points");
+    const pointsDelta = current[pointsIndex] - (before ? before[pointsIndex] : 0);
     for (const change of changes) {
       fresh.push({
         id: `${event.id}:${element.id}:${change.kind}:${change.value}`,
@@ -210,7 +214,7 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
         kind: change.kind,
         value: change.value,
         pointsDelta,
-        points: current[WATCHED.indexOf("total_points")],
+        points: current[pointsIndex],
         fixture: fixture ? {
           home: teamById.get(fixture.team_h) ?? "—",
           away: teamById.get(fixture.team_a) ?? "—",
