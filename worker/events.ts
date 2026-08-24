@@ -69,8 +69,8 @@ interface StoredFeed {
    * from the position and the rules. Absent on feeds written before this was stored.
    */
   points?: Record<string, number[]>;
-  /** Set once the one-off repair below has run over this gameweek's log. */
-  repaired?: boolean;
+  /** Which repair pass has run over this gameweek's log; see REPAIR_VERSION. */
+  repair?: number;
   events: FeedEvent[];
   lastLiveAt?: string;
 }
@@ -97,6 +97,8 @@ const STAT_BY_KIND: Partial<Record<EventKind, (typeof WATCHED)[number]>> = {
 };
 
 const MAX_EVENTS = 300;
+/** Bumped when repairEvents learns to mend something new, so it runs again over old logs. */
+const REPAIR_VERSION = 2;
 /** Bonus is still being recalculated for a while after full time. */
 const GRACE_MS = 30 * 60_000;
 /**
@@ -215,7 +217,12 @@ export async function readFeed(env: EventsEnv, gameweek: number): Promise<Stored
  * It runs inside the cron because that is the only writer of this key; editing it from
  * outside is overwritten by the next tick.
  */
-export function repairEvents(events: FeedEvent[], live: LiveElement[]): void {
+export function repairEvents(
+  events: FeedEvent[],
+  live: LiveElement[],
+  snapshot?: Record<string, number[]>,
+  points?: Record<string, number[]>,
+): void {
   const byId = new Map(live.map((element) => [element.id, element]));
 
   const lastBonus = new Map<number, number>();
@@ -232,14 +239,33 @@ export function repairEvents(events: FeedEvent[], live: LiveElement[]): void {
     const stat = STAT_BY_KIND[event.kind];
     const element = byId.get(event.element);
     if (!stat || !element) continue;
-    const points = pointsFor(element)[WATCHED.indexOf(stat)];
+    const worth = pointsFor(element)[WATCHED.indexOf(stat)];
     // A save point is one point by definition, and a defensive contribution is the whole
     // two: it lands once and never stacks, so it is not divided by the count behind it.
     if (event.kind === "save_point") { event.pointsDelta = 1; continue; }
-    if (event.kind === "defcon") { event.pointsDelta = points; continue; }
+    if (event.kind === "defcon") { event.pointsDelta = worth; continue; }
     const count = Number(element.stats[stat] ?? 0);
     if (!count) continue;
-    event.pointsDelta = Math.round(points / count);
+    event.pointsDelta = Math.round(worth / count);
+  }
+
+  /**
+   * A fall used to emit nothing at all, so a player overtaken for third place simply kept
+   * the place he had last been reported in — two of them showing three bonus at once. The
+   * fall itself cannot be read back out of a log that never recorded it, but the place he
+   * actually holds is in the live data, so winding his stored bonus back to the last one
+   * reported leaves the ordinary diff to report the move on the next tick, with a time it
+   * genuinely noticed rather than one invented for it.
+   */
+  if (!snapshot) return;
+  const bonusIndex = WATCHED.indexOf("bonus");
+  for (const [elementId, stored] of Object.entries(snapshot)) {
+    const reported = lastBonus.get(Number(elementId)) ?? 0;
+    if (stored[bonusIndex] === reported) continue;
+    stored[bonusIndex] = reported;
+    // Bonus points are the place itself, so the stored worth winds back with it.
+    const storedPoints = points?.[elementId];
+    if (storedPoints) storedPoints[bonusIndex] = reported;
   }
 }
 
@@ -326,14 +352,14 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
   const known = new Set((stored?.events ?? []).map((entry) => entry.id));
   const added = fresh.filter((entry) => !known.has(entry.id));
   const events = [...added, ...(stored?.events ?? [])].slice(0, MAX_EVENTS);
-  if (!stored?.repaired) repairEvents(events, live.elements);
+  if ((stored?.repair ?? 0) < REPAIR_VERSION) repairEvents(events, live.elements, snapshot, points);
   const stillLive = fixtures.some((fixture) => fixture.started && !fixture.finished_provisional);
 
   await env.TELEGRAM_STATE.put(feedKey(event.id), JSON.stringify({
     gameweek: event.id,
     snapshot,
     points,
-    repaired: true,
+    repair: REPAIR_VERSION,
     events,
     lastLiveAt: stillLive ? at : stored?.lastLiveAt ?? at,
   } satisfies StoredFeed));

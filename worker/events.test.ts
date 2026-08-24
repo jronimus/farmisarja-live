@@ -134,4 +134,33 @@ describe("live feed", () => {
     const bonus = events.filter((e) => e.kind === "bonus").sort((a, b) => a.at.localeCompare(b.at));
     expect(bonus.map((e) => [e.previous, e.value, e.pointsDelta])).toEqual([[0, 1, 1], [1, 3, 2]]);
   });
+
+  /**
+   * A fall emitted nothing at all before, so two players could both stand at three bonus in
+   * the log. The move cannot be read out of a log that never held it, but the place the
+   * player actually holds is in the live data.
+   */
+  it("winds a stored bonus back to the last one reported, so the next tick reports the fall", () => {
+    const live = [{
+      id: 7,
+      stats: { minutes: 90, goals_scored: 0, assists: 0, own_goals: 0, yellow_cards: 0,
+        red_cards: 0, penalties_saved: 0, penalties_missed: 0, bonus: 2,
+        defensive_contribution: 0, saves: 0, total_points: 4 },
+      explain: [{ fixture: 1, stats: [{ identifier: "bonus", points: 2 }] }],
+    }];
+    const events: FeedEvent[] = [{
+      id: "x", at: "2026-08-24T19:32:00.000Z", gameweek: 1, element: 7, player: "João Pedro",
+      club: "CHE", clubName: "Chelsea", kind: "bonus", value: 3, pointsDelta: 3, points: 4,
+    }];
+    // bonus sits at index 7 of the watched counters.
+    const snapshot = { 7: [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 4] };
+    const points = { 7: [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 4] };
+    repairEvents(events, live as never, snapshot, points);
+    // He was last reported at three, so that is where the diff must start from again.
+    expect(snapshot[7][7]).toBe(3);
+    expect(points[7][7]).toBe(3);
+    // Which leaves the ordinary diff to report three going to two, worth minus one.
+    expect(eventsForPlayer(snapshot[7], [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 4]))
+      .toEqual([{ kind: "bonus", value: 2, previous: 3, stat: "bonus" }]);
+  });
 });
