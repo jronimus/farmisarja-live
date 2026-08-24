@@ -15,6 +15,7 @@ const copy = {
     priceLocked: "Lukittu", lockedOnly: "Lukitut", priceCalibrating: "Kalibroidaan", inAbout: "noin", noPlayersMatch: "Ei osumia", playersShown: "pelaajaa", rowsPerPage: "Rivejä", previous: "Edellinen", next: "Seuraava",
     pricesUnavailable: "Hintadataa ei ole juuri nyt saatavilla", navTable: "Taulukko", navPrices: "Hinnat", priceSource: "Hintamuutosdata tulee suoraan FPL:stä.",
     rankEstimate: "Arvioitu live-yleissija", dataPreview: "GW1-data ei ole vielä avautunut — näkymässä on esikatseludata", transfer: "siirto", transfersCount: "siirtoa", net: "netto", oldTeam: "Vanha", currentTeam: "Nykyinen", nextMatch: "Seuraava peli", fixtures: "GW-ottelut", fixturesPlayed: "pelattu", fixtureUpcoming: "Tulossa", fixtureLive: "Käynnissä", fixtureProvisional: "Alustava", fixtureFinal: "Vahvistettu",
+    close: "Sulje", fixtureNoStats: "Tilastot tulevat kun ottelu alkaa", statGoals: "Maalit", statOwnGoals: "Omat maalit", statAssists: "Syötöt", statCards: "Kortit", statBonus: "Bonuspisteet", statBps: "Bps", statDefCon: "Puolustuspisteet", statSaves: "Torjunnat", statPenalties: "Rangaistuspotkut",
   },
   en: {
     live: "LIVE", preview: "PREVIEW", updated: "Updated", position: "Pos", manager: "Team / manager",
@@ -30,6 +31,7 @@ const copy = {
     priceLocked: "Locked", lockedOnly: "Locked", priceCalibrating: "Calibrating", inAbout: "in about", noPlayersMatch: "No matches", playersShown: "players", rowsPerPage: "Rows", previous: "Prev", next: "Next",
     pricesUnavailable: "Price data is not available right now", navTable: "Table", navPrices: "Prices", priceSource: "Price change data comes directly from FPL.",
     rankEstimate: "Estimated live overall rank", dataPreview: "GW1 data is not available yet — showing preview data", transfer: "transfer", transfersCount: "transfers", net: "net", oldTeam: "Previous", currentTeam: "Current", nextMatch: "Next game", fixtures: "GW fixtures", fixturesPlayed: "played", fixtureUpcoming: "Upcoming", fixtureLive: "Live", fixtureProvisional: "Provisional", fixtureFinal: "Final",
+    close: "Close", fixtureNoStats: "Stats appear once the match kicks off", statGoals: "Goals", statOwnGoals: "Own goals", statAssists: "Assists", statCards: "Cards", statBonus: "Bonus points", statBps: "Bps", statDefCon: "Def. contributions", statSaves: "Saves", statPenalties: "Penalties",
   },
 } as const;
 

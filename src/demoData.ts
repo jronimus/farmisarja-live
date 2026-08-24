@@ -1,4 +1,4 @@
-import type { DashboardData, GameweekFixture, ManagerRow, SquadPlayer } from "./types";
+import type { DashboardData, FixtureStatCategory, GameweekFixture, ManagerRow, SquadPlayer } from "./types";
 import type { FeedEvent } from "./services/liveFeed";
 
 /**
@@ -252,6 +252,38 @@ const managers: ManagerRow[] = seasonTable.map((season, index) => {
   };
 });
 
+/**
+ * A plausible stat breakdown per side, so the fixture modal's accordion has something real
+ * to expand in `?demo=1` — the only way to see it without a live gameweek. Built from the
+ * same pool the squads come from, so a name in the modal is a name the table already knows.
+ */
+function demoFixtureStats(home: string, away: string, index: number): FixtureStatCategory[] {
+  const club = (code: string) => playerPool.filter((entry) => entry[1] === code);
+  const side = (code: string, offset: number) => {
+    const players = club(code);
+    return players.length ? players[(index + offset) % players.length] : undefined;
+  };
+  const scorer = side(home, 0);
+  const assister = side(home, 1);
+  const secondScorer = side(away, 0);
+  const cardHome = side(home, 2);
+  const cardAway = side(away, 1);
+  const keeperHome = club(home).find((entry) => entry[3] === "GK");
+  const keeperAway = club(away).find((entry) => entry[3] === "GK");
+  const defHome = side(home, 3);
+  const defAway = side(away, 2);
+  const categories: Array<[FixtureStatCategory["key"], FixtureStatCategory["entries"]]> = [
+    ["goals", [scorer && { name: scorer[0], club: scorer[1], value: 1 }, index % 2 === 0 && secondScorer && { name: secondScorer[0], club: secondScorer[1], value: 1 }].filter((entry): entry is { name: string; club: string; value: number } => Boolean(entry))],
+    ["assists", assister ? [{ name: assister[0], club: assister[1], value: 1 }] : []],
+    ["bonus", [scorer && { name: scorer[0], club: scorer[1], value: 3 }, assister && { name: assister[0], club: assister[1], value: 2 }].filter((entry): entry is { name: string; club: string; value: number } => Boolean(entry))],
+    ["cards", [cardHome && { name: cardHome[0], club: cardHome[1], value: 1, variant: "yellow" as const }, cardAway && { name: cardAway[0], club: cardAway[1], value: 1, variant: "yellow" as const }].filter((entry): entry is { name: string; club: string; value: number; variant: "yellow" } => Boolean(entry))],
+    ["bps", [scorer, assister, defHome, defAway].filter((entry): entry is PoolEntry => Boolean(entry)).map((entry, position) => ({ name: entry[0], club: entry[1], value: 30 - position * 6 }))],
+    ["defCon", [defHome && { name: defHome[0], club: defHome[1], value: 9 }, defAway && { name: defAway[0], club: defAway[1], value: 8 }].filter((entry): entry is { name: string; club: string; value: number } => Boolean(entry))],
+    ["saves", [keeperHome && { name: keeperHome[0], club: keeperHome[1], value: 1 }, keeperAway && { name: keeperAway[0], club: keeperAway[1], value: 2 }].filter((entry): entry is { name: string; club: string; value: number } => Boolean(entry))],
+  ];
+  return categories.filter(([, entries]) => entries.length > 0).map(([key, entries]) => ({ key, entries }));
+}
+
 const demoFixtures: GameweekFixture[] = fixtureTable.map(([home, away, state], index) => ({
   id: index + 1,
   kickoff: new Date(Date.now() + (state === "upcoming" ? (index - 6) * 26 * hour + 3 * hour : -2 * hour)).toISOString(),
@@ -261,6 +293,7 @@ const demoFixtures: GameweekFixture[] = fixtureTable.map(([home, away, state], i
   awayScore: state === "upcoming" ? null : index % 2,
   minutes: state === "finished" ? 90 : state === "live" ? 61 : 0,
   status: state === "finished" ? "final" : state === "live" ? "live" : "upcoming",
+  stats: state === "upcoming" ? undefined : demoFixtureStats(home, away, index),
 }));
 
 /**

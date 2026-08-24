@@ -28,6 +28,21 @@ export interface SquadPlayer {
 
 export type FixtureStatus = "upcoming" | "live" | "provisional" | "final";
 
+export interface FixtureStatEntry {
+  name: string;
+  club: string;
+  value: number;
+  /** Distinguishes the two sides of a combined category: card colour, penalty outcome. */
+  variant?: "yellow" | "red" | "saved" | "missed";
+}
+
+export type FixtureStatKey = "goals" | "ownGoals" | "assists" | "cards" | "bonus" | "bps" | "defCon" | "saves" | "penalties";
+
+export interface FixtureStatCategory {
+  key: FixtureStatKey;
+  entries: FixtureStatEntry[];
+}
+
 export interface GameweekFixture {
   id: number;
   kickoff: string;
@@ -37,6 +52,8 @@ export interface GameweekFixture {
   awayScore: number | null;
   minutes: number;
   status: FixtureStatus;
+  /** FPL's own per-match breakdown, once the fixture has kicked off. */
+  stats?: FixtureStatCategory[];
 }
 
 export interface ManagerRow {

@@ -1,4 +1,4 @@
-import type { DashboardData, FixtureStatus, GameweekFixture, ManagerRow, PlayerState, SquadPlayer } from "../types";
+import type { DashboardData, FixtureStatCategory, FixtureStatEntry, FixtureStatKey, FixtureStatus, GameweekFixture, ManagerRow, PlayerState, SquadPlayer } from "../types";
 import { buildPriceMarket } from "./priceChanges";
 import { nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
 
@@ -22,7 +22,9 @@ interface Element {
 }
 interface Team { id: number; short_name: string; code: number; }
 interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; game_config?: { settings?: { price_change_deadlines?: string[] } }; }
-interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; team_h_difficulty: number; team_a_difficulty: number; }
+interface FixtureStatSide { value: number; element: number }
+interface FixtureStatBlock { identifier: string; a: FixtureStatSide[]; h: FixtureStatSide[] }
+interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; team_h_difficulty: number; team_a_difficulty: number; stats?: FixtureStatBlock[]; }
 interface LiveElement { id: number; stats: { total_points: number; minutes: number; bonus: number }; explain: Array<{ fixture: number }>; }
 interface LeagueStanding { entry: number; rank: number; last_rank: number; entry_name: string; player_name: string; total: number; }
 interface NewEntry { entry: number; entry_name: string; player_first_name: string; player_last_name: string; }
@@ -56,7 +58,46 @@ function fixtureStatus(fixture: Fixture): FixtureStatus {
   return fixture.finished ? "final" : "provisional";
 }
 
-function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>): GameweekFixture[] {
+// The order the categories render in: a 2-column grid fills goals/assists, bonus/cards,
+// bps/def. contribution, saves/penalties row by row, with own goals — rare enough that it
+// would unbalance the grid — appended on its own row when it happens.
+const CATEGORY_ORDER: FixtureStatKey[] = ["goals", "assists", "bonus", "cards", "bps", "defCon", "saves", "penalties", "ownGoals"];
+
+function fixtureStats(fixture: Fixture, players: Map<number, { name: string; club: string }>): FixtureStatCategory[] | undefined {
+  if (!fixture.stats?.length) return undefined;
+  const byKey = new Map<FixtureStatKey, FixtureStatEntry[]>();
+  const push = (key: FixtureStatKey, side: FixtureStatSide[], variant?: FixtureStatEntry["variant"]) => {
+    if (!side.length) return;
+    const entries = byKey.get(key) ?? [];
+    for (const { element, value } of side) {
+      const player = players.get(element);
+      if (player) entries.push({ name: player.name, club: player.club, value, variant });
+    }
+    byKey.set(key, entries);
+  };
+  for (const block of fixture.stats) {
+    const sides = [...block.h, ...block.a];
+    switch (block.identifier) {
+      case "goals_scored": push("goals", sides); break;
+      case "own_goals": push("ownGoals", sides); break;
+      case "assists": push("assists", sides); break;
+      case "bonus": push("bonus", sides); break;
+      case "bps": push("bps", sides); break;
+      case "defensive_contribution": push("defCon", sides); break;
+      case "saves": push("saves", sides); break;
+      case "yellow_cards": push("cards", sides, "yellow"); break;
+      case "red_cards": push("cards", sides, "red"); break;
+      case "penalties_saved": push("penalties", sides, "saved"); break;
+      case "penalties_missed": push("penalties", sides, "missed"); break;
+    }
+  }
+  const categories = CATEGORY_ORDER
+    .filter((key) => byKey.has(key))
+    .map((key) => ({ key, entries: [...byKey.get(key)!].sort((a, b) => b.value - a.value) }));
+  return categories.length ? categories : undefined;
+}
+
+function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>, players: Map<number, { name: string; club: string }>): GameweekFixture[] {
   return [...fixtures]
     .sort((a, b) => (a.kickoff_time ?? "").localeCompare(b.kickoff_time ?? ""))
     .map((fixture) => ({
@@ -68,6 +109,7 @@ function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>): Gamewe
       awayScore: fixture.team_a_score,
       minutes: fixture.minutes,
       status: fixtureStatus(fixture),
+      stats: fixtureStats(fixture, players),
     }));
 }
 
@@ -239,7 +281,9 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
   if (!event) return null;
   const startedMonths = [...new Set(bootstrap.events.filter((item) => item.finished || Date.now() >= new Date(item.deadline_time).getTime()).map((item) => item.deadline_time.slice(0, 7)))];
   const eventFixtures = fixtures.filter((fixture) => fixture.event === event.id);
-  const fixtureList = gameweekFixtures(eventFixtures, new Map(bootstrap.teams.map((team) => [team.id, team])));
+  const teamsById = new Map(bootstrap.teams.map((team) => [team.id, team]));
+  const playersById = new Map(bootstrap.elements.map((element) => [element.id, { name: element.web_name, club: teamsById.get(element.team)?.short_name ?? "UNK" }]));
+  const fixtureList = gameweekFixtures(eventFixtures, teamsById, playersById);
   const rosterManagers = (): ManagerRow[] => league.new_entries.results.map((entry) => ({
       id: entry.entry,
       position: 1,

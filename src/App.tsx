@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Globe, Medal } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Globe, Medal, X } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { provisionalAutosubSquad } from "./services/fplRules";
@@ -8,7 +9,7 @@ import { buildOwnership, ownershipOf } from "./services/ownership";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import Ticker from "./Ticker";
-import type { DashboardData, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
+import type { DashboardData, FixtureStatKey, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
 
 type SortKey = "position" | "gameweekPoints" | "totalPoints" | "overallRank" | "captainPoints" | "upcoming" | "form" | "teamValue" | "seasonTransfers" | "benchPointsBeforeGw";
 
@@ -23,31 +24,71 @@ function countdownLabel(ms: number, language: Language) {
   return `${pad(ms / 3_600_000)}:${pad(ms % 3_600_000 / 60_000)}:${pad(ms % 60_000 / 1000)}`;
 }
 
-function FixtureMenu({ fixtures, played, language }: { fixtures: GameweekFixture[]; played: number; language: Language }) {
+function FixtureStats({ fixture, language }: { fixture: GameweekFixture; language: Language }) {
+  const t = translations(language);
+  const statLabel: Record<FixtureStatKey, string> = { goals: t.statGoals, ownGoals: t.statOwnGoals, assists: t.statAssists, cards: t.statCards, bonus: t.statBonus, bps: t.statBps, defCon: t.statDefCon, saves: t.statSaves, penalties: t.statPenalties };
+  if (!fixture.stats?.length) return <p className="fixture-stats-empty">{t.fixtureNoStats}</p>;
+  return <div className="fixture-stats">
+    {fixture.stats.map((category) => <div className="fixture-stat-category" key={category.key}>
+      <b>{statLabel[category.key]}</b>
+      <ul>
+        {category.entries.map((entry, index) => <li key={index}>
+          {(entry.variant === "yellow" || entry.variant === "red") && <i className={`card-swatch card-${entry.variant}`} />}
+          <span>{entry.name} <em>({entry.club})</em></span>
+          {!entry.variant && <b>{entry.value}</b>}
+          {(entry.variant === "saved" || entry.variant === "missed") && <b className={`penalty-tag penalty-${entry.variant}`}>{entry.variant === "saved" ? "✓" : "✕"}</b>}
+        </li>)}
+      </ul>
+    </div>)}
+  </div>;
+}
+
+function FixtureModal({ fixtures, played, language }: { fixtures: GameweekFixture[]; played: number; language: Language }) {
   const t = translations(language);
   const [open, setOpen] = useState(false);
-  const container = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+  // grid-template-rows: 0fr → 1fr does not settle on its own content height once a
+  // transition is attached to it in every engine, so the open height is measured instead.
+  const bodies = useRef<Map<number, HTMLDivElement>>(new Map());
   useEffect(() => {
     if (!open) return;
-    const close = (event: MouseEvent) => { if (!container.current?.contains(event.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
   }, [open]);
   const kickoffFormat = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" });
   const stateLabels = { upcoming: t.fixtureUpcoming, live: t.fixtureLive, provisional: t.fixtureProvisional, final: t.fixtureFinal };
-  return <div className="fixture-menu" ref={container}>
-    <button type="button" className={`fixture-button ${open ? "open" : ""}`} aria-expanded={open} aria-label={t.fixtures} onClick={() => setOpen((value) => !value)}>
+  return <>
+    <button type="button" className="fixture-button" aria-haspopup="dialog" aria-label={t.fixtures} onClick={() => setOpen(true)}>
       <span className="fixture-count"><b>{played}/{fixtures.length}</b><small>{t.fixturesPlayed}</small></span><ChevronDown />
     </button>
-    {open && <div className="fixture-panel">
-      <div className="fixture-panel-head"><b>{t.fixtures}</b><span>{played}/{fixtures.length} {t.fixturesPlayed}</span></div>
-      {fixtures.map((fixture) => <div className={`fixture-row fixture-${fixture.status}`} key={fixture.id}>
-        <span className="fixture-kickoff">{fixture.status === "upcoming" ? kickoffFormat.format(new Date(fixture.kickoff)) : <b>{fixture.homeScore ?? 0}–{fixture.awayScore ?? 0}</b>}</span>
-        <span className="fixture-teams"><b>{fixture.home}</b><i>–</i><b>{fixture.away}</b></span>
-        <span className="fixture-state">{fixture.status === "live" && <i className="fixture-dot" />}{stateLabels[fixture.status]}</span>
-      </div>)}
-    </div>}
-  </div>;
+    {open && createPortal(<div className="fixture-modal-overlay" onClick={() => setOpen(false)}>
+      <div className="fixture-modal" role="dialog" aria-modal="true" aria-label={t.fixtures} onClick={(event) => event.stopPropagation()}>
+        <div className="fixture-modal-head">
+          <b>{t.fixtures}</b>
+          <span>{played}/{fixtures.length} {t.fixturesPlayed}</span>
+          <button type="button" className="fixture-modal-close" aria-label={t.close} onClick={() => setOpen(false)}><X /></button>
+        </div>
+        <div className="fixture-modal-body">
+          {fixtures.map((fixture) => {
+            const canExpand = fixture.status !== "upcoming";
+            const isOpen = expanded === fixture.id;
+            return <div className={`fixture-item fixture-${fixture.status} ${isOpen ? "expanded" : ""}`} key={fixture.id}>
+              <button type="button" className="fixture-row" disabled={!canExpand} aria-expanded={canExpand ? isOpen : undefined} onClick={() => canExpand && setExpanded(isOpen ? null : fixture.id)}>
+                <span className="fixture-kickoff">{fixture.status === "upcoming" ? kickoffFormat.format(new Date(fixture.kickoff)) : <b>{fixture.homeScore ?? 0}–{fixture.awayScore ?? 0}</b>}</span>
+                <span className="fixture-teams"><b>{fixture.home}</b><i>–</i><b>{fixture.away}</b></span>
+                <span className="fixture-state">{fixture.status === "live" && <i className="fixture-dot" />}{stateLabels[fixture.status]}</span>
+                {canExpand && <ChevronRight className="fixture-expand-icon" />}
+              </button>
+              <div className="fixture-accordion" style={{ maxHeight: isOpen ? `${bodies.current.get(fixture.id)?.scrollHeight ?? 0}px` : "0px" }}>
+                <div ref={(element) => { if (element) bodies.current.set(fixture.id, element); }} className="fixture-accordion-inner"><FixtureStats fixture={fixture} language={language} /></div>
+              </div>
+            </div>;
+          })}
+        </div>
+      </div>
+    </div>, document.body)}
+  </>;
 }
 
 function GitHubLogo() {
@@ -538,7 +579,7 @@ export default function App() {
               : nextFixture
                 ? <span className="deadline next-kickoff"><Clock3 /><small>{t.nextMatch}</small><i>{nextKickoffLabel}</i></span>
                 : <span className={`gameweek-state ${data.pointsFinalized ? "is-final" : "is-provisional"}`}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</span>}
-          {gameweekFixtures.length > 0 && <FixtureMenu fixtures={gameweekFixtures} played={playedFixtures.length} language={language} />}
+          {gameweekFixtures.length > 0 && <FixtureModal fixtures={gameweekFixtures} played={playedFixtures.length} language={language} />}
         </div>}
         <button className="language-switch" type="button" onClick={() => setLanguage((value) => value === "fi" ? "en" : "fi")} aria-label={language === "fi" ? "Vaihda kieli englanniksi" : "Switch language to Finnish"}>
           <Globe className="language-globe" aria-hidden="true" />
