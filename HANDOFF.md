@@ -300,6 +300,11 @@ memo at the top of the component — carries the corrected gameweek and season t
 **Everything in the table reads `liveManagers`, never `data.managers`**, so the sort, the
 awards, the medals and the figures cannot disagree about what a manager has scored.
 
+**The share cards read it too**, and did not for all of GW1: `ShareCard` was handed raw
+`data`, so every card sent that gameweek was short a substitute's points. It is handed
+`{ ...data, managers: liveManagers }` now. A card and the site must never disagree, and the
+awards are built inside the card from the same list.
+
 ### Overall rank movement
 
 `previousOverallRank` is 0 when there is no previous gameweek, and 0 means *unknown*: the

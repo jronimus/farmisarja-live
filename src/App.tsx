@@ -597,7 +597,11 @@ export default function App() {
   const updatedLabel = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { dateStyle: "short", timeStyle: "medium" }).format(new Date(data.updatedAt));
 
   // The capture waits for .sc-card, so an unready card renders nothing rather than a half card.
-  if (cardKind) return liveReady && !liveError ? <ShareCard data={data} kind={cardKind} /> : <div className="sc-stage" />;
+  // liveManagers, not data.managers: FPL leaves `pick.multiplier` at 0 for a bench player
+  // until it settles the fixture, so the stored gameweek total is short by whatever a
+  // substitute has already scored. The table has read the corrected list since 24 Aug; the
+  // cards never did, and went out all of GW1 without autosubs counted.
+  if (cardKind) return liveReady && !liveError ? <ShareCard data={{ ...data, managers: liveManagers }} kind={cardKind} /> : <div className="sc-stage" />;
 
   // Names the sorted column for the compact phone card, which shows that figure and no
   // other. Absent at rest, so "no sort chosen" is a selector the CSS can test for.
