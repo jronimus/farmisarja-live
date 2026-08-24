@@ -2452,6 +2452,25 @@ footer a { color:#c4c6d8; }
 }
 .ticker-fixture s { font-weight:400; text-decoration:none; }
 .ticker-fixture s.is-own { font-weight:900; }
+/* The move between bonus places, in both the strip and the panel. The place left behind is
+   struck through and the one taken is set solid, so which way it went is read from the
+   shape of it before the colour is looked at. */
+.ticker-shift {
+  display:inline-flex;
+  align-items:baseline;
+  flex:none;
+  gap:3px;
+  font-style:normal;
+  font-size:10px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+.ticker-shift s { color:rgba(255,255,255,.42); text-decoration:line-through; }
+.ticker-shift em { color:rgba(255,255,255,.42); font-style:normal; }
+.ticker-shift b { font-size:11px; }
+.ticker-shift.up b { color:#45df91; }
+.ticker-shift.down b { color:#ff8ba0; }
+
 .ticker-item u,
 .ticker-row u {
   padding:1px 6px;

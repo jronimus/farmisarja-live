@@ -35,6 +35,18 @@ function kindLabel(kind: EventKind, language: Language) {
   return (language === "fi" ? fi : en)[kind];
 }
 
+/**
+ * A bonus line says which place the player moved between, because the figure alone is
+ * ambiguous: three points after two reads as five gained, and a fall from three to two
+ * reads as a gain when the player has just been overtaken.
+ */
+function BonusShift({ event }: { event: FeedEvent }) {
+  if (event.kind !== "bonus" || event.previous === undefined) return null;
+  return <i className={`ticker-shift ${event.pointsDelta < 0 ? "down" : "up"}`}>
+    <s>{event.previous}</s><em>→</em><b>{event.value}</b>
+  </i>;
+}
+
 function Owners({ owners }: { owners: PlayerOwner[] }) {
   if (!owners.length) return null;
   return <span className="ticker-owners">
@@ -66,6 +78,7 @@ function Item({ event, owners, language, fresh }: { event: FeedEvent; owners: Pl
     <EventIcon kind={event.kind} />
     <b>{kindLabel(event.kind, language)}</b>
     <span className="ticker-player">{event.player}</span>
+    <BonusShift event={event} />
     {event.pointsDelta !== 0 && <u className={event.pointsDelta > 0 ? "up" : "down"}>{event.pointsDelta > 0 ? "+" : "−"}{Math.abs(event.pointsDelta)}</u>}
     <Owners owners={owners} />
   </span>;
@@ -187,6 +200,7 @@ export default function Ticker({ data, language, autosubs, demo }: { data: Dashb
                   the goal went in, and FPL publishes no time to put there instead. */}
               <b>
                 {kindLabel(event.kind, language)} — {event.player}
+                <BonusShift event={event} />
                 {event.pointsDelta !== 0 && <u className={event.pointsDelta > 0 ? "up" : "down"}>{event.pointsDelta > 0 ? "+" : "−"}{Math.abs(event.pointsDelta)}</u>}
               </b>
               <small>

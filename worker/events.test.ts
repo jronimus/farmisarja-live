@@ -17,30 +17,47 @@ const fixture = (over: Partial<{ started: boolean; finished_provisional: boolean
 describe("live feed", () => {
   it("reports a goal once, and reports the second as the second", () => {
     expect(eventsForPlayer(counters(), counters({ 0: 1, 10: 6 })))
-      .toEqual([{ kind: "goal", value: 1, stat: "goals_scored" }]);
+      .toEqual([{ kind: "goal", value: 1, previous: 0, stat: "goals_scored" }]);
     expect(eventsForPlayer(counters({ 0: 1, 10: 6 }), counters({ 0: 2, 10: 12 })))
-      .toEqual([{ kind: "goal", value: 2, stat: "goals_scored" }]);
+      .toEqual([{ kind: "goal", value: 2, previous: 1, stat: "goals_scored" }]);
     expect(eventsForPlayer(counters({ 0: 2 }), counters({ 0: 2 }))).toEqual([]);
   });
 
   it("treats a player it has never seen as having done nothing yet", () => {
-    expect(eventsForPlayer(undefined, counters({ 3: 1 }))).toEqual([{ kind: "yellow", value: 1, stat: "yellow_cards" }]);
+    expect(eventsForPlayer(undefined, counters({ 3: 1 }))).toEqual([{ kind: "yellow", value: 1, previous: 0, stat: "yellow_cards" }]);
   });
 
   it("reports the save point rather than every save", () => {
     expect(eventsForPlayer(counters({ 9: 1 }), counters({ 9: 2 }))).toEqual([]);
-    expect(eventsForPlayer(counters({ 9: 2 }), counters({ 9: 3 }))).toEqual([{ kind: "save_point", value: 1, stat: "saves" }]);
-    expect(eventsForPlayer(counters({ 9: 5 }), counters({ 9: 6 }))).toEqual([{ kind: "save_point", value: 2, stat: "saves" }]);
+    expect(eventsForPlayer(counters({ 9: 2 }), counters({ 9: 3 }))).toEqual([{ kind: "save_point", value: 1, previous: 0, stat: "saves" }]);
+    expect(eventsForPlayer(counters({ 9: 5 }), counters({ 9: 6 }))).toEqual([{ kind: "save_point", value: 2, previous: 1, stat: "saves" }]);
   });
 
-  it("never reports a counter going backwards, which is what a bonus recalculation does", () => {
-    expect(eventsForPlayer(counters({ 7: 3 }), counters({ 7: 1 }))).toEqual([]);
-    expect(eventsForPlayer(counters({ 7: 1 }), counters({ 7: 3 }))).toEqual([{ kind: "bonus", value: 3, stat: "bonus" }]);
+  it("never reports a counter going backwards", () => {
+    // A goal coming off the board is a correction, not an event.
+    expect(eventsForPlayer(counters({ 0: 2 }), counters({ 0: 1 }))).toEqual([]);
+  });
+
+  /**
+   * Bonus is the exception: three, two and one go to the top three of the bonus points
+   * system, and a player is promoted and demoted between those places while the match
+   * runs. A bare "+2" after a bare "+3" reads as five gained, and a demotion reads as a
+   * gain, so a bonus line carries the place it came from as well as the one it took.
+   */
+  it("reports a bonus as the move between places, in both directions", () => {
+    expect(eventsForPlayer(counters({ 7: 2 }), counters({ 7: 3 })))
+      .toEqual([{ kind: "bonus", value: 3, previous: 2, stat: "bonus" }]);
+    expect(eventsForPlayer(counters({ 7: 3 }), counters({ 7: 2 })))
+      .toEqual([{ kind: "bonus", value: 2, previous: 3, stat: "bonus" }]);
+    // Losing it altogether is a move too.
+    expect(eventsForPlayer(counters({ 7: 1 }), counters({ 7: 0 })))
+      .toEqual([{ kind: "bonus", value: 0, previous: 1, stat: "bonus" }]);
+    expect(eventsForPlayer(counters({ 7: 3 }), counters({ 7: 3 }))).toEqual([]);
   });
 
   it("reports everything that changed on the same tick", () => {
     expect(eventsForPlayer(counters(), counters({ 0: 1, 1: 1, 10: 12 }), 3))
-      .toEqual([{ kind: "goal", value: 1, stat: "goals_scored" }, { kind: "assist", value: 1, stat: "assists" }]);
+      .toEqual([{ kind: "goal", value: 1, previous: 0, stat: "goals_scored" }, { kind: "assist", value: 1, previous: 0, stat: "assists" }]);
   });
 
   /**
@@ -51,7 +68,7 @@ describe("live feed", () => {
   it("reports a defensive contribution when it buys the points, not on every tackle", () => {
     expect(eventsForPlayer(counters({ 8: 6 }), counters({ 8: 7 }), 2)).toEqual([]);
     expect(eventsForPlayer(counters({ 8: 9 }), counters({ 8: 10 }), 2))
-      .toEqual([{ kind: "defcon", value: 10, stat: "defensive_contribution" }]);
+      .toEqual([{ kind: "defcon", value: 10, previous: 9, stat: "defensive_contribution" }]);
     // Past it, it never fires again: the points do not stack.
     expect(eventsForPlayer(counters({ 8: 10 }), counters({ 8: 14 }), 2)).toEqual([]);
   });
@@ -59,7 +76,7 @@ describe("live feed", () => {
   it("holds a midfielder to twelve, and never scores it for a keeper", () => {
     expect(eventsForPlayer(counters({ 8: 9 }), counters({ 8: 10 }), 3)).toEqual([]);
     expect(eventsForPlayer(counters({ 8: 11 }), counters({ 8: 12 }), 3))
-      .toEqual([{ kind: "defcon", value: 12, stat: "defensive_contribution" }]);
+      .toEqual([{ kind: "defcon", value: 12, previous: 11, stat: "defensive_contribution" }]);
     expect(eventsForPlayer(counters({ 8: 19 }), counters({ 8: 20 }), 1)).toEqual([]);
   });
 

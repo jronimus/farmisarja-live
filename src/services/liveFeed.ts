@@ -12,6 +12,8 @@ export interface FeedEvent {
   clubName?: string;
   kind: EventKind;
   value: number;
+  /** Where a bonus moved from. Only bonus carries it; it is the one counter that falls. */
+  previous?: number;
   pointsDelta: number;
   points: number;
   fixture?: { home: string; away: string; homeScore: number; awayScore: number; minutes: number };

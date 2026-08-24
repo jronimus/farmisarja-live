@@ -24,6 +24,8 @@ export interface FeedEvent {
   kind: EventKind;
   /** The new total: a second goal is value 2. */
   value: number;
+  /** What it was before. Only bonus reads it: that is the one counter that moves both ways. */
+  previous?: number;
   /** What this event is worth, not what the player gained on the tick: a goal and the
    *  bonus that lands with it are separate lines and each carries its own figure. */
   pointsDelta: number;
@@ -138,26 +140,40 @@ export function eventsForPlayer(
   position?: number,
 ): Array<{ kind: EventKind; value: number; stat: (typeof WATCHED)[number] }> {
   const before = previous ?? WATCHED.map(() => 0);
-  const out: Array<{ kind: EventKind; value: number; stat: (typeof WATCHED)[number] }> = [];
+  const out: Array<{ kind: EventKind; value: number; previous: number; stat: (typeof WATCHED)[number] }> = [];
   WATCHED.forEach((stat, index) => {
+    /**
+     * Bonus is provisional while the match runs and is the one counter that legitimately
+     * moves both ways: three, two and one go to the top three of the bonus points system,
+     * and a player is promoted and demoted between those places as the figures move. So a
+     * fall is reported as readily as a rise, and both carry where they came from — a bare
+     * "+2" after a bare "+3" reads as five points gained, and a demotion from three to two
+     * reads as a gain when it is a loss.
+     */
+    if (stat === "bonus") {
+      if (current[index] !== before[index]) {
+        out.push({ kind: "bonus", value: current[index], previous: before[index], stat });
+      }
+      return;
+    }
     const delta = current[index] - before[index];
     if (delta <= 0) return;
     if (stat === "saves") {
       const gained = Math.floor(current[index] / 3) - Math.floor(before[index] / 3);
-      if (gained > 0) out.push({ kind: "save_point", value: Math.floor(current[index] / 3), stat });
+      if (gained > 0) out.push({ kind: "save_point", value: Math.floor(current[index] / 3), previous: Math.floor(before[index] / 3), stat });
       return;
     }
     // The count itself is not the event; crossing the threshold for the position is.
     if (stat === "defensive_contribution") {
       const threshold = position === undefined ? undefined : DEFCON_THRESHOLD[position];
       if (threshold !== undefined && before[index] < threshold && current[index] >= threshold) {
-        out.push({ kind: "defcon", value: current[index], stat });
+        out.push({ kind: "defcon", value: current[index], previous: before[index], stat });
       }
       return;
     }
     if (stat === "total_points") return;
     const kind = KIND_BY_STAT[stat];
-    if (kind) out.push({ kind, value: current[index], stat });
+    if (kind) out.push({ kind, value: current[index], previous: before[index], stat });
   });
   return out;
 }
@@ -231,7 +247,11 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
       const statIndex = WATCHED.indexOf(change.stat);
       const gained = currentPoints[statIndex] - (beforePoints ? beforePoints[statIndex] : 0);
       fresh.push({
-        id: `${event.id}:${element.id}:${change.kind}:${change.value}`,
+        // Bonus can move back and forth between the same two places over a match, so its id
+        // carries the move and the tick that saw it; anything else happens once per value.
+        id: change.kind === "bonus"
+          ? `${event.id}:${element.id}:bonus:${change.previous}>${change.value}:${at}`
+          : `${event.id}:${element.id}:${change.kind}:${change.value}`,
         at,
         gameweek: event.id,
         element: element.id,
@@ -240,6 +260,7 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
         clubName: teamNameById.get(meta?.team ?? -1) ?? "—",
         kind: change.kind,
         value: change.value,
+        previous: change.kind === "bonus" ? change.previous : undefined,
         pointsDelta: gained,
         points: current[pointsIndex],
         fixture: fixture ? {
