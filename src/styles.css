@@ -1,5 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=Passion+One:wght@400;700;900&display=swap');
 
+/* Reserved so the vertical scrollbar's own width doesn't shift the centred layout sideways
+   when a page tall enough to need one replaces a page that isn't, or the other way round. */
+:root { scrollbar-gutter: stable; }
 :root { font-family: "Inter", sans-serif; color: #f7f8fc; background: #090b14; font-synthesis: none; --green: #45df91; --mint: #79edb1; --muted: #9ba3ba; --red: #ff6577; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: #090b14; }
@@ -23,7 +26,9 @@ main { max-width: 1540px; padding: 22px 30px 42px; margin: 0 auto; }
 .league-table .total-cell > strong { font-family:"Archivo Black",sans-serif !important; font-weight:400; }
 .data-pending { min-height:220px; padding:36px 24px; border-radius:14px; background:var(--surface); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px; color:var(--soft); text-align:center; }.data-pending svg { width:24px; color:var(--yellow); }.data-pending strong { color:var(--text); font-size:16px; }.data-pending span { max-width:470px; font-size:12px; line-height:1.5; }
 .mobile-simple-head { display:none; }
-.table-head { min-height: 45px; padding: 0 16px; background: #101c17; }.sort-header { min-width: 0; border: 0; background: none; padding: 0 8px; display: flex; align-items: center; gap: 3px; color: #6f847a; text-transform: uppercase; letter-spacing: .07em; font-size: 9px; font-weight: 700; text-align: left; cursor: pointer; }.sort-header svg { width: 11px; opacity: 0; }.sort-header.active { color: #bac9c1; }.sort-header.active svg { opacity: 1; }.sort-header svg.rotate { transform: rotate(180deg); }
+/* Both belong to the compact phone card; the desktop row has its own columns for this. */
+.mobile-sort-meta { display:none; }
+.table-head { min-height: 45px; padding: 0 16px; background: #101c17; }.sort-header { min-width: 0; border: 0; background: none; padding: 0 8px; display: flex; align-items: center; gap: 3px; color: #6f847a; text-transform: uppercase; letter-spacing: .06em; font-size: 9px; font-weight: 800; text-align: left; cursor: pointer; }.sort-header svg { width: 11px; opacity: 0; }.sort-header.active { color: #bac9c1; }.sort-header.active svg { opacity: 1; }.sort-header svg.rotate { transform: rotate(180deg); }
 .manager-block { background: #0c1511; }.manager-block:nth-child(even) { background: #0e1814; }.manager-block.open { background: #12221b; }.manager-row { min-height: 82px; padding: 0 16px; cursor: pointer; transition: background .16s; }.manager-row:hover { background: rgba(255,255,255,.018); }.manager-row > div { min-width: 0; padding: 10px 8px; }
 .squad-unavailable { min-width:0; color:var(--soft); font-size:13px; font-weight:700; text-align:center; }
 .position-cell { display:grid; grid-template-columns:20px auto; grid-template-rows:auto auto; align-items:center; column-gap:5px; }.position-cell button { grid-column:1; grid-row:1 / 3; width:20px; border:0; padding:0; background:transparent; color:#60756b; display:grid; place-items:center; }.position-cell button svg { width:14px; }.position-cell > strong { grid-column:2; grid-row:1; font:800 22px "Inter"; line-height:1; }.movement { grid-column:2; grid-row:2; margin:2px 0 0; font-size:9px; line-height:1; display:flex; align-items:center; font-weight:700; }.movement svg { width:10px; }.movement.up { color:var(--green); }.movement.down { color:var(--red); }.movement.neutral { color:#55665e; }
@@ -42,7 +47,7 @@ main { max-width: 1540px; padding: 22px 30px 42px; margin: 0 auto; }
 .squad-players { display:grid; grid-template-columns:repeat(15,minmax(0,1fr)); gap:8px; justify-content:start; }.squad-grid.starters { display:contents; }.squad-grid.bench { grid-column:12 / span 4; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; position:relative; margin:-27px -6px -7px; padding:26px 6px 10px; border:1px solid color-mix(in srgb,var(--faint) 42%,transparent); border-radius:10px; background:color-mix(in srgb,var(--surface) 36%,transparent); }.bench-frame-label { position:absolute; top:8px; left:8px; color:var(--soft); font:900 8px/1 "Inter",sans-serif; letter-spacing:.06em; text-transform:uppercase; }.player { box-sizing:border-box; height:148px; min-width:0; position:relative; text-align:center; padding:10px 5px 9px; border-radius:8px; background:rgba(255,255,255,.025); }.player-group-label { position:absolute; top:-19px; left:0; color:var(--soft); font-size:8px; line-height:1; font-weight:900; letter-spacing:.06em; white-space:nowrap; }.player.group-start:not(:first-child) { margin-left:0; }.player.group-start:not(:first-child)::after { content:""; position:absolute; top:-18px; bottom:0; left:-5px; width:2px; border-radius:2px; background:var(--faint); opacity:.65; }.player.group-bench { margin-left:0 !important; }.player.group-bench::after,.player.group-bench > .player-group-label { display:none; }.player-best::before,.player-worst::before { display:none; }.player-best .player-points { border-color:var(--green); box-shadow:0 0 8px color-mix(in srgb,var(--green) 55%,transparent); }.player-worst .player-points { border-color:var(--red); box-shadow:0 0 8px color-mix(in srgb,var(--red) 55%,transparent); }
 .player-visual { height: 35px; display: grid; place-items: center; position: relative; }.shirt { width: 29px; height: 27px; position: relative; display: block; }.shirt-image { display:block; width:100%; height:100%; object-fit:contain; }.armband { position: absolute; top: 0; right: 10px; min-width: 14px; height: 14px; display: grid; place-items: center; border-radius: 50%; font: 800 7px "Inter"; background: #66746e; color: white; }.armband.captain { background: var(--green); color: #052314; }.player-name { color: #dce8e2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 9px; font-weight: 700; margin-top: 3px; }.player-meta { display: flex; align-items: center; justify-content: center; gap: 3px; color: #60736a; font-size: 7px; margin-top: 2px; }.state-dot { width: 4px; height: 4px; border-radius: 50%; background: #59665f; }.state-dot.live { background: var(--green); box-shadow: 0 0 4px var(--green); }.state-dot.upcoming { background: #917b40; }.player-points { font: 800 12px "Inter"; margin-top: 5px; }.player-points span { color: #e0c45e; font-size: 8px; }
 footer { min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 18px; background: #07100d; color: #496058; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
-@media (max-width: 800px) { .topbar { padding: 0 16px; }.sync { display: none; } main { padding: 14px 10px 30px; }.preview-note { display: none; }.toolbar { align-items: flex-end; }.view-tabs button { padding: 7px 9px; }.autosub-toggle > span { display: none; }.squad-panel { padding-left: 20px; min-width: 950px; } }
+@media (max-width: 800px) { .topbar { padding: 0 16px; }.sync { display: none; } main { padding: 14px 10px 30px; }.preview-note { display: none; }.toolbar { align-items: flex-end; }.view-tabs button { padding: 7px 9px; }.autosub-toggle > span { display: none; }.autosub-toggle button,.details-toggle button { padding:6px 9px; font-size:11px; }.squad-panel { padding-left: 20px; min-width: 950px; } }
 
 /* Flat, high-contrast theme system */
 .app-shell { --page:#090d0b; --header:#0f1512; --surface:#171e1a; --surface-alt:#202923; --surface-open:#29372f; --raised:#34463c; --text:#f7f8f4; --soft:#a9b8af; --faint:#768a7e; --accent:#276b4b; --cyan:#45c9b0; --yellow:#ffd34e; --purple:#a66cf2; --logo-live-bg:#dce5df; --brand-live-text:#111914; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; min-height:100vh; display:flex; flex-direction:column; color:var(--text); background:var(--page); }
@@ -85,7 +90,7 @@ footer a { color:var(--soft); text-decoration:none; transition:color .15s ease; 
   .top-actions { gap:6px; }.theme-toggle,.language { height:28px; border-radius:6px; }.theme-toggle { width:28px; }.theme-toggle svg { width:14px; }.language { padding:0 7px; font-size:12px; }
   .gameweek-status .deadline { min-height:28px; box-sizing:border-box; }
   main { padding:12px 10px 26px; }.status-strip { margin-bottom:10px; overflow:hidden; }.toolbar { align-items:center; gap:8px; margin-bottom:8px; }.view-tabs { min-width:0; flex:0 1 auto; overflow-x:auto; scrollbar-width:none; }.view-tabs::-webkit-scrollbar { display:none; }.view-tabs button { white-space:nowrap; }
-  .period-select { min-width:92px; width:92px; height:26px; padding:0 27px 0 9px; background-position:right 8px center; background-size:11px; font-size:10px; border-radius:6px; }
+  .period-select { min-width:0; height:38px; padding:0 30px 0 12px; background-position:right 11px center; background-size:13px; font-size:12px; border-radius:8px; }
   .league-table { overflow:visible; background:transparent; border-radius:0; }.table-head { display:none; }.rows { display:flex; flex-direction:column; gap:10px; }
   .data-pending { min-height:170px; padding:28px 18px; border-radius:12px; }.data-pending strong { font-size:14px; }.data-pending span { font-size:10px; }
   .manager-block,.manager-block:nth-child(even),.manager-block.open { border-radius:12px; overflow:hidden; }
@@ -97,7 +102,9 @@ footer a { color:var(--soft); text-decoration:none; transition:color .15s ease; 
   .position-cell > strong { font-size:20px; }.manager-cell a { font-size:15px; }.manager-cell > span { font-size:12px; }
   .captain-cell::before,.transfer-cell::before,.form-cell::before,.progress-cell::before,.points-cell::before,.total-cell::before { display:block; position:static; width:auto; height:auto; background:none; color:var(--faint); font-size:8px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin-bottom:2px; }
   .captain-cell::before,.transfer-cell::before,.form-cell::before,.progress-cell::before,.points-cell::before,.total-cell::before { content:attr(data-label); }
-  .toolbar-toggles { gap:8px; }.details-toggle { display:flex; }.autosub-toggle { flex-direction:row; align-items:center; gap:8px; }.autosub-toggle > span { display:block; order:1; font-size:9px; font-weight:800; white-space:nowrap; }.autosub-toggle button { order:2; }.autosub-toggle b { display:none; }
+  /* A label plus the 65px switch needs about 156px. Two fit one row from ~360px up; below
+     that they wrap and take a row each rather than pushing the page sideways. */
+  .toolbar-toggles { gap:8px; width:100%; flex-wrap:wrap; }.toolbar-toggles .details-toggle,.toolbar-toggles .autosub-toggle { flex:1 1 150px; min-width:0; }.details-toggle { display:flex; }.autosub-toggle { flex-direction:row; align-items:center; gap:8px; }.autosub-toggle > span { display:block; order:1; font-size:9px; font-weight:800; white-space:nowrap; }.autosub-toggle button { order:2; }.autosub-toggle b { display:none; }
   .captain-cell { flex-direction:row; align-items:baseline; gap:5px; flex-wrap:wrap; }.captain-cell::before { content:"C"; margin:0; color:var(--cyan); font-size:14px; line-height:1; font-weight:900; }.captain-cell strong { font-size:12px; }.captain-cell span { margin:0; font-size:11px; }
   .transfer-cell { flex-direction:row; align-items:center; gap:3px 6px; flex-wrap:wrap; }.transfer-cell::before { display:none; }.transfer-cell small { flex-basis:100%; display:flex; align-items:baseline; gap:3px; font-size:9px; }.transfer-cell small > b { margin-left:auto; }.desktop-transfer-row,.desktop-transfer-footer { display:none; }.mobile-transfer-row { display:inline; }.mobile-transfer-footer { flex-basis:100%; display:flex; align-items:center; gap:4px; margin-top:2px; font-size:9px; }.mobile-transfer-footer strong { font-size:9px; }.mobile-transfer-footer strong + span { padding-left:6px; border-left:1px solid var(--faint); }.mobile-transfer-footer span { color:var(--soft); font-weight:800; }.wildcard-transfer > b { margin-left:4px; }
   .position-cell button { display:none; }.position-cell { display:grid; grid-template-columns:auto auto; align-content:start; align-items:center; gap:1px 3px; }.position-cell .movement { position:static; margin-left:0; font-size:9px; white-space:nowrap; }.position-cell .movement svg { width:9px; }.position-or { display:block; grid-column:1 / 3; color:var(--faint); font-size:7px; font-weight:600; white-space:nowrap; }.manager-cell small { display:none; }
@@ -204,8 +211,12 @@ main::before { content:""; position:fixed; inset:72px 0 auto; height:260px; poin
   background:linear-gradient(100deg,#0b5d38,#118b51 55%,#1cb96c);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 8px 24px rgba(7,95,54,.13);
 }
-.table-head .sort-header,.table-head .sort-header.active { color:#fff; }
-.table-head .sort-header:not(.active) { opacity:.76; }
+/* The header background this actually renders against is set further down, where the
+   winning (last, equal-specificity) .table-head declaration lives — it moved from a dark
+   gradient to a light var(--raised) to match the price page, so this text follows it there
+   rather than staying the white it was written for. */
+.table-head .sort-header,.table-head .sort-header.active { color:var(--text); }
+.table-head .sort-header:not(.active) { color:var(--soft); opacity:1; }
 .manager-block,.manager-block:nth-child(even) {
   background:rgba(255,255,255,.86);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.95);
@@ -402,30 +413,101 @@ main::before {
 }
 .autosub-toggle button.enabled i,.details-toggle button.enabled i { background:#f5fff9; }
 .autosub-toggle b { color:#53f5a6; }
+/* The price page's card, exactly: var(--surface), no shadow, no blur. This is the block
+   that actually renders — .league-table is redeclared several times earlier in this file
+   from older passes, and this one wins as the last, equal-specificity declaration. */
 .league-table {
-  background:linear-gradient(135deg,rgba(222,224,241,.82),rgba(190,194,220,.74));
-  box-shadow:
-    0 30px 90px rgba(3,4,18,.42),
-    0 0 70px rgba(102,83,217,.1),
-    inset 0 1px 0 rgba(255,255,255,.92),
-    inset 0 -1px 0 rgba(255,255,255,.28);
-  backdrop-filter:blur(30px) saturate(145%);
+  background:var(--surface);
 }
-/* Opaque on purpose. While the header was translucent the table's own light lavender
-   showed through it, and its backdrop-filter nested inside the table's made that patch
-   composite separately, so a pale rectangle appeared that did not line up with the
-   purple. These two stops are the measured colours of the old blended result. */
+/* 42px, the price head's own height, rather than the 45 this one carried. */
 .table-head {
-  background:linear-gradient(105deg,#353863,#6158a0);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 10px 28px rgba(28,27,71,.2);
+  min-height:42px;
+  background:var(--raised);
 }
+/* No zebra. The price table is one flat surface with a hairline between rows, and the
+   stripes were the last thing making these two read as different tables. The rows go
+   transparent so .league-table's own var(--surface) is what shows through. */
 .manager-block,.manager-block:nth-child(even) {
-  background:rgba(250,251,255,.84);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.48);
+  background:transparent;
 }
-.manager-block:nth-child(even) { background:rgba(228,231,244,.82); }
-.manager-block.open { background:rgba(242,244,251,.9); }
-.manager-row:hover { background:rgba(176,181,214,.54); }
+.manager-block + .manager-block { border-top:1px solid color-mix(in srgb,var(--faint) 22%,transparent); }
+.manager-block.open { background:color-mix(in srgb,var(--surface-open) 95%,transparent); }
+/* Softer than var(--raised): with the stripes gone the hover is the only thing moving
+   under the pointer, and the head is the only band that should read as filled. */
+.manager-row:hover { background:color-mix(in srgb,var(--faint) 11%,transparent); }
+/* The team name links to that team on FPL, and the anchor stretched to the full cell, so
+   the empty space past the name was clickable too. Shrink it to the text it is — by width
+   rather than by align-self, which means the cross axis in the flex column this cell is on
+   desktop but the block axis in the grid it becomes on a phone, where it knocked the team
+   name out of line with the manager's. */
+.manager-cell a { width:max-content; max-width:100%; }
+
+/* The price page's pill, holding the setting's name and a plain switch. `display` is
+   deliberately not set here — .details-toggle is display:none until the phone breakpoint
+   turns it on, and setting it would show that control on desktop too. */
+.state-toggle {
+  align-items:center;
+  gap:10px;
+  height:42px;
+  padding:0 8px 0 13px;
+  border-radius:9px;
+  background:var(--surface);
+}
+/* .bench-toggle no longer borrows .autosub-toggle's flex, so it asks for its own. */
+.bench-toggle { display:flex; }
+.autosub-toggle,.details-toggle { gap:10px; }
+.state-toggle > span {
+  padding:0;
+  color:var(--soft);
+  font:800 10px "Inter",sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+/* A rounded-rectangle track with a rounded-square thumb, in a switch's own proportions:
+   the track is 1.75x its own height, the thumb 0.7 of it, inset 0.15 of it either side.
+   Those ratios are what make it read as a switch — the earlier attempt used the same two
+   shapes at 65x30 with a 28px thumb and read as a segmented control missing a piece.
+   Colours stay ours: a grey slot off, var(--accent) on — the same fill the price page's
+   active filter option carries — rather than the reference's #21cc4c.
+
+   Qualified with the element on purpose: `.autosub-toggle button` earlier in this file is
+   a class plus a type and outranks a bare `.state-switch`, so the old 34x19 oval won and
+   only one of the two switches resized. Matching that specificity and coming later settles it. */
+button.state-switch {
+  position:relative;
+  flex:none;
+  width:48px;
+  height:28px;
+  padding:0;
+  /* .price-direction's own 4px inset and 10px corner, at a switch's proportions. */
+  border-radius:10px;
+  border:0;
+  /* Deeper than var(--raised), which sat too close to the pill it is inset into to read as
+     a slot at all. */
+  background:color-mix(in srgb,var(--faint) 50%,transparent);
+  cursor:pointer;
+  transition:background-color .2s ease;
+}
+button.state-switch:hover { background:color-mix(in srgb,var(--faint) 62%,transparent); }
+/* The track carries the state, the thumb never changes. Colouring the thumb instead was
+   tried and is not readable: white-versus-grey says nothing about which way is on, whereas
+   a track that fills does — and it is the one convention every switch shares. */
+button.state-switch i {
+  position:absolute;
+  top:4px;
+  left:4px;
+  width:20px;
+  height:20px;
+  border-radius:7px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(10,15,30,.18);
+  transition:transform .2s cubic-bezier(.3,.8,.4,1);
+}
+button.state-switch:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+button.state-switch.active { background:var(--accent); }
+button.state-switch.active:hover { background:color-mix(in srgb,var(--accent) 86%,#fff); }
+button.state-switch.active i { transform:translateX(20px); }
 
 /* Compact status pills keep the manager-row colour coding legible on glass. */
 .manager-row .positive,
@@ -525,11 +607,23 @@ footer a { color:#c4c6d8; }
 
 @media (max-width:800px) {
   .league-table { background:transparent; box-shadow:none; backdrop-filter:none; }
+  /* Opaque, and no backdrop-filter. A translucent card blurring a fixed, itself-blurred
+     background layer is what produced the band across the top of a card that came and went
+     while scrolling — a compositing artefact, not a border. Nothing shows through these
+     cards anyway, so the blur was only buying the artefact. */
   .manager-block,.manager-block:nth-child(even),.manager-block.open {
-    background:linear-gradient(135deg,rgba(252,253,255,.96),rgba(226,229,242,.92));
-    box-shadow:0 12px 30px rgba(2,3,17,.28),inset 0 1px 0 rgba(255,255,255,.9);
-    backdrop-filter:blur(24px) saturate(135%);
+    background:#eef0f9;
+    box-shadow:0 12px 30px rgba(2,3,17,.28);
+    backdrop-filter:none;
   }
+  /* Here the rows are separate cards with a gap between them, so the desktop hairline
+     would sit at the top of each card as a stray line rather than divide anything. */
+  .manager-block + .manager-block { border-top:0; }
+
+  /* And no row hover. A card is taller than the .manager-row inside it, so the hover tint
+     covered only the row's own band and read as a stray layer across the top of the card —
+     appearing and vanishing as the pointer moved. A phone has nothing to hover with. */
+  .manager-row:hover { background:transparent; }
 }
 
 @media (min-width:801px) {
@@ -888,6 +982,130 @@ footer a { color:#c4c6d8; }
   .app-shell[data-mobile-details="off"] .bench-points-cell,
   .app-shell[data-mobile-details="off"] .progress-cell { display:none !important; }
 
+  /* Compact card with a sort chosen: it shows the figure the table is ordered by and no
+     other, so the order is legible without the columns a phone has no room for. The rules
+     above hide with !important, so the one that brings a cell back has to as well. */
+  .app-shell[data-mobile-details="off"][data-sorted] .points-cell,
+  .app-shell[data-mobile-details="off"][data-sorted] .total-cell { display:none !important; }
+  .app-shell[data-mobile-details="off"][data-sorted] .sorted-metric {
+    display:grid !important;
+    grid-column:3 / 5;
+    grid-row:1;
+    align-content:center;
+    justify-items:end;
+    gap:2px;
+    height:auto;
+    margin:0;
+    padding:0 3px;
+    background:none;
+    text-align:right;
+  }
+  /* No heading on the card: the column head above the rows already names it, and repeating
+     it on every row cost the figure the room it needed. The captain is the exception — its
+     data-label carries the captain's name there, which the figure alone does not say. */
+  .app-shell[data-mobile-details="off"][data-sorted] .sorted-metric::before { display:none; }
+  .app-shell[data-mobile-details="off"][data-sorted="captainPoints"] .captain-cell.sorted-metric::before {
+    content:attr(data-label);
+    display:block;
+    max-width:100%;
+    overflow:hidden;
+    margin:0;
+    color:var(--faint);
+    font:800 8px/1 "Inter",sans-serif;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .app-shell[data-mobile-details="off"][data-sorted] .sorted-metric > strong,
+  .app-shell[data-mobile-details="off"][data-sorted] .sorted-metric .gw-score strong { font-size:16px; line-height:1; }
+  /* Only the figure and its heading. Named one by one rather than as `> span`, which also
+     matched the wrapper the gameweek figure lives inside — that sort showed its heading
+     over an empty cell. */
+  .app-shell[data-mobile-details="off"][data-sorted] .captain-cell.sorted-metric > strong,
+  .app-shell[data-mobile-details="off"][data-sorted] .sorted-metric > .points-formula,
+  .app-shell[data-mobile-details="off"][data-sorted] .sorted-metric > .desktop-gw-progress,
+  .app-shell[data-mobile-details="off"][data-sorted] .team-value-cell.sorted-metric > span,
+  .app-shell[data-mobile-details="off"][data-sorted] .bench-points-cell.sorted-metric > span { display:none; }
+  .app-shell[data-mobile-details="off"][data-sorted] .season-transfers-cell.sorted-metric > span { font-size:9px; }
+  /* The captain cell is the one whose figure lives in the span, its strong being the name. */
+  .app-shell[data-mobile-details="off"][data-sorted] .captain-cell.sorted-metric > span,
+  .app-shell[data-mobile-details="off"][data-sorted] .progress-cell.sorted-metric > .progress-summary { font-size:14px; font-weight:800; }
+  .app-shell[data-mobile-details="off"][data-sorted] .progress-cell.sorted-metric > small { font-size:8px; }
+  /* Centred under its heading, like the two columns it stands in for. */
+  .app-shell[data-mobile-details="off"][data-sorted] .sorted-metric { align-self:center; justify-self:stretch; justify-items:center; text-align:center; }
+  /* PROVISIONAL is eleven characters and was being clipped at the column edge. */
+  .app-shell[data-mobile-details="off"][data-sorted] .progress-cell.sorted-metric > strong { font-size:9px; letter-spacing:.02em; }
+  .app-shell[data-mobile-details="off"] .mobile-simple-head b.head-sorted { grid-column:3 / 5; text-align:center; }
+
+  /* The season total is the same kind of figure as the gameweek one and belongs at the same
+     size on the same line. It was 15px against 18 and sat 8px lower, because the gameweek
+     figure is wrapped in .gw-score and only that wrapper was ever being sized. */
+  /* Both figures centred in the card, and a fixed 18px slot ahead of the gameweek one for
+     the chip. The slot is there whether or not a chip is: the number is centred in the
+     track beside it, so it lands in the same place on every row rather than being nudged
+     along by a WC or a BB. The medal is dropped — this view is the one without detail. */
+  .app-shell[data-mobile-details="off"] .points-cell,
+  .app-shell[data-mobile-details="off"] .total-cell {
+    display:grid;
+    align-content:center;
+    justify-items:center;
+  }
+  .app-shell[data-mobile-details="off"] .points-cell .gw-score {
+    display:grid;
+    grid-template-columns:18px 1fr;
+    justify-self:stretch;
+    align-items:center;
+    column-gap:3px;
+  }
+  .app-shell[data-mobile-details="off"] .points-cell .gw-score > svg { display:none; }
+  .app-shell[data-mobile-details="off"] .points-cell .gw-score > b {
+    grid-column:1;
+    justify-self:center;
+    padding:1px 3px;
+    font-size:7px;
+    line-height:1;
+  }
+  .app-shell[data-mobile-details="off"] .points-cell .gw-score > strong { grid-column:2; justify-self:center; }
+  .app-shell[data-mobile-details="off"] .points-cell .gw-score strong,
+  .app-shell[data-mobile-details="off"] .total-cell > strong { font-size:18px; line-height:1; }
+  /* The gameweek sort puts that same cell in the metric slot, which centres its content;
+     stretching it back keeps the chip slot and the fixed number position there too. */
+  /* Flex here too. As a grid the metric slot revived the inherited grid-row on the score
+     and left it below centre; flex makes that placement inert, exactly as in the unsorted
+     card, so the figure sits at the same height in both. */
+  .app-shell[data-mobile-details="off"][data-sorted] .points-cell.sorted-metric {
+    display:flex !important;
+    align-items:center;
+    justify-content:center;
+  }
+  .app-shell[data-mobile-details="off"][data-sorted] .points-cell.sorted-metric .gw-score { width:100%; }
+
+  /* Team name and manager name share row 1 of the card, so they sit on one baseline. */
+  .app-shell[data-mobile-details="off"] .manager-cell > a,
+  .app-shell[data-mobile-details="off"] .manager-cell > span:not(.mobile-captain) { align-self:baseline; }
+
+  /* Supporting detail for the chosen sort, in the captain line's place. */
+  .app-shell[data-mobile-details="off"] .manager-cell:has(.mobile-sort-meta) .mobile-captain { display:none; }
+  .app-shell[data-mobile-details="off"] .manager-cell > .mobile-sort-meta {
+    display:flex;
+    grid-row:2;
+    grid-column:1 / 3;
+    align-items:baseline;
+    gap:4px;
+    min-width:0;
+    overflow:hidden;
+    white-space:nowrap;
+  }
+  .app-shell[data-mobile-details="off"] .mobile-sort-meta i {
+    color:var(--faint);
+    font:900 7px/1 "Inter",sans-serif;
+    font-style:normal;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+  }
+  .app-shell[data-mobile-details="off"] .mobile-sort-meta b { font-size:9px; font-weight:800; }
+  .app-shell[data-mobile-details="off"] .mobile-sort-meta b.positive { color:#087044; background:none; padding:0; }
+  .app-shell[data-mobile-details="off"] .mobile-sort-meta b.negative { color:#a92d49; background:none; padding:0; }
+
   .manager-row { grid-template-columns:44px minmax(0,1fr) 62px 62px; }
   .position-cell {
     height:48px;
@@ -944,7 +1162,7 @@ footer a { color:#c4c6d8; }
   }
   .app-shell[data-mobile-details="off"] .manager-row {
     min-height:56px;
-    grid-template-columns:44px minmax(0,1fr) 46px 54px;
+    grid-template-columns:44px minmax(0,1fr) 54px 54px;
     grid-template-rows:50px !important;
   }
   .app-shell[data-mobile-details="off"] .position-cell { height:43px; }
@@ -981,7 +1199,7 @@ footer a { color:#c4c6d8; }
     align-items:center;
     column-gap:4px;
   }
-  .app-shell[data-mobile-details="off"] .manager-cell > span:not(.mobile-captain) {
+  .app-shell[data-mobile-details="off"] .manager-cell > span:not(.mobile-captain):not(.mobile-sort-meta) {
     grid-column:1;
     grid-row:1;
     overflow:hidden;
@@ -992,7 +1210,7 @@ footer a { color:#c4c6d8; }
     text-overflow:ellipsis;
     white-space:nowrap;
   }
-  .app-shell[data-mobile-details="off"] .manager-cell > span:not(.mobile-captain)::after {
+  .app-shell[data-mobile-details="off"] .manager-cell > span:not(.mobile-captain):not(.mobile-sort-meta)::after {
     content:"·";
     margin-left:4px;
     color:#737a91;
@@ -1014,7 +1232,7 @@ footer a { color:#c4c6d8; }
 
   .app-shell[data-mobile-details="off"] .mobile-simple-head,
   .app-shell[data-mobile-details="off"] .manager-row {
-    grid-template-columns:44px minmax(0,1fr) 46px 54px;
+    grid-template-columns:44px minmax(0,1fr) 54px 54px;
     column-gap:5px;
   }
   .app-shell[data-mobile-details="off"] .position-cell {
@@ -1044,6 +1262,46 @@ footer a { color:#c4c6d8; }
   .gw-score > strong { font-size:18px; }
   .gw-score.has-chip { grid-template-rows:auto 10px; row-gap:2px; min-width:0; }
   .gw-score.has-chip > strong { padding:0; }
+
+  /* Last word on these two cells. Everything above layers flex, grid, fixed heights, a
+     three-row template and a separate two-row one for the chip variant on top of each
+     other. Flex is the way out: it makes the grid-row and grid-column those rules put on
+     the children inert, so the figure cannot be parked in a middle band any more. */
+  .app-shell[data-mobile-details="off"] .manager-row > .points-cell,
+  .app-shell[data-mobile-details="off"] .manager-row > .total-cell {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100%;
+    min-height:0;
+    padding-block:0;
+    gap:0;
+  }
+  /* A fixed 18px slot for the chip ahead of the figure, so the figure lands in the same
+     place whether or not the row has one. */
+  .app-shell[data-mobile-details="off"] .manager-row > .points-cell .gw-score,
+  .app-shell[data-mobile-details="off"] .manager-row > .points-cell .gw-score.has-chip {
+    display:grid;
+    grid-template-columns:18px 1fr;
+    grid-template-rows:auto;
+    align-items:center;
+    gap:0 3px;
+    /* Explicit width rather than flex-grow: the figure has to be centred in a track of a
+       fixed size, and a shrink-to-fit box moves that track with the digit count. */
+    width:100%;
+    min-width:0;
+    padding:0;
+    margin:0;
+  }
+  .app-shell[data-mobile-details="off"] .manager-row > .points-cell .gw-score > svg { display:none; }
+  .app-shell[data-mobile-details="off"] .manager-row > .points-cell .gw-score > b {
+    grid-area:1 / 1;
+    justify-self:center;
+    padding:1px 3px;
+    font-size:7px;
+    line-height:1;
+  }
+  .app-shell[data-mobile-details="off"] .manager-row > .points-cell .gw-score > strong { grid-area:1 / 2; justify-self:center; }
   .gw-score.has-chip > b { min-width:20px; height:10px; padding:1px 3px 0; font-size:7px; line-height:1; }
 }
 
@@ -1623,12 +1881,65 @@ footer a { color:#c4c6d8; }
 
 @media (max-width:800px) {
   /* The left group takes the whole width under the toggles rather than fighting them
-     for it: two selects, a switch and a sentence do not fit beside anything. */
+     for it: two selects, a switch and a sentence do not fit beside anything. The two
+     selects share whatever room the switch leaves rather than sizing to their own content
+     — .player-select's own flex used to lose to this rule's higher specificity and never
+     actually apply. */
   .toolbar-selects { order:3; flex:1 1 100%; flex-wrap:wrap; gap:8px; }
-  .toolbar-selects .period-select { flex:0 1 auto; }
-  .player-select { max-width:none; flex:1 1 150px; }
-  .ownership-readout { flex:1 1 100%; font-size:10px; }
+  /* "Vain avaus" narrows the player select, so it has to sit beside it: on its own row it
+     read as a third, unrelated setting rather than as a qualifier on the player picked
+     beside it. */
+  .toolbar-selects .player-select { flex:1 1 120px; min-width:0; max-width:none; }
+  .toolbar-selects .bench-toggle { flex:0 0 auto; }
+  /* Both moved into the caption under the toolbar. */
+  .toolbar-selects > .period-select:first-child,
+  .ownership-readout { display:none; }
+
+  /* Both toggles share the row evenly, name pushed left and switch right. 38px to match
+     the selects, which shrink from 42 at this breakpoint. */
+  .toolbar-toggles .state-toggle { justify-content:space-between; }
+  .state-toggle { height:38px; padding:0 7px 0 11px; }
+  .state-toggle > span { font-size:9px; }
 }
+
+/* The phone's stand-in for the column headers: a line of type naming what the table is
+   showing, and the two pickers that set it. Desktop sorts from the headers themselves and
+   keeps the period select in the toolbar, so none of this is rendered there. */
+.table-caption { display:none; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+.table-caption > strong {
+  flex:1 1 120px;
+  min-width:0;
+  overflow:hidden;
+  color:#d4d6e7;
+  font:800 13px/1.2 "Inter",sans-serif;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.table-caption > strong b { color:#fff; font-weight:900; }
+.caption-picks { display:flex; flex:none; gap:6px; }
+.caption-pick {
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  height:32px;
+  padding:0 10px;
+  border-radius:8px;
+  background:rgba(223,225,243,.18);
+  color:#f8f9ff;
+  cursor:pointer;
+}
+.caption-pick svg { width:13px; flex:none; }
+.caption-pick i { font:800 9px/1 "Inter",sans-serif; font-style:normal; letter-spacing:.05em; text-transform:uppercase; }
+.caption-pick.chosen { background:var(--accent); }
+/* The real select covers the chip and opens the platform's own picker; the chip is what is
+   seen. Kept in the tree rather than replaced by a custom menu so it stays operable. */
+.caption-pick select { position:absolute; inset:0; width:100%; height:100%; padding:0; border:0; opacity:0; cursor:pointer; }
+.caption-pick:has(select:disabled) { opacity:.4; cursor:default; }
+.caption-pick select:disabled { cursor:default; }
+/* After the base rule above, not inside the earlier phone block — there it lost to the
+   display:none that follows it in the file. */
+@media (max-width:800px) { .table-caption { display:flex; } }
 
 /* --------------------------------------------------------------------------
    The toolbar's left group, the form popover, and what a highlight does to the
@@ -1772,22 +2083,29 @@ footer a { color:#c4c6d8; }
 
 /* The page itself. It is a data table like the league table, but it holds 600 rows
    rather than seven, so it is paged and its filters carry the weight. */
-.price-page { display:flex; flex-direction:column; gap:14px; }
+/* 10px, matching .toolbar's margin-bottom on the other page, so the table starts at the
+   same height on both regardless of which one is showing. */
+.price-page { display:flex; flex-direction:column; gap:10px; }
 
+/* Sized to sit in the filter row rather than its own line: same 38px as the search box
+   and the selects beside it, so it reads as one more control rather than a banner. What it
+   counts down to is said once, in the title/aria-label, rather than spelled out beside the
+   clock — there was no room left for that sentence once this moved into the filter row. */
 .price-countdown {
   display:flex;
   align-items:center;
-  flex-wrap:wrap;
-  gap:9px;
-  padding:14px 18px;
-  border-radius:14px;
-  background:var(--surface);
-  color:var(--text);
+  flex:0 0 auto;
+  gap:6px;
+  padding:0 12px;
+  height:38px;
+  border-radius:10px;
+  background:var(--green);
+  color:#fff;
+  white-space:nowrap;
 }
-.price-countdown svg { width:17px; color:var(--green); }
-.price-countdown span { color:var(--soft); font-size:12px; font-weight:700; }
-.price-countdown strong { font:400 22px/1 "Archivo Black",sans-serif; font-variant-numeric:tabular-nums; }
-.price-countdown small { color:var(--faint); font-size:11px; font-weight:700; }
+.price-countdown svg { width:14px; color:#fff; flex:none; }
+.price-countdown strong { color:#fff; font:400 15px/1 "Archivo Black",sans-serif; font-variant-numeric:tabular-nums; }
+.price-countdown small { color:rgba(255,255,255,.75); font-size:10px; font-weight:700; }
 
 .price-filters { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
 .price-search {
@@ -1824,6 +2142,14 @@ footer a { color:#c4c6d8; }
 .price-direction button.active { background:var(--accent); color:#fff; }
 
 .price-table { border-radius:14px; background:var(--surface); overflow:hidden; }
+/* A full page-size list (up to 100 rows) made the document taller than the viewport, and
+   switching to a page that doesn't need that scrollbar shifted the centred layout sideways
+   by its width. Scrolling inside the card instead keeps the page's own height — and the
+   table's position — the same regardless of how many rows are showing. */
+@media (min-width:801px) {
+  .price-table { overflow-y:auto; max-height:calc(100vh - 300px); }
+  .price-head { position:sticky; top:0; z-index:1; }
+}
 .price-head,
 .price-row {
   display:grid;
@@ -1925,33 +2251,49 @@ footer a { color:#c4c6d8; }
 .price-pager button:disabled { opacity:.4; cursor:default; }
 
 @media (max-width:800px) {
-  /* The search takes a line of its own and the four filters pair up under it, rather than
-     all five sharing one line and truncating their own labels. */
-  .price-search { flex:1 1 100%; }
-  .price-filters .period-select { flex:1 1 40%; min-width:0; }
+  /* Three rows rather than five: the clock shares its line with the search, and the three
+     selects share the next one. They wrap to two lines of their own only below ~360px,
+     where a third of the width is narrower than the shortest of their labels. */
+  .price-countdown { flex:0 0 auto; gap:5px; padding:0 10px; }
+  .price-countdown small { display:none; }
+  .price-countdown strong { font-size:13px; }
+  .price-search { flex:1 1 170px; }
+  .price-filters .period-select { flex:1 1 100px; min-width:0; height:34px; padding:0 25px 0 9px; background-position:right 9px center; background-size:12px; font-size:11px; }
   .price-direction { flex:1 1 100%; }
-  .price-direction button { flex:1 1 0; }
+  .price-direction button { flex:1 1 0; padding:6px 4px; font-size:11px; }
 
-  /* 600 rows of seven columns do not fit a phone, so each row becomes a card and every
-     cell states what it is. */
-  .price-head { display:none; }
+  /* One line per player, not a card. Four columns survive the cut — who, how far along,
+     how fast, and what he costs — and each of the four is a sortable header, which the
+     card layout had no room to offer at all. Owners, the outlook sentence and ownership
+     are the ones a phone gives up; they are all still on the desktop table. */
+  .price-head { display:grid; }
+  .price-head,
   .price-row {
-    grid-template-columns:1fr 1fr;
-    gap:8px 10px;
-    padding:12px 14px;
+    grid-template-columns:minmax(0,1fr) 70px 52px 52px;
+    gap:0 6px;
+    padding:0 10px;
+    align-items:center;
   }
-  .price-player { grid-column:1 / 3; }
-  .price-row > span:not(.price-player)::before {
-    content:attr(data-label);
-    display:block;
-    margin-bottom:2px;
-    color:var(--faint);
-    font-size:8px;
-    font-weight:800;
-    letter-spacing:.05em;
-    text-transform:uppercase;
-  }
-  .price-owners-cell { grid-column:1 / 3; }
+  .price-head { min-height:34px; }
+  .price-head > span { font-size:8px; }
+  .price-sort { gap:2px; }
+  .price-sort svg { width:9px; }
+  .price-owners-cell,.head-owners,
+  .price-outlook,.head-outlook,
+  .price-ownership,.head-ownership { display:none; }
+  .price-row { min-height:46px; }
+  .price-player { grid-template-columns:22px auto; column-gap:6px; }
+  .price-player .shirt,
+  .price-player .shirt-image { width:22px; height:22px; }
+  .price-player b { font-size:11px; }
+  .price-player small { font-size:8px; }
+  .price-progress b { font-size:11px; }
+  .price-rate b,
+  .price-cost b { font-size:11px; }
+  /* The hours-to-change and the season delta are the detail that does not fit a 52px
+     column; the figures they qualify stay. */
+  .price-rate small { display:none; }
+  .price-cost small { font-size:8px; }
   .price-foot { font-size:10px; }
 }
 
@@ -2032,12 +2374,15 @@ footer a { color:#c4c6d8; }
   border-radius:6px;
 }
 /* A hairline between events, and only between them — the first line has nothing to be
-   divided from. */
+   divided from. It sits in a gap of its own rather than on the box edge: the lit surround
+   of a fresh line fills the whole padding box, so with the rule at left:0 the two met and
+   the highlight looked like it had been cut off against the line. */
+.ticker-item + .ticker-item { margin-left:9px; }
 .ticker-item + .ticker-item::after {
   content:"";
   position:absolute;
   top:50%;
-  left:0;
+  left:-5px;
   width:1px;
   height:15px;
   transform:translateY(-50%);
@@ -2125,7 +2470,9 @@ footer a { color:#c4c6d8; }
    answers "which rows", and a ticker line is already about one player. */
 /* A dot between the teams, which is a lighter mark than the rule between events: one
    separates names inside a line, the other separates the lines themselves. */
-.ticker-owners { display:flex; gap:5px; }
+/* Wraps by whole team names. Without the nowrap the flex items shrank past their content
+   and each name broke inside itself — "No Kane No Gain" came out as four stacked lines. */
+.ticker-owners { display:flex; flex-wrap:wrap; gap:2px 5px; min-width:0; }
 .ticker-owners b + b::before {
   content:"·";
   margin-right:5px;
@@ -2133,10 +2480,12 @@ footer a { color:#c4c6d8; }
   font-weight:700;
 }
 .ticker-owners b {
+  flex:none;
   color:rgba(255,255,255,.62);
   font-size:10px;
   font-weight:700;
   letter-spacing:0;
+  white-space:nowrap;
 }
 .ticker-owners b.is-captain::after { content:" (C)"; color:rgba(255,255,255,.42); }
 
@@ -2173,7 +2522,37 @@ footer a { color:#c4c6d8; }
   font-size:11px;
   font-weight:700;
 }
-.ticker-controls label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.ticker-controls label { display:flex; align-items:center; gap:7px; cursor:pointer; }
+/* The browser's own box is blue on every platform and the one thing on this strip that was
+   not the site's own palette. Same green the positive point deltas carry. */
+.ticker-controls input[type="checkbox"] {
+  appearance:none;
+  -webkit-appearance:none;
+  flex:none;
+  display:grid;
+  place-items:center;
+  width:15px;
+  height:15px;
+  margin:0;
+  border:1.5px solid rgba(255,255,255,.32);
+  border-radius:4px;
+  background:transparent;
+  cursor:pointer;
+  transition:background-color .15s ease,border-color .15s ease;
+}
+.ticker-controls input[type="checkbox"]:hover { border-color:rgba(255,255,255,.55); }
+.ticker-controls input[type="checkbox"]:checked { border-color:#45df91; background:#45df91; }
+.ticker-controls input[type="checkbox"]:checked::after {
+  content:"";
+  width:7px;
+  height:4px;
+  margin-top:-2px;
+  border:2px solid #08150f;
+  border-top:0;
+  border-right:0;
+  transform:rotate(-45deg);
+}
+.ticker-controls input[type="checkbox"]:focus-visible { outline:2px solid #45df91; outline-offset:2px; }
 .ticker-count { margin-left:auto; color:rgba(255,255,255,.4); }
 .ticker-list { padding-bottom:12px; }
 .ticker-row {
@@ -2188,11 +2567,36 @@ footer a { color:#c4c6d8; }
 .ticker-headline small { color:rgba(255,255,255,.45); font-size:10px; font-weight:600; }
 .ticker-empty-list { padding:20px 0; color:rgba(255,255,255,.4); font-size:12px; text-align:center; }
 
+/* A phone fits about one event on the strip, so the strip gives up everything it can: the
+   badge loses its dot, the chevron loses its button chrome and becomes the same green the
+   positive deltas use, and the owning teams drop out — the open panel below still names
+   them, and that is where a line is read rather than glanced at. */
 @media (max-width:800px) {
-  .ticker-bar { height:36px; gap:9px; padding-inline:12px; }
-  .ticker-panel { padding-inline:12px; max-height:60vh; }
-  .ticker-badge { font-size:8px; padding:3px 7px; }
+  .ticker-bar { gap:7px; height:32px; padding-inline:10px; }
+  .ticker-badge { gap:0; padding:2px 6px; border-radius:4px; font-size:8px; letter-spacing:.06em; }
+  .ticker-badge.is-live::before { display:none; }
+  .ticker-item { gap:5px; padding:2px 7px; font-size:10px; }
+  .ticker-item + .ticker-item { margin-left:7px; }
+  .ticker-item + .ticker-item::after { left:-4px; height:12px; }
+  .ticker-item b { font-size:9px; letter-spacing:.04em; }
+  .ticker-icon svg { width:11px; height:11px; }
+  .ticker-icon.icon-yellow svg,.ticker-icon.icon-red svg { width:8px; height:11px; }
+  .ticker-item u { padding:1px 4px; font-size:9px; }
+  .ticker-item .ticker-owners { display:none; }
+  .ticker-empty { font-size:10px; }
+  .ticker-toggle {
+    width:auto;
+    height:auto;
+    padding:0 2px;
+    border-radius:0;
+    background:none;
+    color:#45df91;
+  }
+  .ticker-toggle svg { width:16px; }
+  .ticker-panel { padding-inline:10px; max-height:60vh; }
+  .ticker-controls { gap:12px; font-size:10px; }
 }
+
 
 /* ==========================================================================
    The middle widths

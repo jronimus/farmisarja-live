@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Clock3, Globe, Medal, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, Globe, Medal, X } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { provisionalAutosubSquad } from "./services/fplRules";
@@ -105,6 +105,18 @@ function GitHubLogo() {
 
 type Award = { level: 0 | 1 | 2 | 3; tone: "green" | "gold" | "red" | "blue" | "purple" };
 
+/**
+ * One control per setting: the name inside the pill, a plain switch beside it. The pill
+ * and its filled state are the price page's, so a toggle reads the same on both pages
+ * without spelling out both states — what the switch is set to is the switch's own job.
+ */
+function StateToggle({ label, checked, onChange, className = "" }: { label: string; checked: boolean; onChange: (value: boolean) => void; className?: string }) {
+  return <div className={`state-toggle ${className}`}>
+    <span>{label}</span>
+    <button type="button" role="switch" aria-checked={checked} aria-label={label} className={`state-switch ${checked ? "active" : ""}`} onClick={() => onChange(!checked)}><i /></button>
+  </div>;
+}
+
 const transferNet = (manager: ManagerRow) => manager.chip === "WC" || manager.chip === "FH"
   ? manager.wildcardPreviousTeamPoints === undefined ? Number.NaN : manager.gameweekPoints + manager.provisionalBonus - manager.wildcardPreviousTeamPoints
   : manager.transfers.reduce((sum, transfer) => sum + transfer.inPoints - transfer.outPoints, 0) - manager.hit;
@@ -147,21 +159,21 @@ function ChipsCell({ manager, label }: { manager: ManagerRow; label: string }) {
   return <div className="chips-cell" data-label={label}>{manager.availableChips.map((chip) => <span className={`${chipClass(chip)} ${manager.chip === chip ? "active" : manager.usedChips.includes(chip) ? "used" : ""}`} key={chip}>{chip}</span>)}</div>;
 }
 
-function TeamValueCell({ manager, label, award, available = true }: { manager: ManagerRow; label: string; award?: Award; available?: boolean }) {
-  if (!available) return <div className="team-value-cell unavailable" data-label={label}><strong>—</strong></div>;
+function TeamValueCell({ manager, label, award, available = true, extra = "" }: { manager: ManagerRow; label: string; award?: Award; available?: boolean; extra?: string }) {
+  if (!available) return <div className={`team-value-cell unavailable ${extra}`} data-label={label}><strong>—</strong></div>;
   const change = Math.round((manager.teamValue - manager.previousTeamValue) * 10) / 10;
-  return <div className="team-value-cell" data-label={label}><strong className={award ? `award-target award-${award.tone} award-level-${award.level}` : ""}>£{manager.teamValue.toFixed(1)}m</strong>{change !== 0 && <span className={change > 0 ? "positive" : "negative"}>{signed(change)}m</span>}</div>;
+  return <div className={`team-value-cell ${extra}`} data-label={label}><strong className={award ? `award-target award-${award.tone} award-level-${award.level}` : ""}>£{manager.teamValue.toFixed(1)}m</strong>{change !== 0 && <span className={change > 0 ? "positive" : "negative"}>{signed(change)}m</span>}</div>;
 }
 
-function SeasonTransfersCell({ manager, label }: { manager: ManagerRow; label: string }) {
-  return <div className="season-transfers-cell" data-label={label}><strong>{manager.seasonTransfers}</strong>{manager.seasonHitPoints > 0 && <span>(−{manager.seasonHitPoints})</span>}</div>;
+function SeasonTransfersCell({ manager, label, extra = "" }: { manager: ManagerRow; label: string; extra?: string }) {
+  return <div className={`season-transfers-cell ${extra}`} data-label={label}><strong>{manager.seasonTransfers}</strong>{manager.seasonHitPoints > 0 && <span>(−{manager.seasonHitPoints})</span>}</div>;
 }
 
-function BenchPointsCell({ manager, label, award, available = true, autosubs = false }: { manager: ManagerRow; label: string; award?: Award; available?: boolean; autosubs?: boolean }) {
-  if (!available) return <div className="bench-points-cell unavailable" data-label={label}><strong>—</strong></div>;
+function BenchPointsCell({ manager, label, award, available = true, autosubs = false, extra = "" }: { manager: ManagerRow; label: string; award?: Award; available?: boolean; autosubs?: boolean; extra?: string }) {
+  if (!available) return <div className={`bench-points-cell unavailable ${extra}`} data-label={label}><strong>—</strong></div>;
   const current = currentBenchPoints(manager, autosubs);
   const total = manager.benchPointsBeforeGw + current;
-  return <div className="bench-points-cell" data-label={label}><strong className={award ? `award-target award-${award.tone} award-level-${award.level}` : ""}>{total}</strong><span>+{current}</span></div>;
+  return <div className={`bench-points-cell ${extra}`} data-label={label}><strong className={award ? `award-target award-${award.tone} award-level-${award.level}` : ""}>{total}</strong><span>+{current}</span></div>;
 }
 
 function captainDisplay(manager: ManagerRow, autosubs: boolean) {
@@ -547,6 +559,29 @@ export default function App() {
   const percent = (value: number) => language === "fi" ? `${Math.round(value)} %` : `${Math.round(value)}%`;
   const monthLabel = (month: string) => { const name = monthFormatter.format(new Date(`${month}-01T12:00:00Z`)); return name.charAt(0).toUpperCase() + name.slice(1); };
   const headers: Array<[string, SortKey | null, string?]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form", t.formNote], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
+  /**
+   * What the phone offers to sort by. Not the column list: "Yhteensä" orders the table
+   * exactly as "Sija" already does, since league position is the season total, and "Vire"
+   * has no cell on a phone card to land in. The captain column sorts on the captain's
+   * points, so it says so here, where there is no column heading to make that obvious.
+   */
+  const mobileSortOptions: Array<[string, SortKey]> = [
+    [t.position, "position"],
+    [t.captainPointsLabel, "captainPoints"],
+    [t.gwPoints, "gameweekPoints"],
+    [t.progress, "upcoming"],
+    [t.teamValue, "teamValue"],
+    [t.benchPoints, "benchPointsBeforeGw"],
+    [t.transfers, "seasonTransfers"],
+  ];
+  // "Sija" is the table's own resting order, so it reads as no choice rather than as a sort.
+  const sortLabel = sort === "position" ? "" : mobileSortOptions.find(([, key]) => key === sort)?.[0] ?? "";
+  /** The column's own short name, for the compact head — the picker's wording is longer. */
+  const columnLabel: Record<SortKey, string> = {
+    position: t.position, captainPoints: t.captain, gameweekPoints: t.gwPoints, upcoming: t.progress,
+    teamValue: t.teamValue, benchPointsBeforeGw: t.benchPoints, seasonTransfers: t.transfers,
+    totalPoints: t.total, overallRank: "OR", form: t.form,
+  };
   const gameweekFixtures = data.fixtures ?? [];
   const liveFixtures = gameweekFixtures.filter((fixture) => fixture.status === "live");
   const playedFixtures = gameweekFixtures.filter((fixture) => fixture.status === "provisional" || fixture.status === "final");
@@ -564,7 +599,9 @@ export default function App() {
   // The capture waits for .sc-card, so an unready card renders nothing rather than a half card.
   if (cardKind) return liveReady && !liveError ? <ShareCard data={data} kind={cardKind} /> : <div className="sc-stage" />;
 
-  return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-screenshot={screenshotMode ? "true" : "false"}>
+  // Names the sorted column for the compact phone card, which shows that figure and no
+  // other. Absent at rest, so "no sort chosen" is a selector the CSS can test for.
+  return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-sorted={sort === "position" ? undefined : sort} data-screenshot={screenshotMode ? "true" : "false"}>
     <BackgroundPattern />
     <header className="topbar">
       <BrandLogo />
@@ -624,10 +661,7 @@ export default function App() {
                 {entry.name} ({entry.club}) — {percent(entry.effectivePercent)} ({entry.owners}/{data.managers.length})
               </option>)}
             </select>
-            <label className="autosub-toggle bench-toggle">
-              <span>{t.startersOnly}</span>
-              <button role="switch" aria-checked={startersOnly} onClick={() => setStartersOnly((value) => !value)} className={startersOnly ? "enabled" : ""}><i /></button>
-            </label>
+            <StateToggle label={t.startersOnly} checked={startersOnly} onChange={setStartersOnly} className="bench-toggle" />
             {selected && <span className="ownership-readout">
               <b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
               {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
@@ -635,7 +669,51 @@ export default function App() {
             </span>}
           </>}
         </div>
-        <div className="toolbar-toggles"><label className="details-toggle"><span>{t.details}</span><button role="switch" aria-checked={mobileDetails} onClick={() => setMobileDetails((value) => !value)} className={mobileDetails ? "enabled" : ""}><i /></button></label><label className="autosub-toggle"><span>{t.autosubs}</span><button role="switch" aria-checked={autosubs} onClick={() => setAutosubs((value) => !value)} className={autosubs ? "enabled" : ""}><i /></button></label></div>
+        <div className="toolbar-toggles">
+          <StateToggle label={t.details} checked={mobileDetails} onChange={setMobileDetails} className="details-toggle" />
+          <StateToggle label={t.autosubs} checked={autosubs} onChange={setAutosubs} className="autosub-toggle" />
+        </div>
+      </div>
+
+      {/* The table's caption, phone only. A phone has no column headers to sort from and no
+          room for the period select in the toolbar, so what the table is currently showing
+          is said here in words, and the two pickers that can change it sit beside it. Both
+          go quiet while a player is highlighted, because then the caption is about him. */}
+      <div className="table-caption">
+        <strong>
+          {selected
+            ? <><b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
+              {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
+              {!startersOnly && selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}</>
+            : [period === "total" ? "Total" : monthLabel(period), sortLabel].filter(Boolean).join(" · ")}
+        </strong>
+        <div className="caption-picks">
+          <label className={`caption-pick ${!selected && period !== "total" ? "chosen" : ""}`}>
+            <CalendarDays aria-hidden="true" />
+            <i>{t.month}</i>
+            <select value={period} disabled={!!selected} onChange={(event) => setPeriod(event.target.value)} aria-label={t.month}>
+              <option value="total">Total</option>
+              {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
+            </select>
+          </label>
+          <label className={`caption-pick ${!selected && sort !== "position" ? "chosen" : ""}`}>
+            <ArrowUpDown aria-hidden="true" />
+            <i>{t.sortBy}</i>
+            <select
+              value={sort}
+              disabled={!!selected}
+              /* The same default direction a header click picks, so the two agree. */
+              onChange={(event) => {
+                const key = event.target.value as SortKey;
+                setSort(key);
+                setDirection(key === "overallRank" || key === "position" ? "asc" : "desc");
+              }}
+              aria-label={t.sortBy}
+            >
+              {mobileSortOptions.map(([label, key]) => <option value={key} key={key}>{label}</option>)}
+            </select>
+          </label>
+        </div>
       </div>
 
       {data.dataPending ? <section className="data-pending" role="status">
@@ -645,7 +723,12 @@ export default function App() {
       </section> : <section className={`league-table ${selected ? "has-highlight" : ""}`}>
         <div className="table-head">{headers.map(([label, key, note], index) => <SortHeader key={`${label}-${index}`} label={label} note={note} sortKey={key} active={sort} direction={direction} onSort={handleSort} />)}</div>
         <div className="rows">
-          <div className="mobile-simple-head"><b>{t.position}</b><b>{t.manager}</b><b>GW</b><b>{t.total}</b></div>
+          <div className="mobile-simple-head">
+            <b>{t.position}</b><b>{t.manager}</b>
+            {/* Sorted, the card carries one figure, so the head names that column rather
+                than the two it replaced. */}
+            {sort === "position" ? <><b>GW</b><b>{t.total}</b></> : <b className="head-sorted">{columnLabel[sort]}</b>}
+          </div>
           {managers.map((manager) => {
             const open = expanded === manager.id;
             const displayedGwPoints = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
@@ -672,16 +755,47 @@ export default function App() {
             const gwAward = awardsAvailable && awardStats.bestGw > awardStats.lowestGw && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
             const gwMedalRank = awardsAvailable ? gwMedalRanks.get(manager.id) : undefined;
             const picked = ownershipOf(manager, selected?.id ?? null, autosubs, !startersOnly);
+            // Marks the one cell the compact phone card keeps when a sort is chosen.
+            const metric = (key: SortKey) => sort === key ? "sorted-metric" : "";
+            /**
+             * The line under the manager, when the sort makes something else worth saying
+             * there. The captain line already explains a captain or gameweek sort, so those
+             * keep it; these four have supporting detail the single metric column cannot
+             * hold. Anything else leaves the captain line alone.
+             */
+            const sortMeta = data.rosterOnly ? null : (() => {
+              // No label where it would only repeat the column heading above the figure.
+              const totalNow = number.format(manager.totalPoints + manager.provisionalBonus - manager.hit);
+              // Sorting replaces the gameweek and season figures with one column, so where
+              // the sort has nothing of its own to add, this line hands those two back.
+              if (sort === "captainPoints") return <><i>GW</i><b>{displayedGwPoints}</b><i>{t.total}</i><b>{totalNow}</b></>;
+              if (sort === "gameweekPoints") return <><i>{t.total}</i><b>{totalNow}</b></>;
+              if (sort === "teamValue") {
+                const change = Math.round((manager.teamValue - manager.previousTeamValue) * 10) / 10;
+                return change === 0 ? null : <b className={change > 0 ? "positive" : "negative"}>{signed(change)}m</b>;
+              }
+              // The column totals the season; this is what the running gameweek added.
+              if (sort === "benchPointsBeforeGw") {
+                const current = currentBenchPoints(manager, autosubs);
+                return <><i>GW</i><b className={current > 0 ? "positive" : ""}>+{current}</b></>;
+              }
+              if (sort === "seasonTransfers") {
+                return <><i>GW</i><b>{manager.transfers.length}</b>{manager.hit > 0 && <b className="negative">−{manager.hit}</b>}</>;
+              }
+              // Nothing for "Pelattu": that cell already carries both the count and the LIVE
+              // line, and repeating the second of them under the name said it twice.
+              return null;
+            })();
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""} ${picked.owns ? "owns-picked" : ""} ${picked.captains ? "captains-picked" : ""} ${picked.benched ? "benches-picked" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
                 <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
-                <div className="manager-cell"><a className={picked.owns ? "picked-name" : ""} href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><em>{captain.points} pts</em></span>}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
-                <div className={`captain-cell ${captainAward ? "award-cell" : ""}`} data-label={t.captain}><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><span className={captainAward ? `award-target award-${captainAward.tone} award-level-${captainAward.level}` : ""}>{captain.points} pts</span></div>
+                <div className="manager-cell"><a className={picked.owns ? "picked-name" : ""} href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><em>{captain.points} pts</em></span>}{sortMeta && <span className="mobile-sort-meta">{sortMeta}</span>}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
+                <div className={`captain-cell ${captainAward ? "award-cell" : ""} ${metric("captainPoints")}`} data-label={sort === "captainPoints" ? captain.name : t.captain}><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><span className={captainAward ? `award-target award-${captainAward.tone} award-level-${captainAward.level}` : ""}>{captain.points} pts</span></div>
                 <TransferCell manager={manager} language={language} award={transferAward} gameweek={data.gameweek} />
-                <SeasonTransfersCell manager={manager} label={t.seasonTransfers} />
+                <SeasonTransfersCell manager={manager} label={t.seasonTransfers} extra={metric("seasonTransfers")} />
                 <ChipsCell manager={manager} label={t.chips} />
-                <TeamValueCell manager={manager} label={t.teamValue} award={valueAward} available={!data.rosterOnly} />
-                <BenchPointsCell manager={manager} label={t.benchPoints} award={benchAward} available={!data.rosterOnly} autosubs={autosubs} />
+                <TeamValueCell manager={manager} label={t.teamValue} award={valueAward} available={!data.rosterOnly} extra={metric("teamValue")} />
+                <BenchPointsCell manager={manager} label={t.benchPoints} award={benchAward} available={!data.rosterOnly} autosubs={autosubs} extra={metric("benchPointsBeforeGw")} />
                 <div className={`form-cell ${formAward ? "award-cell" : ""} ${formOpen === manager.id ? "form-open" : ""}`} data-label={t.form}>
                   {manager.form.length > 0 && <button
                     className="form-trigger"
@@ -710,8 +824,8 @@ export default function App() {
                     </span>
                   </span>}
                 </div>
-                <div className={`points-cell ${gwAward ? "award-cell" : ""}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwMedalRank ? `has-medal medal-rank-${gwMedalRank}` : ""}`}>{gwMedalRank && <Medal aria-label={language === "fi" ? `Kierroksen ${gwMedalRank}. paras` : `Gameweek rank ${gwMedalRank}`} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span></div>
-                <div className="progress-cell" data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
+                <div className={`points-cell ${gwAward ? "award-cell" : ""} ${metric("gameweekPoints")}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwMedalRank ? `has-medal medal-rank-${gwMedalRank}` : ""}`}>{gwMedalRank && <Medal aria-label={language === "fi" ? `Kierroksen ${gwMedalRank}. paras` : `Gameweek rank ${gwMedalRank}`} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span></div>
+                <div className={`progress-cell ${metric("upcoming")}`} data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? "FINAL" : "PROVISIONAL"}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints + manager.provisionalBonus - manager.hit)}</strong></div>
               </div>
               {open && (data.rosterOnly

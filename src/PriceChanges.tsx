@@ -8,7 +8,8 @@ import type { DashboardData, Language, PriceRow } from "./types";
 type SortKey = "progress" | "perHour" | "ownership" | "cost" | "name";
 type Direction = "all" | "risers" | "fallers" | "locked";
 
-const PAGE_SIZES = [10, 25, 50, 100];
+const PAGE_SIZES = [10, 15, 25, 50, 100];
+const PAGE_SIZE_KEY = "farmisarja-price-page-size";
 
 /** FPL publishes the change times, so the clock counts to a real one rather than an assumed 01:30. */
 function Countdown({ deadline, language }: { deadline: string | null; language: Language }) {
@@ -25,9 +26,8 @@ function Countdown({ deadline, language }: { deadline: string | null; language: 
   const seconds = Math.floor((remaining % 60_000) / 1000);
   const clock = new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { hour: "2-digit", minute: "2-digit" })
     .format(new Date(deadline));
-  return <div className="price-countdown">
+  return <div className="price-countdown" title={t.nextPriceChange} aria-label={t.nextPriceChange}>
     <Clock3 />
-    <span>{t.nextPriceChange}</span>
     <strong>{String(hours).padStart(2, "0")}:{String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}</strong>
     <small>{t.atClock} {clock}</small>
   </div>;
@@ -52,8 +52,13 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
   const [direction, setDirection] = useState<Direction>("all");
   const [sort, setSort] = useState<SortKey>("progress");
   const [descending, setDescending] = useState(true);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(() => {
+    const stored = Number(localStorage.getItem(PAGE_SIZE_KEY));
+    return PAGE_SIZES.includes(stored) ? stored : 25;
+  });
   const [page, setPage] = useState(0);
+
+  useEffect(() => { localStorage.setItem(PAGE_SIZE_KEY, String(pageSize)); }, [pageSize]);
 
   const owners = useMemo(() => ownersByPlayer(data.managers, autosubs), [data.managers, autosubs]);
   const market = data.prices;
@@ -111,9 +116,8 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
   }
 
   return <section className="price-page">
-    <Countdown deadline={nextPriceDeadline(market, Date.now())} language={language} />
-
     <div className="price-filters">
+      <Countdown deadline={nextPriceDeadline(market, Date.now())} language={language} />
       <label className="price-search">
         <Search />
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t.searchPlayer} aria-label={t.searchPlayer} />
@@ -137,14 +141,16 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     </div>
 
     <div className="price-table">
+      {/* Classed to match the cells below, so the phone can drop a column from both the
+          head and the rows with one rule each and keep the two grids in step. */}
       <div className="price-head">
-        <span>{header(t.player, "name")}</span>
-        <span>{t.leagueOwners}</span>
-        <span>{header(t.priceProgress, "progress")}</span>
-        <span>{t.priceOutlook}</span>
-        <span>{header(t.perHour, "perHour")}</span>
-        <span>{header(t.ownership, "ownership")}</span>
-        <span>{header(t.price, "cost")}</span>
+        <span className="head-player">{header(t.player, "name")}</span>
+        <span className="head-owners">{t.leagueOwners}</span>
+        <span className="head-progress">{header(t.priceProgress, "progress")}</span>
+        <span className="head-outlook">{t.priceOutlook}</span>
+        <span className="head-rate">{header(t.perHour, "perHour")}</span>
+        <span className="head-ownership">{header(t.ownership, "ownership")}</span>
+        <span className="head-cost">{header(t.price, "cost")}</span>
       </div>
       {visible.map((row) => {
         const outlook = outlookFor(row);
