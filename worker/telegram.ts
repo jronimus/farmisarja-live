@@ -214,20 +214,23 @@ async function checkDeadlineCard(env: TelegramEnv, event: FplEvent, now: number)
   await sendOnce(env, `deadline-card:gw:${event.id}`, () => sendCardPhoto(env, env.TELEGRAM_CHAT_ID!, "deadline"));
 }
 
-async function checkPostGame(env: TelegramEnv, event: FplEvent, now: number): Promise<void> {
+/**
+ * Queued the moment FPL calls the last match, with no wait of its own.
+ *
+ * There used to be ten minutes here to let the bonus settle. Watching a gameweek out showed
+ * nothing to wait for: while the last match ran its own bonus moved every minute or two,
+ * and every already-finished match sat still. The report is titled as provisional anyway,
+ * and queueing is not sending — the album takes a card per cron tick, because Browser
+ * Rendering's free plan allows one request per ten seconds, so a few minutes pass between
+ * this and the message regardless.
+ */
+async function checkPostGame(env: TelegramEnv, event: FplEvent): Promise<void> {
   if (!env.TELEGRAM_CHAT_ID) return;
   const fixtures = (await fpl<Fixture[]>("/fixtures/")).filter((fixture) => fixture.event === event.id);
   // FPL can leave finished unset long after full time, so full time is what schedules the report.
   if (!fixtures.length || fixtures.some((fixture) => !fixture.finished && !fixture.finished_provisional)) return;
   const sentKey = `postgame:gw:${event.id}`;
   if (await env.TELEGRAM_STATE.get(sentKey)) return;
-  const detectedKey = `postgame-detected:gw:${event.id}`;
-  const detected = await env.TELEGRAM_STATE.get(detectedKey);
-  if (!detected) {
-    await env.TELEGRAM_STATE.put(detectedKey, new Date(now).toISOString());
-    return;
-  }
-  if (now - new Date(detected).getTime() < 10 * 60_000) return;
   await sendOnce(env, sentKey, () => queueAlbum(env, `album:gw:${event.id}`, env.TELEGRAM_CHAT_ID!));
 }
 
@@ -238,7 +241,7 @@ export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): P
   const current = bootstrap.events.find((event) => event.is_current);
   if (!current) return;
   await checkDeadlineCard(env, current, now);
-  await checkPostGame(env, current, now);
+  await checkPostGame(env, current);
   // One capture per tick keeps every invocation well inside its time budget.
   if (await advanceAlbum(env, "album:preview")) return;
   await advanceAlbum(env, `album:gw:${current.id}`);
