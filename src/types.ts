@@ -34,6 +34,8 @@ export interface FixtureStatEntry {
   value: number;
   /** Distinguishes the two sides of a combined category: card colour, penalty outcome. */
   variant?: "yellow" | "red" | "saved" | "missed";
+  /** Only set for defCon, to check the entry's value against the threshold for his position. */
+  position?: SquadPlayer["position"];
 }
 
 export type FixtureStatKey = "goals" | "ownGoals" | "assists" | "cards" | "bonus" | "bps" | "defCon" | "saves" | "penalties";

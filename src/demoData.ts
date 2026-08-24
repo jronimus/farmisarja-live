@@ -278,7 +278,9 @@ function demoFixtureStats(home: string, away: string, index: number): FixtureSta
     ["bonus", [scorer && { name: scorer[0], club: scorer[1], value: 3 }, assister && { name: assister[0], club: assister[1], value: 2 }].filter((entry): entry is { name: string; club: string; value: number } => Boolean(entry))],
     ["cards", [cardHome && { name: cardHome[0], club: cardHome[1], value: 1, variant: "yellow" as const }, cardAway && { name: cardAway[0], club: cardAway[1], value: 1, variant: "yellow" as const }].filter((entry): entry is { name: string; club: string; value: number; variant: "yellow" } => Boolean(entry))],
     ["bps", [scorer, assister, defHome, defAway].filter((entry): entry is PoolEntry => Boolean(entry)).map((entry, position) => ({ name: entry[0], club: entry[1], value: 30 - position * 6 }))],
-    ["defCon", [defHome && { name: defHome[0], club: defHome[1], value: 9 }, defAway && { name: defAway[0], club: defAway[1], value: 8 }].filter((entry): entry is { name: string; club: string; value: number } => Boolean(entry))],
+    // A defender at 11 clears his 10-CBI threshold; a midfielder or forward at 9 does not
+    // clear his 12, so the demo shows both the marked and the unmarked case.
+    ["defCon", [defHome, defAway].filter((entry): entry is PoolEntry => Boolean(entry)).map((entry) => ({ name: entry[0], club: entry[1], value: entry[3] === "DEF" ? 11 : 9, position: entry[3] }))],
     ["saves", [keeperHome && { name: keeperHome[0], club: keeperHome[1], value: 1 }, keeperAway && { name: keeperAway[0], club: keeperAway[1], value: 2 }].filter((entry): entry is { name: string; club: string; value: number } => Boolean(entry))],
   ];
   return categories.filter(([, entries]) => entries.length > 0).map(([key, entries]) => ({ key, entries }));

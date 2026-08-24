@@ -63,7 +63,9 @@ function fixtureStatus(fixture: Fixture): FixtureStatus {
 // would unbalance the grid — appended on its own row when it happens.
 const CATEGORY_ORDER: FixtureStatKey[] = ["goals", "assists", "bonus", "cards", "bps", "defCon", "saves", "penalties", "ownGoals"];
 
-function fixtureStats(fixture: Fixture, players: Map<number, { name: string; club: string }>): FixtureStatCategory[] | undefined {
+interface FixturePlayer { name: string; club: string; position: SquadPlayer["position"] }
+
+function fixtureStats(fixture: Fixture, players: Map<number, FixturePlayer>): FixtureStatCategory[] | undefined {
   if (!fixture.stats?.length) return undefined;
   const byKey = new Map<FixtureStatKey, FixtureStatEntry[]>();
   const push = (key: FixtureStatKey, side: FixtureStatSide[], variant?: FixtureStatEntry["variant"]) => {
@@ -71,7 +73,8 @@ function fixtureStats(fixture: Fixture, players: Map<number, { name: string; clu
     const entries = byKey.get(key) ?? [];
     for (const { element, value } of side) {
       const player = players.get(element);
-      if (player) entries.push({ name: player.name, club: player.club, value, variant });
+      // Only defCon reads the position back out, to check the entry against his threshold.
+      if (player) entries.push({ name: player.name, club: player.club, value, variant, position: key === "defCon" ? player.position : undefined });
     }
     byKey.set(key, entries);
   };
@@ -97,7 +100,7 @@ function fixtureStats(fixture: Fixture, players: Map<number, { name: string; clu
   return categories.length ? categories : undefined;
 }
 
-function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>, players: Map<number, { name: string; club: string }>): GameweekFixture[] {
+function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>, players: Map<number, FixturePlayer>): GameweekFixture[] {
   return [...fixtures]
     .sort((a, b) => (a.kickoff_time ?? "").localeCompare(b.kickoff_time ?? ""))
     .map((fixture) => ({
@@ -282,7 +285,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
   const startedMonths = [...new Set(bootstrap.events.filter((item) => item.finished || Date.now() >= new Date(item.deadline_time).getTime()).map((item) => item.deadline_time.slice(0, 7)))];
   const eventFixtures = fixtures.filter((fixture) => fixture.event === event.id);
   const teamsById = new Map(bootstrap.teams.map((team) => [team.id, team]));
-  const playersById = new Map(bootstrap.elements.map((element) => [element.id, { name: element.web_name, club: teamsById.get(element.team)?.short_name ?? "UNK" }]));
+  const playersById = new Map(bootstrap.elements.map((element) => [element.id, { name: element.web_name, club: teamsById.get(element.team)?.short_name ?? "UNK", position: positionName(element.element_type) }]));
   const fixtureList = gameweekFixtures(eventFixtures, teamsById, playersById);
   const rosterManagers = (): ManagerRow[] => league.new_entries.results.map((entry) => ({
       id: entry.entry,

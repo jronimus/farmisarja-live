@@ -24,6 +24,9 @@ function countdownLabel(ms: number, language: Language) {
   return `${pad(ms / 3_600_000)}:${pad(ms % 3_600_000 / 60_000)}:${pad(ms % 60_000 / 1000)}`;
 }
 
+// A defender clears the defensive-contribution bonus at 10 CBI, a midfielder or forward at 12.
+const defConReached = (entry: { value: number; position?: SquadPlayer["position"] }) => entry.position !== undefined && entry.value >= (entry.position === "DEF" ? 10 : 12);
+
 function FixtureStats({ fixture, language }: { fixture: GameweekFixture; language: Language }) {
   const t = translations(language);
   const statLabel: Record<FixtureStatKey, string> = { goals: t.statGoals, ownGoals: t.statOwnGoals, assists: t.statAssists, cards: t.statCards, bonus: t.statBonus, bps: t.statBps, defCon: t.statDefCon, saves: t.statSaves, penalties: t.statPenalties };
@@ -31,11 +34,13 @@ function FixtureStats({ fixture, language }: { fixture: GameweekFixture; languag
   return <div className="fixture-stats">
     {fixture.stats.map((category) => <div className="fixture-stat-category" key={category.key}>
       <b>{statLabel[category.key]}</b>
+      {category.key === "defCon" && <small className="fixture-stat-note">{t.defConNote}</small>}
       <ul>
-        {category.entries.map((entry, index) => <li key={index}>
+        {category.entries.map((entry, index) => <li key={index} className={defConReached(entry) ? "stat-reached" : ""}>
           {(entry.variant === "yellow" || entry.variant === "red") && <i className={`card-swatch card-${entry.variant}`} />}
           <span>{entry.name} <em>({entry.club})</em></span>
           {!entry.variant && <b>{entry.value}</b>}
+          {defConReached(entry) && <i className="defcon-check" title={t.defConReached}>✓</i>}
           {(entry.variant === "saved" || entry.variant === "missed") && <b className={`penalty-tag penalty-${entry.variant}`}>{entry.variant === "saved" ? "✓" : "✕"}</b>}
         </li>)}
       </ul>
