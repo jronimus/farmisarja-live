@@ -11,7 +11,7 @@ before making changes.
 2. `npm install`, then `npm run dev` for the dashboard.
 3. Validation before any commit: `npm test`, `npm run build`, `npm run worker:check`,
    and `node scripts/check-overflow.mjs` with the dev server running. That one checks both
-   pages at twelve widths each.
+   pages at fourteen widths each, and opens the highlight picker at each of them.
 4. Source code, identifiers and comments in English. Visible page content in Finnish
    (the dashboard is bilingual FI/EN; the share cards are Finnish only).
 5. Deploy only when asked. Pages deploys on push to `main`; the Worker needs a separate
@@ -61,7 +61,7 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/services/fplRules.ts` | Chips, free transfers, provisional autosubs |
 | `src/i18n.ts` | FI/EN strings |
 | `src/demoData.ts` | Ten-manager stress data for `?demo=1`, built from real players |
-| `scripts/check-overflow.mjs` | Asserts the page never scrolls sideways, at twelve widths |
+| `scripts/check-overflow.mjs` | Asserts the page never scrolls sideways at fourteen widths, and that the picker menu contains its own contents |
 | `.claude/launch.json` | Starts the dev server on port 5174 |
 | `worker/index.ts` | Proxy routes, webhook, protected `/admin/card-screenshot?card=` endpoint |
 | `worker/telegram.ts` | Reminders, card capture, staged report, bot commands |
@@ -244,6 +244,23 @@ table's team names read straight through the first version of this menu. `--menu
 theme's own surface colour at full strength. Compositing the surface over `--page` instead
 was tried and is wrong: in the glass themes `--page` is a dark leftover the visible page
 does not use, and the menu came out a muddy grey.
+
+**The filter row is two rows on purpose, and both of its rules earn their place.** A flex
+row will not shrink below its own min-content and a grid track will not shrink below its
+item, so the tabs at 145px beside a 145px switch made the menu's single column 300px wide
+inside a 270px menu — and the option rows, stretched to that column, painted their owners
+figures on the table behind. The list was blamed first and was only inheriting the track.
+Side by side the two controls fit a phone's menu and not a desktop's, and a control block
+that reflows between the two is worse than one that is the same everywhere.
+
+`check-overflow.mjs` guards it now, and it needed a check of its own: the menu is
+absolutely positioned, so a row too wide for it never pushes the page and the
+sideways-scroll assertion cannot see it — which is how this shipped twice. `MENU_PROBE`
+opens the picker, walks both tabs and asserts the menu contains its own contents. Geometry
+and not paint, because `overflow:hidden` on the menu turns the same bug from a spill into a
+clipped figure. Reintroducing the flex row fails it at 8 of the 14 widths; below 800px the
+picker takes the whole toolbar row and the menu is wide enough for both controls, which is
+exactly why eyeballing it on a phone proved nothing.
 
 No viewport unit in the menu's width, and no cap either. A cap only ever bound on a phone,
 where the trigger is the full width of the row and a narrower menu under it read as
@@ -876,7 +893,8 @@ arrived with all three cards correct.
 
 Nothing is half-built. The working tree is clean, everything is pushed, and the four
 checks — `npm test` (31 passing), `npm run build`, `npm run worker:check` and
-`node scripts/check-overflow.mjs` (28 passing) — all pass as of the last commit.
+`node scripts/check-overflow.mjs` (28 widths and 14 picker menus) — all pass as of the
+last commit.
 
 ## What the first live gameweek corrected, 24 Aug
 
@@ -941,7 +959,8 @@ a number compared against a stale copy of itself:
   narrow, and emulating one there reports 15px of scrollbar nobody will ever see.
   It cannot see content that is clipped rather than pushed out — a column hidden by
   `overflow:hidden` still reports a page that fits, which is how the last column stayed
-  missing for weeks. Chrome's `--screenshot` flag does not size the viewport reliably
+  missing for weeks. Nor can it see an absolutely positioned overlay painting outside
+  itself, which is why the picker menu has a containment check of its own beside this one. Chrome's `--screenshot` flag does not size the viewport reliably
   either; capture through `Page.captureScreenshot` if a screenshot has to prove a width.
 - It found one real overflow nobody had noticed: at 320px the toggles beside the view
   tabs were 5px too wide for the page. `.toolbar` now wraps.

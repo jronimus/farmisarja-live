@@ -1860,7 +1860,9 @@ footer a { color:#c4c6d8; }
   z-index:20;
   top:calc(100% + 6px);
   left:0;
-  width:max(100%,270px);
+  /* 290 rather than 270: the tabs and the switch measure 266px side by side, and a floor
+     under that made the row the widest thing in the menu — see the wrap rule below. */
+  width:max(100%,290px);
   /* No cap and no viewport unit. A fixed cap only ever bound on a phone, where the trigger
      is the full width of the row and a narrower menu under it read as misaligned; and
      100vw counts a classic scrollbar the layout does not have, which is the exact bug
@@ -1880,6 +1882,8 @@ footer a { color:#c4c6d8; }
      does not use, and the menu came out a muddy grey. */
   background:var(--menu);
   box-shadow:0 26px 60px rgba(0,0,0,.45);
+  /* Nothing may paint outside the box, whatever the list does inside it. */
+  overflow:hidden;
 }
 .player-picker-search {
   display:flex;
@@ -1902,7 +1906,18 @@ footer a { color:#c4c6d8; }
 }
 /* The tabs and the switch on one row: both are about what the list under them holds, and
    stacked they read as unrelated settings above it rather than as its controls. */
-.player-picker-filters { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+/* Two rows, always, and min-width:0 on both. A flex row will not shrink below its own
+   min-content and a grid track will not shrink below its item, so a single row here — the
+   tabs at 145px and the switch at another 145 — was what made the menu column 300px wide
+   inside a 270px menu and painted the options' owners figures on the table behind it. The
+   list was blamed first; it was only inheriting the track.
+   Side by side they fit a phone's menu and not a desktop's, and a control block that
+   reflows between the two is worse than one that is the same everywhere. */
+.player-picker-filters { display:grid; row-gap:8px; min-width:0; }
+.player-picker-tabs { min-width:0; justify-self:start; }
+/* Label left, switch right — the same shape the toolbar's own toggles take on a phone. */
+.player-picker-filters .bench-toggle { justify-content:space-between; }
+.player-picker-search { min-width:0; }
 .player-picker-filters .bench-toggle { flex:0 0 auto; font-size:9px; }
 /* A segmented pair, which is what a two-way switch between two lists is. It is not the
    view tabs' style borrowed: those change the page, these change what is under them. */
@@ -1920,7 +1935,12 @@ footer a { color:#c4c6d8; }
 }
 .player-picker-tabs button.active { background:var(--surface); color:var(--text); }
 
-.player-picker-list { max-height:320px; overflow-y:auto; margin:0 -4px; padding:0 4px; }
+/* min-width:0 is the whole fix for a row that used to hang out of the menu. A grid item
+   is at least its own min-content wide unless told otherwise, and a row min-content is the
+   name plus both figures — so the list demanded 308px inside a 270px menu and the owners
+   column painted on the table behind it. The row already truncates: its first column is
+   minmax(0,1fr) and gives way before the figures do. */
+.player-picker-list { min-width:0; max-height:320px; overflow-y:auto; margin:0 -4px; padding:0 4px; }
 .player-picker-option,
 .player-picker-clear {
   width:100%;
@@ -1936,6 +1956,7 @@ footer a { color:#c4c6d8; }
    the list instead of drifting with the length of the name beside them. */
 .player-picker-option {
   display:grid;
+  min-width:0;
   grid-template-columns:minmax(0,1fr) auto auto;
   align-items:center;
   column-gap:8px;

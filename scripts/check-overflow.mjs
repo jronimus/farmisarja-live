@@ -75,6 +75,41 @@ const PROBE = `(() => {
   });
 })()`;
 
+/* The highlight picker's menu is absolutely positioned, so a row too wide for it paints
+   over the table behind instead of pushing the page: the check above cannot see it, and
+   that bug shipped twice. This one opens the menu, walks both of its tabs, and asserts the
+   menu contains its own contents. Geometry, not paint — with `overflow:hidden` on the menu
+   the same row is clipped rather than spilled, and a clipped owners figure is no better. */
+const MENU_PROBE = `(async () => {
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const trigger = document.querySelector(".player-picker-button");
+  if (!trigger) return JSON.stringify({ skipped: "no picker" });
+  trigger.click();
+  await wait(150);
+  const menu = document.querySelector(".player-picker-menu");
+  if (!menu) return JSON.stringify({ skipped: "menu did not open" });
+  const offenders = [];
+  const check = (tab) => {
+    const box = menu.getBoundingClientRect();
+    for (const el of menu.querySelectorAll("*")) {
+      const b = el.getBoundingClientRect();
+      if (b.width === 0 || b.height === 0) continue;
+      const over = Math.round(Math.max(b.right - box.right, box.left - b.left));
+      if (over <= 1) continue;
+      const name = el.tagName.toLowerCase() + (typeof el.className === "string" && el.className
+        ? "." + el.className.trim().split(/\\s+/).join(".") : "");
+      offenders.push({ tab, name, over });
+    }
+  };
+  check("players");
+  const rows = menu.querySelectorAll(".player-picker-option").length;
+  const clubs = menu.querySelectorAll(".player-picker-tabs button")[1];
+  if (clubs) { clubs.click(); await wait(150); check("clubs"); }
+  const clubRows = menu.querySelectorAll(".player-picker-option").length;
+  document.body.click();
+  return JSON.stringify({ rows, clubRows, offenders: offenders.slice(0, 8) });
+})()`;
+
 /* Headless Chrome draws overlay scrollbars, so 100vw and the layout width agree
    there and a `width:100vw` bug stays invisible. On a desktop window with a
    classic scrollbar they differ by ~15px and the page is pushed sideways. The
@@ -163,6 +198,8 @@ async function waitForContent(send) {
 }
 
 const failures = [];
+const menuFailures = [];
+let menuChecks = 0;
 for (const url of urls) {
 for (const width of widths) {
   // Below 600px the only real device is a phone, which has overlay scrollbars;
@@ -194,6 +231,32 @@ for (const width of widths) {
   } else {
     console.log(`ok   ${width}px  ${url.includes("#/") ? url.slice(url.indexOf("#")) : "/"}`);
   }
+
+  // The picker only exists on the table page, and only where the toolbar shows it.
+  if (!url.includes("#/hinnat")) {
+    const { result: menu } = await send("Runtime.evaluate", { expression: MENU_PROBE, returnByValue: true, awaitPromise: true });
+    // A probe that threw in the page reports no value, and a check that cannot run has to
+    // say so rather than crash the script and leave the other widths untested.
+    const menuReport = menu && typeof menu.value === "string" ? JSON.parse(menu.value) : { failed: true };
+    if (menuReport.failed) {
+      console.error(`FAIL ${width}px menu — the probe did not run`);
+      menuFailures.push({ width, offenders: [] });
+    } else if (menuReport.skipped) {
+      console.log(`     menu ${width}px — skipped, ${menuReport.skipped}`);
+    } else if (!menuReport.rows || !menuReport.clubRows) {
+      console.error(`FAIL ${width}px menu — a tab rendered no rows, so nothing was tested`);
+      menuFailures.push({ width, offenders: [] });
+    } else if (menuReport.offenders.length) {
+      menuFailures.push({ width, offenders: menuReport.offenders });
+      console.log(`FAIL ${width}px menu — the picker paints outside itself`);
+      for (const offender of menuReport.offenders) {
+        console.log(`       ${offender.tab}: ${offender.name} sticks out ${offender.over}px`);
+      }
+    } else {
+      menuChecks += 1;
+      console.log(`ok   ${width}px  picker menu (${menuReport.rows} players, ${menuReport.clubRows} clubs)`);
+    }
+  }
 }
 }
 
@@ -209,9 +272,10 @@ socket.close();
 chrome.kill();
 await rm(profile, { recursive: true, force: true }).catch(() => {});
 
-if (failures.length || viewportUnits.length) {
-  console.error(`\n${failures.length} of ${widths.length} widths overflow, `
+if (failures.length || menuFailures.length || viewportUnits.length) {
+  console.error(`\n${failures.length} of ${widths.length * urls.length} widths overflow, `
+    + `${menuFailures.length} picker menus paint outside themselves, `
     + `${viewportUnits.length} viewport-unit widths.`);
   process.exit(1);
 }
-console.log(`\nAll ${widths.length * urls.length} checks fit.`);
+console.log(`\nAll ${widths.length * urls.length} widths and ${menuChecks} picker menus fit.`);
