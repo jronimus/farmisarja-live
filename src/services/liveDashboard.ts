@@ -279,6 +279,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     bootstrap.elements,
     bootstrap.teams,
     bootstrap.game_config?.settings?.price_change_deadlines ?? [],
+    bootstrap.events.find((item) => new Date(item.deadline_time).getTime() > Date.now())?.deadline_time ?? null,
   );
   const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
   if (!event) return null;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPriceMarket, hoursToChange, nextPriceDeadline, outlookFor, perHourFromProjections, type PriceElement } from "./priceChanges";
+import { buildPriceMarket, daysUntilChangeDay, hoursToChange, lastChangeBeforeDeadline, maybeThisWeek, nextPriceDeadline, outlookFor, perHourFromProjections, type PriceElement } from "./priceChanges";
 
 const projections = (a: number, b: number, c: number, likelihood = 3) => [
   { offset: 0, projected_percent: String(a), likelihood },
@@ -40,24 +40,80 @@ describe("price changes", () => {
     expect(hoursToChange(52.5, 0)).toBeNull();
   });
 
-  it("takes the first projection that actually reaches a change", () => {
-    expect(outlookFor({ projections: [
-      { offset: 0, percent: 59.4, likelihood: 3 },
-      { offset: 1, percent: 99.5, likelihood: 5 },
-      { offset: 2, percent: 139.6, likelihood: 5 },
-    ] })).toEqual({ offset: 2, likelihood: 5, direction: "rise" });
+  // The three FPL published on 25 Aug 2026: 02:00 Finnish time on each of the next three
+  // nights.
+  const deadlines = ["2026-08-25T23:00:00Z", "2026-08-26T23:00:00Z", "2026-08-27T23:00:00Z"];
+  const morning = Date.parse("2026-08-25T05:33:00Z");
 
-    expect(outlookFor({ projections: [
-      { offset: 0, percent: -60.9, likelihood: -4 },
-      { offset: 1, percent: -99.5, likelihood: -5 },
-      { offset: 2, percent: -138, likelihood: -5 },
-    ] })).toEqual({ offset: 2, likelihood: -5, direction: "fall" });
+  it("names the deadline a player's own rate carries him to", () => {
+    // De Cuyper, already past 100: the next deadline takes him, whatever the rate does.
+    expect(outlookFor({ progress: 105.3, perHour: 2.14 }, deadlines, morning))
+      .toEqual({ deadline: "2026-08-25T23:00:00Z", direction: "rise" });
 
-    expect(outlookFor({ projections: [
-      { offset: 0, percent: 18.2, likelihood: 1 },
-      { offset: 1, percent: 31.2, likelihood: 2 },
-      { offset: 2, percent: 44.3, likelihood: 3 },
-    ] })).toBeNull();
+    // Sangaré, five hours short: still inside tonight's deadline.
+    expect(outlookFor({ progress: 92, perHour: 1.53 }, deadlines, morning))
+      .toEqual({ deadline: "2026-08-25T23:00:00Z", direction: "rise" });
+
+    // Calafiori, twenty-two hours short, which is past tonight's 02:00. FPL's own page
+    // calls this one tomorrow; his change is the night after.
+    expect(outlookFor({ progress: 81.3, perHour: 0.85 }, deadlines, morning))
+      .toEqual({ deadline: "2026-08-26T23:00:00Z", direction: "rise" });
+
+    expect(outlookFor({ progress: -92, perHour: -1.5 }, deadlines, morning))
+      .toEqual({ deadline: "2026-08-25T23:00:00Z", direction: "fall" });
+  });
+
+  it("names no day past the published deadlines, or when nothing is moving", () => {
+    // Tzolis at 87 hours: the list runs out first, and a rate stretched further than FPL
+    // will announce a time for is a guess.
+    expect(outlookFor({ progress: 53.5, perHour: 0.53 }, deadlines, morning)).toBeNull();
+    expect(outlookFor({ progress: 52.5, perHour: 0 }, deadlines, morning)).toBeNull();
+    expect(outlookFor({ progress: 52.5, perHour: -1.2 }, deadlines, morning)).toBeNull();
+    expect(outlookFor({ progress: 105.3, perHour: 2.14 }, [], morning)).toBeNull();
+  });
+
+  it("names a 02:00 change after the evening it belongs to, not the date it falls on", () => {
+    // Built in local time on both sides, so the assertion holds in any zone the reader is in.
+    const local = (day: number, hour: number) => new Date(2026, 7, day, hour).toISOString();
+    const morningOf25 = new Date(2026, 7, 25, 8, 33).getTime();
+
+    // Tonight's change, seventeen hours away. Nobody reading this at breakfast calls that
+    // tomorrow, and FPL's own `offset` 0 does not either.
+    expect(daysUntilChangeDay(local(26, 2), morningOf25)).toBe(0);
+    expect(daysUntilChangeDay(local(27, 2), morningOf25)).toBe(1);
+    expect(daysUntilChangeDay(local(28, 2), morningOf25)).toBe(2);
+
+    // An hour before the change, and an hour after it: both are still tonight's day.
+    expect(daysUntilChangeDay(local(26, 2), new Date(2026, 7, 26, 1).getTime())).toBe(-1);
+    expect(daysUntilChangeDay(local(27, 2), new Date(2026, 7, 26, 3).getTime())).toBe(0);
+  });
+
+  // GW2's own shape: three nightly changes, the last of them at 02:00 on the Friday the
+  // deadline falls on.
+  const week = { deadlines, gameweekDeadline: "2026-08-28T17:30:00Z", players: [] };
+
+  it("stops the week at the last change before the gameweek deadline", () => {
+    expect(lastChangeBeforeDeadline(week)).toBe("2026-08-27T23:00:00Z");
+    // A list that ran past the deadline would otherwise stretch the week silently.
+    expect(lastChangeBeforeDeadline({ ...week, deadlines: [...deadlines, "2026-08-28T23:00:00Z"] }))
+      .toBe("2026-08-27T23:00:00Z");
+    expect(lastChangeBeforeDeadline({ ...week, deadlines: [] })).toBeNull();
+  });
+
+  it("hedges a player who is near 100 by the last change of the week", () => {
+    // 65 hours to that change. 20 % and 1.3 an hour comes to 104 and has a night named for
+    // it; these two do not, and only the first of them gets there.
+    expect(maybeThisWeek({ progress: 40, perHour: 0.9 }, week, morning)).toBe("rise");
+    expect(maybeThisWeek({ progress: 53.5, perHour: 0.53 }, week, morning)).toBeNull();
+    expect(maybeThisWeek({ progress: -40, perHour: -0.9 }, week, morning)).toBe("fall");
+  });
+
+  it("hedges nothing that is flat, turned around, or out of week", () => {
+    expect(maybeThisWeek({ progress: 40, perHour: 0 }, week, morning)).toBeNull();
+    // Rising now but the rate has turned: projecting it through zero and out the far side
+    // would announce a fall.
+    expect(maybeThisWeek({ progress: 40, perHour: -2.5 }, week, morning)).toBeNull();
+    expect(maybeThisWeek({ progress: 40, perHour: 0.9 }, week, Date.parse("2026-08-28T05:00:00Z"))).toBeNull();
   });
 
   it("maps an element onto a row, strings and tenths included", () => {

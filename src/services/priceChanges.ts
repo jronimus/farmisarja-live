@@ -50,25 +50,64 @@ export function hoursToChange(progress: number, perHour: number): number | null 
   return remaining / perHour;
 }
 
-export type Outlook = { offset: number; likelihood: number; direction: "rise" | "fall" } | null;
+export type Outlook = { deadline: string; direction: "rise" | "fall" } | null;
 
 /**
- * The first of FPL's projections that reaches a price change, if any. This is what turns
- * three percentages into "rises tonight" — the same reading the official page puts in its
- * status column, done from the same numbers.
+ * Which day a change belongs to, counted from today in the reader's own zone.
+ *
+ * A change lands at 02:00, and 02:00 belongs to the evening before it, not to the morning
+ * it technically falls in. So the day a deadline is named after is the day its own window
+ * opened — the previous change, 24 hours earlier — and not its own calendar date. Read
+ * naively, a change 17 hours away at 02:00 tonight came out as *huomenna* when everyone
+ * reading the page would call it tonight. This is the same reckoning behind FPL's own
+ * `offset` 0 meaning today, and that part of their page was right.
+ *
+ * Negative when the window has already opened, which is any deadline later tonight.
  */
-export function outlookFor(row: Pick<PriceRow, "projections">): Outlook {
-  const reached = [...row.projections]
-    .sort((a, b) => a.offset - b.offset)
-    .find((entry) => Math.abs(entry.percent) >= 100);
-  if (!reached) return null;
-  return { offset: reached.offset, likelihood: reached.likelihood, direction: reached.percent > 0 ? "rise" : "fall" };
+export function daysUntilChangeDay(deadline: string, now: number): number {
+  const midnight = (value: number) => {
+    const date = new Date(value);
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  };
+  return Math.round((midnight(Date.parse(deadline) - 86_400_000) - midnight(now)) / 86_400_000);
+}
+
+/**
+ * When this player's price actually changes: the first published deadline after the moment
+ * his progress reaches 100.
+ *
+ * This used to read FPL's own projections and label them today/tomorrow/2 days by their
+ * offset, which is what FPL's page does and it is wrong twice over. A projection offset is
+ * a day from now, not a change time, so a player already past 100 was called "today" when
+ * the next change is at 02:00 tomorrow; and a player the per-hour column put 22 hours away
+ * was called "tomorrow" even though 22 hours from now is past tomorrow's 02:00 and his
+ * change is the night after. The column now follows the same arithmetic as the column
+ * beside it — progress and rate give the hour, the published deadline list gives the day —
+ * so the two can no longer disagree.
+ *
+ * Past the end of that list there is no day to name: FPL publishes three deadlines, and a
+ * rate extrapolated further than that is a guess about a time nobody has announced.
+ */
+export function outlookFor(
+  row: Pick<PriceRow, "progress" | "perHour">,
+  deadlines: string[],
+  now: number,
+): Outlook {
+  // Already over the line: the rate no longer matters, the next deadline takes him.
+  const hours = Math.abs(row.progress) >= 100 ? 0 : hoursToChange(row.progress, row.perHour);
+  if (hours === null) return null;
+  const crossing = now + hours * 3_600_000;
+  const deadline = deadlines.find((entry) => Date.parse(entry) > crossing);
+  if (!deadline) return null;
+  const direction = (row.progress !== 0 ? row.progress : row.perHour) > 0 ? "rise" : "fall";
+  return { deadline, direction };
 }
 
 export function buildPriceMarket(
   elements: PriceElement[],
   teams: Array<{ id: number; short_name: string; code: number }>,
   deadlines: string[],
+  gameweekDeadline: string | null = null,
 ): PriceMarket {
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const players = elements.map((element): PriceRow => {
@@ -95,7 +134,53 @@ export function buildPriceMarket(
       calibrating: element.price_change_calibrating,
     };
   });
-  return { deadlines, players };
+  return { deadlines, gameweekDeadline, players };
+}
+
+/**
+ * The last change before the gameweek deadline — the far end of the week this page is
+ * about. Everything past it is next week's squad, not this one's.
+ *
+ * FPL's published list already stops there: on 25 Aug it carried exactly the three changes
+ * left before GW2's Friday deadline, the last of them at 02:00 that same Friday. The
+ * gameweek deadline is still checked rather than assumed, because a list that grows past
+ * it would otherwise stretch the week silently.
+ */
+export function lastChangeBeforeDeadline(market: PriceMarket): string | null {
+  const within = market.gameweekDeadline
+    ? market.deadlines.filter((entry) => Date.parse(entry) < Date.parse(market.gameweekDeadline as string))
+    : market.deadlines;
+  return within[within.length - 1] ?? null;
+}
+
+/**
+ * Close enough to be worth saying, but not close enough to name a night.
+ *
+ * A player who is not reaching 100 at any published change can still be nearly there by
+ * the last one before the deadline, and that is a different fact from nothing happening —
+ * it is the difference between a squad that is safe until Friday and one that may not be.
+ * The threshold is 95 %, so the sentence only appears when the rate has to hold rather
+ * than improve.
+ *
+ * It is a guess and reads as one, and it is only made for a player already going the way
+ * his rate pulls. One who has turned around would otherwise be projected straight through
+ * zero and out the far side: 40 % falling at 2.5 an hour comes to −122 in three days, and
+ * the page would announce a fall for a player whose meter is still on the way up. This is
+ * the same rule `hoursToChange` applies, for the same reason.
+ */
+export function maybeThisWeek(
+  row: Pick<PriceRow, "progress" | "perHour">,
+  market: PriceMarket,
+  now: number,
+): "rise" | "fall" | null {
+  const cutoff = lastChangeBeforeDeadline(market);
+  if (!cutoff || row.perHour === 0) return null;
+  const hours = (Date.parse(cutoff) - now) / 3_600_000;
+  if (hours <= 0) return null;
+  if (row.progress !== 0 && Math.sign(row.progress) !== Math.sign(row.perHour)) return null;
+  const projected = row.progress + row.perHour * hours;
+  if (Math.abs(projected) < 95) return null;
+  return projected > 0 ? "rise" : "fall";
 }
 
 /** The next change FPL has published, or null once its list runs out. */

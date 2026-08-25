@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Clock3, Lock, Search } from "lucide-react";
 import { translations } from "./i18n";
-import { hoursToChange, nextPriceDeadline, outlookFor } from "./services/priceChanges";
+import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor } from "./services/priceChanges";
 import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
 import type { DashboardData, Language, PriceRow } from "./types";
 
@@ -106,7 +106,16 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     onClick={() => { if (sort === key) setDescending((value) => !value); else { setSort(key); setDescending(true); } }}
   >{label}{sort === key && (descending ? <ArrowDown /> : <ArrowUp />)}</button>;
 
-  const outlookLabel = (offset: number) => [t.outlookToday, t.outlookTomorrow, t.outlookTwoDays][offset] ?? "";
+  // The day the change belongs to, not the offset of the projection that predicted it.
+  const outlookLabel = (deadline: string, now: number) => {
+    const days = daysUntilChangeDay(deadline, now);
+    if (days <= 0) return t.outlookToday;
+    if (days === 1) return t.outlookTomorrow;
+    // Finnish has a word for the day after tomorrow and English does not, which is the
+    // whole reason this is a string per language rather than a count and a unit.
+    if (days === 2) return t.outlookTwoDays;
+    return t.outlookInDays.replace("{n}", String(days));
+  };
 
   if (!market || !market.players.length) {
     return <section className="data-pending" role="status">
@@ -153,7 +162,11 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         <span className="head-cost">{header(t.price, "cost")}</span>
       </div>
       {visible.map((row) => {
-        const outlook = outlookFor(row);
+        const now = Date.now();
+        const outlook = outlookFor(row, market.deadlines, now);
+        // Not reaching a change, but near enough by the last one before the deadline to be
+        // worth a hedge rather than a flat no.
+        const maybe = outlook ? null : maybeThisWeek(row, market, now);
         const hours = hoursToChange(row.progress, row.perHour);
         const rising = row.progress >= 0;
         const held = owners.get(row.id) ?? [];
@@ -175,9 +188,11 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
                 ? <em>{t.priceCalibrating}</em>
                 : outlook
                   ? <em className={outlook.direction === "rise" ? "up" : "down"}>
-                    {outlook.direction === "rise" ? t.willRise : t.willFall} {outlookLabel(outlook.offset)}
+                    {outlook.direction === "rise" ? t.willRise : t.willFall} {outlookLabel(outlook.deadline, now)}
                   </em>
-                  : <em className="quiet">{t.noChangeAhead}</em>}
+                  : maybe
+                    ? <em className={`maybe ${maybe === "rise" ? "up" : "down"}`}>{maybe === "rise" ? t.mayRiseThisWeek : t.mayFallThisWeek}</em>
+                    : <em className="quiet">{t.unlikelyThisWeek}</em>}
           </span>
           <span className="price-rate" data-label={t.perHour}>
             <b className={row.perHour >= 0 ? "up" : "down"}>{row.perHour > 0 ? "+" : ""}{row.perHour.toFixed(2)}</b>
@@ -209,5 +224,9 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         <button disabled={page + 1 >= pageCount} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}>{t.next}</button>
       </div>
     </div>
+
+    {/* Under the table rather than over it: it qualifies what has been read, and a caveat
+        placed before the thing it qualifies is read as a warning about the page. */}
+    <p className="price-disclaimer">{t.priceDisclaimer}</p>
   </section>;
 }

@@ -126,6 +126,8 @@ export interface PriceRow {
 export interface PriceMarket {
   /** FPL publishes the exact change times; the countdown is not guesswork. */
   deadlines: string[];
+  /** The next gameweek deadline, which is as far ahead as the price page looks. */
+  gameweekDeadline: string | null;
   players: PriceRow[];
 }
 

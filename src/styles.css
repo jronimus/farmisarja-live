@@ -2215,6 +2215,12 @@ footer a { color:#c4c6d8; }
 .price-outlook .down { color:var(--red); }
 .price-outlook .quiet,
 .price-outlook .locked { color:var(--faint); display:flex; align-items:center; gap:4px; }
+/* A hedge, and it has to read as one. It keeps the direction's colour, because that is the
+   fact it carries, but gives up the weight and a third of the saturation a named night
+   gets. Two lines are expected in a 150px column and the row has the height for them. */
+.price-outlook .maybe { font-weight:600; line-height:1.25; }
+.price-outlook .maybe.up { color:color-mix(in srgb,var(--green) 64%,var(--faint)); }
+.price-outlook .maybe.down { color:color-mix(in srgb,var(--red) 64%,var(--faint)); }
 .price-outlook svg { width:11px; }
 
 .price-rate,
@@ -2249,6 +2255,18 @@ footer a { color:#c4c6d8; }
   cursor:pointer;
 }
 .price-pager button:disabled { opacity:.4; cursor:default; }
+/* A footnote, set as one. It is held back by size and colour rather than by a box: a
+   tinted panel would give a caveat more weight on the page than any row of the table it
+   qualifies. The measure is capped because a 1920px window would otherwise run it as one
+   line the eye cannot track back from. */
+.price-disclaimer {
+  max-width:82ch;
+  margin:14px 0 0;
+  color:var(--faint);
+  font-size:10px;
+  font-weight:500;
+  line-height:1.5;
+}
 
 @media (max-width:800px) {
   /* Three rows rather than five: the clock shares its line with the search, and the three

@@ -495,10 +495,76 @@ percentage points per hour, `(offset2 − offset1) / 24`. Checked against LiveFP
 per-hour column on the same players — 1.67 against 1.76, 1.93 against 2.11, 2.38 against
 2.28. The estimated hours-to-change follows from that rate and the current progress.
 
-The one thing that reads as a contradiction is FPL's own: Calafiori at 52.5 % projects
-99.5 % for tomorrow, half a point short, so the outlook says *2 pv* while the derived rate
-says *noin 28 h*. Both are shown, in separate columns, because they are separate
-quantities.
+### The prediction column names a change time, not a projection offset
+
+`outlookFor()` takes the hour the rate says progress reaches 100, and finds the first
+published deadline after it. The page then names the day that deadline **belongs to**.
+
+Two things have to be right and only the second was, on FPL's page and here:
+
+- **A change at 02:00 belongs to the evening before it.** Seventeen hours away at
+  breakfast, it is tonight's change, and everyone reading the page calls that today. That
+  is what FPL's `offset` 0 meaning *today* encodes, and it is correct.
+  `daysUntilChangeDay()` counts from the day the deadline's own window opened — the
+  previous change, 24 hours earlier — not from its own calendar date. A naive date
+  difference was written first and printed *huomenna* for tonight.
+- **An offset is a day from now, not a change time.** This is the part FPL gets wrong.
+  Sangaré four hours from 100 crossed well before tonight's 02:00, but the projection that
+  first passed 100 was `offset` 1, so the page said *huomenna* while the column beside it
+  said *noin 4 h*. Conversely Calafiori's 20 hours land at about 06:00 — four hours *past*
+  tonight's deadline — so his change is the following night, where FPL again said
+  *huomenna* by reading `offset` 1.
+
+Both columns are now the same arithmetic, and the check is the one sentence that settles
+every row: **is the crossing before the next change or after it.** Against a 17-hour
+deadline: 4 h → *tänään*, 20 h → *huomenna*, 33 h → *huomenna*, 54 h → *ylihuomenna*,
+already past 100 → *tänään*.
+
+The day names are a string per language, not a count and a unit: Finnish has *ylihuomenna*
+and English has nothing to translate it with. Only past three days does either fall back to
+counting, `outlookInDays`, which is *N päivän päästä* rather than *N pv* — the column has
+the room for it, measured at 127px of a 150px column for the longest form it can hold.
+That rung is unreachable while FPL publishes three deadlines at a time and is written for
+the week it publishes more.
+
+The column reads as a ladder of certainty and each rung says how sure it is: a named night
+(*tänään*, *huomenna*, *ylihuomenna*), then *Saattaa nousta tällä viikolla*, then *Tuskin tällä
+viikolla*. The last of those was *Ei muutosta näkyvissä*, which claimed more than the page
+knows — it is not that nothing is moving, it is that this rate does not get there before
+Friday. Every rung is now about the same week, so the three can be read against each other.
+
+Past the last change of the week the column stops naming days, because there is no day left
+to name: a rate stretched further than FPL will announce a time for is a guess about a
+night nobody has published. `lastChangeBeforeDeadline()` is where the week ends — the last
+published change before the gameweek deadline, which on 25 Aug was 02:00 on the Friday the
+deadline itself falls on. FPL's list already stops there, and the deadline is checked
+anyway so a longer list could not stretch the week silently.
+
+But *no day* and *nothing happening* are two different facts, and a squad is safe until
+Friday or it is not. So there is a third state between them, from `maybeThisWeek()`:
+**a player projected past 95 % by that last change reads *Saattaa nousta tällä viikolla***,
+or *laskea*. Real fallers on 25 Aug: Estêvão at −24.0 % and −1.10 an hour reaches −95.5 by
+Friday's change, which is 69 hours out against a week that ends at 65 — near enough to say
+so, not near enough to name a night.
+
+It is a guess and it is set as one: the direction's colour at 64 % strength against
+`--faint`, weight 600 rather than 800. The hedge is only made for a player already going
+the way his rate pulls; one who has turned around would be projected straight through zero
+and out the far side, and 40 % falling at 2.5 an hour would announce a fall for a meter
+that is still on its way up.
+
+The per-hour column keeps printing its estimate under all of this, because an hour count is
+not a claim about which night anything lands on.
+
+Under the table, and only under it, is one footnote: the numbers are FPL's, the rate is
+derived, and a rate is where something leads rather than what it will do. It is set at 10px
+in `--faint` and capped at 82ch, with no box around it — a tinted panel would give a caveat
+more weight on the page than any row of the table it qualifies, and a caveat placed above
+the thing it qualifies reads as a warning about the page itself.
+
+The demo market builds its deadlines relative to now — three nightly changes and a gameweek
+deadline on the evening the last belongs to, which is the shape FPL publishes. A written-out
+date stops demonstrating any of the five states the week after it passes.
 
 ### What the page carries
 

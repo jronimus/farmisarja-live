@@ -318,7 +318,21 @@ const demoPrices = (): DashboardData["prices"] => {
       lockedUntil: index % 41 === 0 ? "2026-08-28T23:00:00Z" : null, calibrating: index % 53 === 0,
     };
   });
-  return { deadlines: ["2026-08-28T17:30:00Z", "2026-08-29T23:00:00Z"], players };
+  // Relative to now, not written out: the outlook column has five states and a fixed date
+  // stops demonstrating any of them the week after it passes. Three nightly changes at
+  // 02:00, and a gameweek deadline on the evening the last of them belongs to — which is
+  // the shape FPL publishes.
+  const night = (offset: number, hour: number) => {
+    const date = new Date();
+    date.setHours(hour, 0, 0, 0);
+    date.setDate(date.getDate() + offset);
+    return date.toISOString();
+  };
+  return {
+    deadlines: [night(1, 2), night(2, 2), night(3, 2)],
+    gameweekDeadline: night(3, 20),
+    players,
+  };
 };
 
 /** The clubs written out, as the Worker sends them with a real event. */
