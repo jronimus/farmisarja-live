@@ -10,7 +10,7 @@ const player = (id: number, starter: boolean, extra: Partial<SquadPlayer> = {}):
 
 const manager = (id: number, squad: SquadPlayer[], chip?: ManagerRow["chip"]): ManagerRow => ({
   id, position: id, previousPosition: id, teamName: `T${id}`, managerName: `M${id}`, gameweekPoints: 0,
-  provisionalBonus: 0, totalPoints: 0, overallRank: 0, previousOverallRank: 0, captain: "", captainPoints: 0,
+  provisionalBonus: 0, totalPoints: 0, overallRank: 0, rankedPoints: 0, previousOverallRank: 0, captain: "", captainPoints: 0,
   transfers: [], hit: 0, chip, availableChips: [], usedChips: [], seasonTransfers: 0, seasonHitPoints: 0,
   benchPointsBeforeGw: 0, teamValue: 100, previousTeamValue: 100, finished: 0, live: 0, upcoming: 0,
   form: [], formGameweeks: [], formRankMovement: [], squad,

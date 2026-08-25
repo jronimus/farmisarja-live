@@ -68,6 +68,11 @@ export interface ManagerRow {
   provisionalBonus: number;
   totalPoints: number;
   overallRank: number;
+  /**
+   * The season total FPL's own rank was computed on. When it equals the total this row
+   * shows, `overallRank` is exact and no estimate is needed.
+   */
+  rankedPoints: number;
   previousOverallRank: number;
   captain: string;
   captainPoints: number;

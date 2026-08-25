@@ -228,6 +228,9 @@ const managers: ManagerRow[] = seasonTable.map((season, index) => {
     totalPoints: season.total,
     // Rank follows the total, as it has to, spaced the way a real table is.
     overallRank: 120_000 + (9 - index) * 15_000 + (hash(seed * 13) % 40_000),
+    // Equal to the total above, so demo rows read as FPL's own exact rank and the demo
+    // never asks a Worker it has none of for a curve.
+    rankedPoints: season.total,
     previousOverallRank: 140_000 + (9 - index) * 15_000 + (hash(seed * 19) % 40_000),
     captain: captain.name,
     captainPoints: captain.points * multiplier,

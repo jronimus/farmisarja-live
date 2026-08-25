@@ -231,6 +231,8 @@ async function managerRow(
     provisionalBonus: 0,
     totalPoints: Math.max(currentHistory.total_points + hit, pointsBeforeGameweek + gameweekPoints),
     overallRank: entry.summary_overall_rank || currentHistory.overall_rank || 0,
+    // Net of hits, like the figure the table prints, so the two can simply be compared.
+    rankedPoints: currentHistory.total_points,
     // 0 means there is no previous rank. Falling back to this gameweek's stored rank
     // compared the live figure against the stale one and called the gap movement: in GW1
     // a manager got a green pill or no pill at all depending only on which of the two
@@ -302,6 +304,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       provisionalBonus: 0,
       totalPoints: 0,
       overallRank: 0,
+      rankedPoints: 0,
       previousOverallRank: 0,
       captain: "—",
       captainPoints: 0,

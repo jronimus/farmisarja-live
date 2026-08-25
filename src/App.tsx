@@ -644,8 +644,19 @@ export default function App() {
    * total, so the same total the row shows can simply be looked up on it.
    */
   const [rankCurve, setRankCurve] = useState<RankCurve | null>(null);
+  /*
+   * Whether anybody still needs an estimate, which is a question with an exact answer: FPL's
+   * rank belongs to a total, and when that total is the one the row prints, its rank is the
+   * real thing and there is nothing left to estimate. That happens by itself once FPL
+   * reprocesses the gameweek — so the estimate fills a gap and then stands down, and the
+   * page stops asking the Worker for a curve nobody is going to read.
+   */
+  const rankNeedsEstimate = useMemo(
+    () => liveManagers.some((manager) => manager.rankedPoints !== manager.totalPoints + manager.provisionalBonus - manager.hit),
+    [liveManagers],
+  );
   useEffect(() => {
-    if (!liveReady || demoMode) return;
+    if (!liveReady || demoMode || !rankNeedsEstimate) { setRankCurve(null); return; }
     let cancelled = false;
     const read = () => loadRankCurve(data.gameweek)
       .then((curve) => { if (!cancelled) setRankCurve(curve); })
@@ -655,7 +666,7 @@ export default function App() {
     // on the same rhythm as the feed rather than more often than it can change.
     const timer = window.setInterval(read, 90_000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [liveReady, demoMode, data.gameweek]);
+  }, [liveReady, demoMode, rankNeedsEstimate, data.gameweek]);
 
   const clubOwnership = useMemo(() => buildClubOwnership(liveManagers, autosubs, !startersOnly), [liveManagers, autosubs, startersOnly]);
   // A highlighted player can be transferred out from under the selection between refreshes,
@@ -920,8 +931,10 @@ export default function App() {
             const displayedGwPoints = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
             const captain = captainDisplay(manager, autosubs);
             // The estimate is looked up on the very total the row prints, so the two can
-            // never disagree about what this manager has scored.
-            const estimated = estimateRank(manager.totalPoints + manager.provisionalBonus - manager.hit, rankCurve);
+            // never disagree about what this manager has scored — and it is only reached at
+            // all while FPL's own rank belongs to a different total than the row shows.
+            const rowTotal = manager.totalPoints + manager.provisionalBonus - manager.hit;
+            const estimated = manager.rankedPoints === rowTotal ? null : estimateRank(rowTotal, rankCurve);
             const shownRank = estimated ?? manager.overallRank;
             const rankTitle = estimated ? t.rankEstimate : t.rankStored;
             // Without a previous rank there is no movement to draw, which is every row

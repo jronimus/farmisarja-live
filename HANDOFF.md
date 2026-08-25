@@ -630,6 +630,33 @@ Tussulan voittajat share a rank in both columns, which is the pure-function prop
 true ranks and the estimate's error can be read off them. Do that rather than trusting the
 figures above to keep holding.
 
+### The estimate stands down
+
+**It is only reached while FPL's own rank belongs to a different total than the row prints.**
+`rankedPoints` on each row is the season total FPL ranked; when it equals the figure the
+table shows, that rank is the real thing and there is nothing left to estimate. So the page
+prefers FPL's number the moment FPL makes it exact, and stops asking the Worker for a curve
+nobody will read — no flag, no timer, and nothing to keep in step.
+
+That happened while this was being written. FPL reprocessed GW1 at about 12:40 on 25 Aug,
+every row's `rankedPoints` came into line with its total, and the tildes disappeared by
+themselves. Which also produced the one measurement that matters — **the estimate against
+the official ranks, not against LiveFPL**:
+
+| | pts | FPL, official | ours | error |
+| --- | ---: | ---: | ---: | ---: |
+| Tiksi United FC | 67 | 785 979 | 776 221 | −1.24 % |
+| Jankon betoni | 56 | 2 672 977 | 2 648 280 | −0.92 % |
+| Karjarannan Hurjat | 52 | 3 764 313 | 3 835 439 | +1.89 % |
+| Airola Albion | 49 | 4 665 759 | 4 657 318 | −0.18 % |
+| KERPA RULZ | 37 | 7 648 360 | 7 579 557 | −0.90 % |
+| Tussulan voittajat | 37 | 7 648 360 | 7 579 557 | −0.90 % |
+| Pirkkolan Beckham | 34 | 8 083 373 | 8 173 136 | +1.11 % |
+
+Worst error 1.89 %, on a fifth of the sample the Worker draws. And the prediction that
+mattered held: our leader gained nothing from autosubs while the field gained 2.09 points,
+so the estimate said he would fall from 642 802 to about 776 000 — FPL now says 785 979.
+
 ### What is not done
 
 **The Worker has not been deployed with any of this.** Until it is, `/rank` answers 404, the
