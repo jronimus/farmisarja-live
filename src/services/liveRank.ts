@@ -22,7 +22,10 @@ export interface RankCurve {
   scoredAt: string;
   /** How much of the sample is built, 0–1. Below 1 the curve is coarser than it will be. */
   coverage: number;
-  /** Every fixture of the gameweek is over, so this curve will not move again. */
+  /**
+   * Every fixture is `finished` — confirmed, not merely at full time — so nothing about
+   * this curve can move again. Bonus is still recalculated between the two.
+   */
   settled: boolean;
 }
 

@@ -80,7 +80,10 @@ export interface RankCurve {
   scoredAt: string;
   /** How much of the sample is built, 0–1. Below 1 the curve is coarser than it will be. */
   coverage: number;
-  /** Every fixture of the gameweek is over, so this curve will not move again. */
+  /**
+   * Every fixture is `finished` — confirmed, not merely at full time — so nothing about
+   * this curve can move again. Bonus is still recalculated between the two.
+   */
   settled: boolean;
 }
 
@@ -103,18 +106,7 @@ export const PER_PAGE = 8;
  */
 export const FETCH_BUDGET = 20;
 
-/**
- * How stale a curve may get before it is rewritten.
- *
- * The free KV plan allows a thousand writes a day and the feed already spends about four
- * hundred of them on a heavy Saturday. A rank that moves in steps of some thousands does
- * not need a new curve every minute, so this holds the whole feature to roughly two hundred
- * writes on the same day.
- */
-export const CURVE_INTERVAL_MS = 150_000;
-
 const sampleKey = (gameweek: number) => `rank:gw:${gameweek}`;
-const curveKey = (gameweek: number) => `rankcurve:gw:${gameweek}`;
 
 async function fpl<T>(path: string): Promise<T> {
   const response = await fetch(`https://fantasy.premierleague.com/api${path}`, {
@@ -204,9 +196,9 @@ export async function advanceSample(env: LiveRankEnv, now = Date.now()): Promise
   if (!sample.pending.length && !sample.queue.length) sample.completedAt = new Date(now).toISOString();
   if (fetched) await env.TELEGRAM_STATE.put(sampleKey(event.id), JSON.stringify(sample));
   if (sample.completedAt && !stored?.completedAt && event.id > 1) {
-    // A finished sample is a megabyte of squads that will never be scored again.
+    // A finished sample is a quarter of a megabyte of squads that will never be scored
+    // again: the gameweek they belong to is over and its curve is computed on request.
     await env.TELEGRAM_STATE.delete(sampleKey(event.id - 1));
-    await env.TELEGRAM_STATE.delete(curveKey(event.id - 1));
   }
   return { fetched, entries: sample.entries.length, done: Boolean(sample.completedAt) };
 }
@@ -298,49 +290,40 @@ export function buildCurve(sample: RankSample, points: Map<number, number>, mult
   };
 }
 
-/** Rescore the sample against the live payload and park the curve for the page to read. */
-export async function updateRankCurve(env: LiveRankEnv, now = Date.now()): Promise<{ written: boolean; entries: number }> {
-  const bootstrap = await fpl<{ events: Array<{ id: number; is_current: boolean }> }>("/bootstrap-static/");
-  const event = bootstrap.events.find((entry) => entry.is_current);
-  if (!event) return { written: false, entries: 0 };
-  const sample = await env.TELEGRAM_STATE.get<RankSample>(sampleKey(event.id), "json");
-  if (!sample || sample.version !== SAMPLE_VERSION || !sample.entries.length) return { written: false, entries: 0 };
-  // Nothing is published until the sample is whole. Pages are fetched in order, so a
-  // half-built sample is all top-of-the-table managers carrying weights that claim to speak
-  // for the whole field — a curve from it would put everyone in this league far lower than
-  // they are. There are hours between a deadline and a kick-off; it can wait for them.
-  if (!sample.completedAt) return { written: false, entries: sample.entries.length };
+/**
+ * The curve, computed when the page asks for it rather than parked in KV on a timer.
+ *
+ * A stored curve needs an interval, and every interval is wrong: fast enough to keep step
+ * with the ticker costs about four hundred KV writes on a heavy Saturday, on top of the
+ * four hundred the feed already spends against a free-plan thousand, and slow enough to
+ * afford leaves a rank standing still for minutes after a goal has appeared in the strip
+ * beside it. Computed on request there is no interval to be wrong: the sample is already in
+ * KV, the live payload is a cached fetch, and scoring 960 squads is arithmetic. The
+ * response carries a minute of cache, so the work happens once a minute however many people
+ * are watching, and not at all when nobody is.
+ *
+ * It also settles the harder half of the question. Points stop moving when every fixture is
+ * **`finished`** — confirmed — and not when it is `finished_provisional`, which is only full
+ * time: bonus is still being recalculated in between, and FPL now confirms a whole gameweek
+ * at 09:00 UK the morning after its last match. With nothing cached against a clock, that
+ * distinction costs nothing to honour.
+ */
+export async function computeCurve(env: LiveRankEnv, gameweek: number, now = Date.now()): Promise<RankCurve | null> {
+  const sample = await env.TELEGRAM_STATE.get<RankSample>(sampleKey(gameweek), "json");
+  if (!sample || sample.version !== SAMPLE_VERSION || !sample.completedAt || !sample.entries.length) return null;
 
-  const previous = await readCurve(env, event.id);
-  const fixtures = (await fpl<Array<{ event: number | null; started: boolean; finished_provisional: boolean }>>("/fixtures/"))
-    .filter((fixture) => fixture.event === event.id);
-  // Whether a player's own match is over is not knowable per player from the live payload,
-  // so the whole gameweek is treated as over only once every fixture is: an autosub applied
-  // early would take points off a manager whose player has not kicked off yet.
-  const allOver = fixtures.length > 0 && fixtures.every((fixture) => fixture.finished_provisional);
-  const running = fixtures.some((fixture) => fixture.started && !fixture.finished_provisional);
-
-  /*
-   * Three reasons to write, and no others. Without this the curve was rewritten every two
-   * and a half minutes around the clock — some six hundred writes a day against a free-plan
-   * thousand, for a number that had not moved since Sunday.
-   */
-  const first = !previous;
-  const moving = running && now - Date.parse(previous?.scoredAt ?? "") >= CURVE_INTERVAL_MS;
-  const justSettled = allOver && previous !== null && !previous.settled;
-  if (!first && !moving && !justSettled) return { written: false, entries: sample.entries.length };
-
-  const live = await fpl<{ elements: Array<{ id: number; stats: { total_points: number; minutes: number } }> }>(`/event/${event.id}/live/`);
+  const live = await fpl<{ elements: Array<{ id: number; stats: { total_points: number; minutes: number } }> }>(`/event/${gameweek}/live/`);
+  const fixtures = (await fpl<Array<{ event: number | null; finished: boolean; finished_provisional: boolean }>>("/fixtures/"))
+    .filter((fixture) => fixture.event === gameweek);
   const points = new Map(live.elements.map((element) => [element.id, element.stats.total_points]));
   const minutes = new Map(live.elements.map((element) => [element.id, element.stats.minutes]));
+  // Whether a player's own match is over is not knowable per player from the live payload,
+  // so the gameweek is treated as over only once every fixture has reached full time: an
+  // autosub applied early would take points off a manager whose player has not kicked off.
+  const allOver = fixtures.length > 0 && fixtures.every((fixture) => fixture.finished_provisional);
   const played = (element: number) => (minutes.get(element) ?? 0) > 0;
   const over = () => allOver;
 
-  const curve = buildCurve(sample, points, (entry) => provisionalMultipliers(entry, played, over), now, allOver);
-  await env.TELEGRAM_STATE.put(curveKey(event.id), JSON.stringify(curve));
-  return { written: true, entries: sample.entries.length };
-}
-
-export async function readCurve(env: LiveRankEnv, gameweek: number): Promise<RankCurve | null> {
-  return env.TELEGRAM_STATE.get<RankCurve>(curveKey(gameweek), "json");
+  const settled = fixtures.length > 0 && fixtures.every((fixture) => fixture.finished);
+  return buildCurve(sample, points, (entry) => provisionalMultipliers(entry, played, over), now, settled);
 }

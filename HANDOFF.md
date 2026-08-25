@@ -576,12 +576,21 @@ rescores them every tick.
   half-built sample is all top-of-the-table managers carrying weights that claim to speak for
   the whole field, and a curve from it would put this league far below where it is. There
   are hours between a Friday deadline and a Saturday kick-off; it waits for them.
-- **Three reasons to write the curve, and no others**: there is none yet, a match is running
-  and the last one is 150 seconds old, or the gameweek has just settled. An interval on its
-  own rewrote it around the clock — some six hundred writes a day against a free-plan
-  thousand, for a number that had not moved since Sunday. With the gate it is one write
-  between gameweeks and roughly two hundred on a heavy Saturday, on top of the feed's four
-  hundred.
+- **The curve is computed when the page asks for it, and never stored.** A stored curve
+  needs an interval, and every interval is wrong: fast enough to keep step with the ticker
+  costs about four hundred KV writes on a heavy Saturday on top of the four hundred the feed
+  already spends against a free-plan thousand, and slow enough to afford leaves the rank
+  standing still for minutes after a goal has appeared in the strip beside it. Computed on
+  request there is no interval to be wrong — the sample is already in KV, the live payload is
+  a cached fetch, and scoring 960 squads is arithmetic. The response carries a minute of
+  cache, so the work happens once a minute however many people are watching and not at all
+  when nobody is. **The whole feature costs no KV writes at all beyond building the sample.**
+- **Points stop moving at `finished`, not at `finished_provisional`.** The second is only
+  full time; bonus is still being recalculated in between, and FPL now confirms a whole
+  gameweek at 09:00 UK the morning after its last match. A first attempt gated the rewrites
+  on `finished_provisional` and would have frozen the rank on Sunday evening for the two days
+  the scores were still moving. Computing on request honours the distinction for free; the
+  `settled` flag on the curve reports it.
 - Provisional autosubs are applied to every sampled squad by the same rule the table applies
   to ours, because otherwise the field is under-scored and our own rows look better than they
   are. FPL rewrites the multipliers itself once it settles a fixture, so this only covers the
@@ -1066,9 +1075,10 @@ arrived with all three cards correct.
 3. **Watch the write budget now the cron ticks every minute.** A heavy Saturday was
    measured at about 200 writes at two minutes a tick and should be about 400 at one,
    against the free plan's 1,000 a day. GW1 was a light test of this — one live match.
-4. **Deploy the Worker and watch the first rank sample build.** `npx wrangler deploy`, then
-   after Friday's 20:30 deadline the cron should start spending 20 requests a tick on it and
-   finish in under an hour. `npx wrangler tail --format json` and look for `rank_sample_error`,
+4. **Deploy the Worker and watch the first rank sample build.** `npx wrangler deploy`. The
+   sample starts on the next cron tick — GW1's deadline is long past, so its picks are
+   already public and there is no need to wait for Friday. The cron spends 20 requests a tick
+   and finishes in under an hour. `npx wrangler tail --format json` and look for `rank_sample_error`,
    `rank_page_error` and `rank_picks_error` — the last two are per-item and tolerated, the
    first is not. Nothing appears on the page until the sample completes; then the OR figures
    should grow a tilde. Check the estimate against LiveFPL, and against the true ranks once

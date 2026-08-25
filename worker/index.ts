@@ -1,5 +1,5 @@
 import { captureCard, handleTelegramWebhook, runTelegramSchedule, type ShareCardKind, type TelegramEnv } from "./telegram";
-import { advanceSample, readCurve, updateRankCurve, type LiveRankEnv } from "./liveRank";
+import { advanceSample, computeCurve, type LiveRankEnv } from "./liveRank";
 import { readFeed, updateFeed, type EventsEnv } from "./events";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
@@ -72,10 +72,11 @@ export default {
     if (url.pathname === "/rank") {
       const gameweek = Number(url.searchParams.get("gw"));
       if (!Number.isInteger(gameweek) || gameweek < 1) return json({ error: "gw is required" }, request, env, 400);
-      const curve = await readCurve(env as LiveRankEnv, gameweek);
+      const curve = await computeCurve(env as LiveRankEnv, gameweek);
       if (!curve) return json({ error: "no rank sample yet" }, request, env, 404);
-      // The curve is rewritten every two and a half minutes at most, so a minute of cache
-      // costs it nothing and keeps a page left open all evening off the KV read budget.
+      // A minute of cache is what bounds the cost of computing this per request: the work
+      // happens once a minute however many people are watching, and not at all when nobody
+      // is. It is also finer than the page's own ninety-second poll.
       return new Response(JSON.stringify(curve), {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=60" },
       });
@@ -105,13 +106,10 @@ export default {
     ctx.waitUntil(updateFeed(env as EventsEnv).catch((error) => {
       console.error(JSON.stringify({ event: "feed_update_error", error: error instanceof Error ? error.message : String(error) }));
     }));
-    // The sample is built once a gameweek and scored on the ticks after that. Both are
-    // separately guarded, so a failure in either leaves the feed and the reminders alone.
+    // The sample is built once a gameweek; scoring it happens on request, not on a tick.
+    // Guarded on its own, so a failure here leaves the feed and the reminders alone.
     ctx.waitUntil(advanceSample(env as LiveRankEnv).catch((error) => {
       console.error(JSON.stringify({ event: "rank_sample_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    ctx.waitUntil(updateRankCurve(env as LiveRankEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "rank_curve_error", error: error instanceof Error ? error.message : String(error) }));
     }));
   },
 } satisfies ExportedHandler<Env>;
