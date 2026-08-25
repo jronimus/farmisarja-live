@@ -375,7 +375,18 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     deadline: event.deadline_time,
     updatedAt: new Date().toISOString(),
     isPreview: false,
-    pointsFinalized: event.data_checked,
+    // Every fixture confirmed is the signal, not `event.data_checked`.
+    //
+    // For 2026-27 FPL confirms a gameweek's fixtures together, at 09:00 UK the morning
+    // after the last of them, and flips `finished` on each. The event's own
+    // `data_checked` follows later — on 25 Aug every GW1 fixture read `finished: true`
+    // while the event still read `data_checked: false`, so the header said ALUSTAVA over a
+    // fixture list that said VAHVISTETTU on every line, and FPL's own page had already
+    // moved on. A gameweek whose every fixture is confirmed cannot have its points change,
+    // which is exactly what this label claims. `data_checked` is still trusted when it is
+    // set, so the state can only ever settle earlier and never regress.
+    pointsFinalized: event.data_checked
+      || (fixtureList.length > 0 && fixtureList.every((fixture) => fixture.status === "final")),
     activeMonths: startedMonths,
     fixtures: fixtureList,
     managers: rows.filter((row): row is ManagerRow => row !== null),

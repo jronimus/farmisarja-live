@@ -381,7 +381,20 @@ refreshed last.
 
 ### The header
 
-`GW`, the live state and the played count share one card (`.gameweek-status`). The live
+`GW`, the live state and the played count share one card (`.gameweek-status`).
+
+The state reads **ALUSTAVA** or **VAHVISTETTU**, from `t.fixtureProvisional` and
+`t.fixtureFinal` — the same two strings the fixture list uses, and the same words the share
+cards have used all along. It said FINAL and PROVISIONAL on a Finnish page for as long as
+those were inline literals in `App.tsx`, in the badge and in the table's progress cell
+both. The caps are `text-transform` now rather than typed into the string, so all three
+places can share one word.
+
+Measured, because this column has been sized wrong before: VAHVISTETTU is the longest of
+the four and renders 60px in a 72px column, leaving 12px of clear space to the season
+total beside it — more than the 8px gutter the row uses elsewhere. Note that `?demo=1`
+carries `pointsFinalized: false` and unfinished fixtures, so **the demo never shows this
+cell's worst case** and `check-overflow.mjs` cannot see it. Measure it on live data. The live
 state is red text, `--live:#ff5f77`, not a red pill, and it does not pulse. The count sits
 over a small `PELATTU` caption. The same card is used on mobile a size down; measured at
 375px it ends 14px from the right edge with the language switch beside it.
@@ -666,7 +679,7 @@ date stops demonstrating any of the five states the week after it passes.
 ### What the page carries
 
 The union of LiveFPL's page and FPL's own, minus the duplicates: search, position filter,
-club filter, all/risers/fallers/locked, sortable columns, a progress bar, the projection, the
+club filter, all/risers/fallers/locked, sortable columns including the prediction, a progress bar, the projection, the
 per-hour rate, ownership with its transfer trend, current price with the season's change,
 lock and calibration markers, and paging with a page size.
 
@@ -681,6 +694,35 @@ comes free.
 
 The direction filter defaults to **all**, like FPL's own page. Splitting risers from
 fallers is a filter, not a default: "what is moving" comes before "which way".
+
+### Sorting the prediction
+
+`outlookRank()` returns a list of numbers, compared in order, and not one figure: the tiers
+do not share a scale, and folding hours until a change together with points short of the
+line would only invent an exchange rate between them.
+
+    0  a named change, by the hours until it, then by how far past the line it lands
+    1  near enough to hedge, closest to the line first
+    2  going nowhere this week, again closest first
+    3  calibrating, which is FPL saying it does not know yet
+    4  locked, where nothing is predicted at all, by when it comes free
+
+**The column means *when*, so it sorts by when** — risers and fallers together, ordered by
+the same clock. Splitting them was the other option and it is the mistake the progress
+sort already refused: a header sorts its column, and this column does not say which way a
+price moves. The filter buttons are there for that.
+
+The second number is what makes a day's worth of rows an order rather than a heap. Sorted
+soonest first on 25 Aug, the *tänään* block ran De Cuyper at +112.5 %, Sangaré, Martinelli,
+João Pedro, Gyökeres, and then the two the hedge is on — Calafiori and Dowman land within a
+point of the line, so they come last among the players changing tonight.
+
+It is the one column that opens **ascending**; every other header here opens on its largest
+figure, and soonest-first is what sorting by prediction means.
+
+Changing the sort now returns to page one, which it did not before. A re-order means page 4
+holds different players than the page 4 you were looking at, and this sort moves every row
+at once.
 
 The progress sort is on the **signed** number, plus to minus, and nothing about the filter
 changes that. Ranking by distance from nothing was tried and is wrong — it interleaves
@@ -853,8 +895,17 @@ These cost real debugging time. Do not re-derive them from assumptions.
   appears part-way through the match, not at kick-off. An own BPS estimate was written
   and then removed — it can only disagree with the official numbers.
 - **`finished` and `finished_provisional` are different things.** `finished_provisional`
-  is full time; `finished` is the confirmed result and can lag for many hours. Bonus
-  being published is *not* a signal that a result is settled any more.
+  is full time; `finished` is the confirmed result. Bonus being published is *not* a signal
+  that a result is settled any more.
+- **A gameweek is confirmed all at once, at 09:00 UK the morning after its last match**,
+  which is new for 2026-27 — `finished` flips on every fixture together rather than
+  trickling in. `event.data_checked` does **not** follow at the same moment: at 11:13 on
+  25 Aug every GW1 fixture read `finished: true` while the event still read
+  `data_checked: false`, and FPL's own page had already moved on. So `pointsFinalized` is
+  `data_checked` **or every fixture of the gameweek confirmed**, which is the thing the
+  label actually claims — a gameweek whose fixtures are all confirmed cannot have its
+  points change. `data_checked` is still trusted when set, so the state can settle earlier
+  and never regress.
 - **`last_rank` is 0 when there is no previous rank**, and overall rank is reported as
   1 for everyone before anything is scored. Both must be hidden rather than drawn.
 - Around the deadline FPL answers 5xx and picks return a mix of 404 and 503. That is
