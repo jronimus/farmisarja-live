@@ -50,7 +50,35 @@ export function hoursToChange(progress: number, perHour: number): number | null 
   return remaining / perHour;
 }
 
-export type Outlook = { deadline: string; direction: "rise" | "fall" } | null;
+export type Outlook = {
+  deadline: string;
+  direction: "rise" | "fall";
+  /** An adjacent change that is close enough to be possible too, if there is one. */
+  couldBe: { deadline: string; sooner: boolean } | null;
+} | null;
+
+/**
+ * How near the line counts as too near to state a night flatly, in percentage points of
+ * progress at that change.
+ *
+ * The margin is in points and not in hours because an hour of slack is worth a different
+ * distance to every player: at 0.9 an hour it is 0.9 points and at 2.4 an hour it is 2.4.
+ * Points are what decides the outcome — the meter either reads 100 at 02:00 or it does
+ * not — and they are the quantity the rest of this column already runs on.
+ *
+ * Five of them is about what the rate itself is worth over a night. It is derived from two
+ * FPL projections a day apart, and against LiveFPL's own column it ran 5–10 % out (1.67
+ * against 1.76, 1.93 against 2.11, 2.38 against 2.28); over the seventeen hours to a change
+ * at one or two points an hour that is 1.7 to 3.4 points before any real movement in the
+ * transfer flow. Five is a rate a third off over what is left of the window. Ten would be
+ * a rate that had stopped being the same number.
+ */
+export const BORDERLINE_POINTS = 5;
+
+/** Progress this rate lands on at a given moment, which is what a change is decided on. */
+function projectedAt(row: Pick<PriceRow, "progress" | "perHour">, deadline: string, now: number): number {
+  return row.progress + row.perHour * ((Date.parse(deadline) - now) / 3_600_000);
+}
 
 /**
  * Which day a change belongs to, counted from today in the reader's own zone.
@@ -97,10 +125,23 @@ export function outlookFor(
   const hours = Math.abs(row.progress) >= 100 ? 0 : hoursToChange(row.progress, row.perHour);
   if (hours === null) return null;
   const crossing = now + hours * 3_600_000;
-  const deadline = deadlines.find((entry) => Date.parse(entry) > crossing);
-  if (!deadline) return null;
+  const index = deadlines.findIndex((entry) => Date.parse(entry) > crossing);
+  if (index < 0) return null;
+  const deadline = deadlines[index];
   const direction = (row.progress !== 0 ? row.progress : row.perHour) > 0 ? "rise" : "fall";
-  return { deadline, direction };
+
+  // A night stated flatly when the projection lands a point or two either side of the line
+  // claims a precision the rate does not have. The change before this one may still take
+  // him, or this one may not — and both are the same margin read from opposite sides.
+  const earlier = index > 0 ? deadlines[index - 1] : null;
+  if (earlier && Math.abs(projectedAt(row, earlier, now)) >= 100 - BORDERLINE_POINTS) {
+    return { deadline, direction, couldBe: { deadline: earlier, sooner: true } };
+  }
+  const later = deadlines[index + 1] ?? null;
+  if (later && Math.abs(projectedAt(row, deadline, now)) < 100 + BORDERLINE_POINTS) {
+    return { deadline, direction, couldBe: { deadline: later, sooner: false } };
+  }
+  return { deadline, direction, couldBe: null };
 }
 
 export function buildPriceMarket(
@@ -159,8 +200,8 @@ export function lastChangeBeforeDeadline(market: PriceMarket): string | null {
  * A player who is not reaching 100 at any published change can still be nearly there by
  * the last one before the deadline, and that is a different fact from nothing happening —
  * it is the difference between a squad that is safe until Friday and one that may not be.
- * The threshold is 95 %, so the sentence only appears when the rate has to hold rather
- * than improve.
+ * The threshold is the same `BORDERLINE_POINTS` off the line as everything else here, so
+ * the sentence only appears when the rate has to hold rather than improve.
  *
  * It is a guess and reads as one, and it is only made for a player already going the way
  * his rate pulls. One who has turned around would otherwise be projected straight through
@@ -179,7 +220,7 @@ export function maybeThisWeek(
   if (hours <= 0) return null;
   if (row.progress !== 0 && Math.sign(row.progress) !== Math.sign(row.perHour)) return null;
   const projected = row.progress + row.perHour * hours;
-  if (Math.abs(projected) < 95) return null;
+  if (Math.abs(projected) < 100 - BORDERLINE_POINTS) return null;
   return projected > 0 ? "rise" : "fall";
 }
 

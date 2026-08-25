@@ -520,6 +520,37 @@ every row: **is the crossing before the next change or after it.** Against a 17-
 deadline: 4 h → *tänään*, 20 h → *huomenna*, 33 h → *huomenna*, 54 h → *ylihuomenna*,
 already past 100 → *tänään*.
 
+### The line is not a hard edge, so the column does not draw one
+
+A night stated flatly when the projection lands a point either side of 100 claims a
+precision the rate does not have. `outlookFor()` therefore reads the change **before** the
+one it named and the one **after**, and returns a `couldBe` when either is within
+`BORDERLINE_POINTS` of the line. The page prints it as a second line under the night, at
+9px in `--faint` — the qualifier under the figure it qualifies, which is what the rate,
+ownership and cost cells beside it already do, so the row keeps its 56px and the outlook
+cell keeps the page's own rhythm.
+
+`Nousee tänään` / *ehkä vasta huomenna*, or `Nousee huomenna` / *ehkä jo tänään*.
+
+**The margin is in points of progress, not in hours**, and that is the whole decision. An
+hour of slack is worth a different distance to every player: at 0.9 an hour it is 0.9
+points and at 2.4 an hour it is 2.4. Points are what settles it — the meter either reads
+100 at 02:00 or it does not — and they are the quantity the rest of the column already
+runs on, which is why `maybeThisWeek()` now measures against the same constant instead of
+its own 95.
+
+**Five points**, because that is about what the rate itself is worth over a night. It is
+derived from two projections a day apart, and against LiveFPL's column it ran 5–10 % out
+(1.67 against 1.76, 1.93 against 2.11, 2.38 against 2.28); over seventeen hours at one or
+two points an hour that is 1.7 to 3.4 points before the transfer flow moves at all. Five
+is a rate a third off over what is left of the window. Ten is a rate that has stopped
+being the same number.
+
+Real rows on 25 Aug, with 16 h 38 m to the change: Calafiori at 82.3 % and 1.07 an hour
+lands on **100.1** — over the line by a tenth of a point, so *Nousee tänään* carries *ehkä
+vasta huomenna*. Gyökeres at −79.7 % and −1.40 clears it by 2.4. Three rows in a hundred
+carried a caveat, which is the point: it means something when it appears.
+
 The day names are a string per language, not a count and a unit: Finnish has *ylihuomenna*
 and English has nothing to translate it with. Only past three days does either fall back to
 counting, `outlookInDays`, which is *N päivän päästä* rather than *N pv* — the column has

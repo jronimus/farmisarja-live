@@ -48,19 +48,19 @@ describe("price changes", () => {
   it("names the deadline a player's own rate carries him to", () => {
     // De Cuyper, already past 100: the next deadline takes him, whatever the rate does.
     expect(outlookFor({ progress: 105.3, perHour: 2.14 }, deadlines, morning))
-      .toEqual({ deadline: "2026-08-25T23:00:00Z", direction: "rise" });
+      .toMatchObject({ deadline: "2026-08-25T23:00:00Z", direction: "rise" });
 
     // Sangaré, five hours short: still inside tonight's deadline.
     expect(outlookFor({ progress: 92, perHour: 1.53 }, deadlines, morning))
-      .toEqual({ deadline: "2026-08-25T23:00:00Z", direction: "rise" });
+      .toMatchObject({ deadline: "2026-08-25T23:00:00Z", direction: "rise" });
 
     // Calafiori, twenty-two hours short, which is past tonight's 02:00. FPL's own page
     // calls this one tomorrow; his change is the night after.
     expect(outlookFor({ progress: 81.3, perHour: 0.85 }, deadlines, morning))
-      .toEqual({ deadline: "2026-08-26T23:00:00Z", direction: "rise" });
+      .toMatchObject({ deadline: "2026-08-26T23:00:00Z", direction: "rise" });
 
     expect(outlookFor({ progress: -92, perHour: -1.5 }, deadlines, morning))
-      .toEqual({ deadline: "2026-08-25T23:00:00Z", direction: "fall" });
+      .toMatchObject({ deadline: "2026-08-25T23:00:00Z", direction: "fall" });
   });
 
   it("names no day past the published deadlines, or when nothing is moving", () => {
@@ -86,6 +86,29 @@ describe("price changes", () => {
     // An hour before the change, and an hour after it: both are still tonight's day.
     expect(daysUntilChangeDay(local(26, 2), new Date(2026, 7, 26, 1).getTime())).toBe(-1);
     expect(daysUntilChangeDay(local(27, 2), new Date(2026, 7, 26, 3).getTime())).toBe(0);
+  });
+
+  it("will not state a night flatly when the projection lands on the line", () => {
+    // 17.45 hours to the first change. Calafiori at 82.3 and 1.07 an hour lands on 100.1
+    // at it — over, by a tenth of a point. The night is named and the caveat is under it.
+    expect(outlookFor({ progress: 82.3, perHour: 1.07 }, deadlines, morning)).toEqual({
+      deadline: "2026-08-25T23:00:00Z", direction: "rise",
+      couldBe: { deadline: "2026-08-26T23:00:00Z", sooner: false },
+    });
+
+    // The same margin read from the other side: 96.8 at tonight's change, three short, so
+    // the night after is the estimate and tonight is the caveat.
+    expect(outlookFor({ progress: 80, perHour: 0.96 }, deadlines, morning)).toEqual({
+      deadline: "2026-08-26T23:00:00Z", direction: "rise",
+      couldBe: { deadline: "2026-08-25T23:00:00Z", sooner: true },
+    });
+
+    // Clear of the line on both sides: 123 at tomorrow's change, and only 75 at tonight's.
+    expect(outlookFor({ progress: 40, perHour: 2 }, deadlines, morning)?.couldBe).toBeNull();
+
+    // A faller is the same arithmetic with the sign flipped.
+    expect(outlookFor({ progress: -79.7, perHour: -1.4 }, deadlines, morning)?.couldBe)
+      .toEqual({ deadline: "2026-08-26T23:00:00Z", sooner: false });
   });
 
   // GW2's own shape: three nightly changes, the last of them at 02:00 on the Friday the

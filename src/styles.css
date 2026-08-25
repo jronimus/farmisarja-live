@@ -2210,7 +2210,11 @@ footer a { color:#c4c6d8; }
 .price-progress b.up,
 .price-progress b.down { background:none; }
 
+/* Two lines when there is a caveat: the night on top, how sure of it under. Same grid and
+   same 2px rhythm as the rate, ownership and cost cells beside it. */
+.price-outlook { display:grid; row-gap:2px; align-content:center; }
 .price-outlook em { font-size:11px; font-style:normal; font-weight:800; }
+.price-outlook small { color:var(--faint); font-size:9px; font-weight:700; }
 .price-outlook .up { color:var(--green); }
 .price-outlook .down { color:var(--red); }
 .price-outlook .quiet,

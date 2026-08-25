@@ -187,9 +187,17 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
               : row.calibrating
                 ? <em>{t.priceCalibrating}</em>
                 : outlook
-                  ? <em className={outlook.direction === "rise" ? "up" : "down"}>
-                    {outlook.direction === "rise" ? t.willRise : t.willFall} {outlookLabel(outlook.deadline, now)}
-                  </em>
+                  ? <>
+                    <em className={outlook.direction === "rise" ? "up" : "down"}>
+                      {outlook.direction === "rise" ? t.willRise : t.willFall} {outlookLabel(outlook.deadline, now)}
+                    </em>
+                    {/* The qualifier under the figure it qualifies, which is what every
+                        other cell on this page already does. */}
+                    {outlook.couldBe && <small>
+                      {(outlook.couldBe.sooner ? t.couldBeSooner : t.couldBeLater)
+                        .replace("{day}", outlookLabel(outlook.couldBe.deadline, now))}
+                    </small>}
+                  </>
                   : maybe
                     ? <em className={`maybe ${maybe === "rise" ? "up" : "down"}`}>{maybe === "rise" ? t.mayRiseThisWeek : t.mayFallThisWeek}</em>
                     : <em className="quiet">{t.unlikelyThisWeek}</em>}
