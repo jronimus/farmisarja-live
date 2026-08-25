@@ -28,7 +28,7 @@ main { max-width: 1540px; padding: 22px 30px 42px; margin: 0 auto; }
 .mobile-simple-head { display:none; }
 /* Both belong to the compact phone card; the desktop row has its own columns for this. */
 .mobile-sort-meta { display:none; }
-.table-head { min-height: 45px; padding: 0 16px; background: #101c17; }.sort-header { min-width: 0; border: 0; background: none; padding: 0 8px; display: flex; align-items: center; gap: 3px; color: #6f847a; text-transform: uppercase; letter-spacing: .06em; font-size: 9px; font-weight: 800; text-align: left; cursor: pointer; }.sort-header svg { width: 11px; opacity: 0; }.sort-header.active { color: #bac9c1; }.sort-header.active svg { opacity: 1; }.sort-header svg.rotate { transform: rotate(180deg); }
+.table-head { min-height: 45px; padding: 0 16px; background: #101c17; }.sort-header { min-width: 0; border: 0; background: none; padding: 0 8px; display: flex; align-items: center; gap: 3px; color: #6f847a; text-transform: uppercase; letter-spacing: .06em; font-size: var(--fs-meta, 9px); font-weight: 800; text-align: left; cursor: pointer; }.sort-header svg { width: 11px; opacity: 0; }.sort-header.active { color: #bac9c1; }.sort-header.active svg { opacity: 1; }.sort-header svg.rotate { transform: rotate(180deg); }
 .manager-block { background: #0c1511; }.manager-block:nth-child(even) { background: #0e1814; }.manager-block.open { background: #12221b; }.manager-row { min-height: 82px; padding: 0 16px; cursor: pointer; transition: background .16s; }.manager-row:hover { background: rgba(255,255,255,.018); }.manager-row > div { min-width: 0; padding: 10px 8px; }
 .squad-unavailable { min-width:0; color:var(--soft); font-size:13px; font-weight:700; text-align:center; }
 .position-cell { display:grid; grid-template-columns:20px auto; grid-template-rows:auto auto; align-items:center; column-gap:5px; }.position-cell button { grid-column:1; grid-row:1 / 3; width:20px; border:0; padding:0; background:transparent; color:#60756b; display:grid; place-items:center; }.position-cell button svg { width:14px; }.position-cell > strong { grid-column:2; grid-row:1; font:800 22px "Inter"; line-height:1; }.movement { grid-column:2; grid-row:2; margin:2px 0 0; font-size:9px; line-height:1; display:flex; align-items:center; font-weight:700; }.movement svg { width:10px; }.movement.up { color:var(--green); }.movement.down { color:var(--red); }.movement.neutral { color:#55665e; }
@@ -50,19 +50,22 @@ footer { min-height: 42px; display: flex; align-items: center; justify-content: 
 @media (max-width: 800px) { .topbar { padding: 0 16px; }.sync { display: none; } main { padding: 14px 10px 30px; }.preview-note { display: none; }.toolbar { align-items: flex-end; }.view-tabs button { padding: 7px 9px; }.autosub-toggle > span { display: none; }.autosub-toggle button,.details-toggle button { padding:6px 9px; font-size:11px; }.squad-panel { padding-left: 20px; min-width: 950px; } }
 
 /* Flat, high-contrast theme system */
-.app-shell { --page:#090d0b; --header:#0f1512; --surface:#171e1a; --menu:#171e1a; --surface-alt:#202923; --surface-open:#29372f; --raised:#34463c; --text:#f7f8f4; --soft:#a9b8af; --faint:#768a7e; --accent:#276b4b; --cyan:#45c9b0; --yellow:#ffd34e; --purple:#a66cf2; --logo-live-bg:#dce5df; --brand-live-text:#111914; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; min-height:100vh; display:flex; flex-direction:column; color:var(--text); background:var(--page); }
+.app-shell { --page-ink:rgba(247,248,244,.78); --page:#090d0b; --header:#0f1512; --surface:#171e1a; --menu:#171e1a; --surface-alt:#202923; --surface-open:#29372f; --raised:#34463c; --text:#f7f8f4; --soft:#a9b8af; --faint:#768a7e; --accent:#276b4b; --cyan:#45c9b0; --yellow:#ffd34e; --purple:#a66cf2; --logo-live-bg:#dce5df; --brand-live-text:#111914; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; min-height:100vh; display:flex; flex-direction:column; color:var(--text); background:var(--page); }
 .app-shell > main { width:100%; flex:1 0 auto; }
-.app-shell[data-theme="light"] { --page:#eef1ec; --header:#fbfcf8; --surface:#ffffff; --menu:#ffffff; --surface-alt:#e2eae4; --surface-open:#d5e2d9; --raised:#c5d5ca; --text:#142019; --soft:#617268; --faint:#7b8d82; --accent:#0a5d37; --cyan:#168d78; --yellow:#a56800; --green:#087a46; --red:#c72f48; --purple:#6d2fc0; --logo-live-bg:#161925; --brand-live-text:#f7f8fc; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; }
+.app-shell[data-theme="light"] { --page-ink:rgba(20,32,25,.78); --page:#eef1ec; --header:#fbfcf8; --surface:#ffffff; --menu:#ffffff; --surface-alt:#e2eae4; --surface-open:#d5e2d9; --raised:#c5d5ca; --text:#142019; --soft:#617268; --faint:#7b8d82; --accent:#0a5d37; --cyan:#168d78; --yellow:#a56800; --green:#087a46; --red:#c72f48; --purple:#6d2fc0; --logo-live-bg:#161925; --brand-live-text:#f7f8fc; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; }
 .app-shell[data-theme="light"] .period-select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23171a29' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
 .topbar { background:var(--header); color:var(--text); }
 .brand-mark { background:var(--accent); color:#fff; box-shadow:none; }.brand h1 em { color:var(--cyan); }.brand span,.sync { color:var(--soft); }.sync b { color:var(--text); }
 .theme-toggle,.language { height:38px; border:0; border-radius:8px; background:var(--raised); color:var(--text); display:flex; align-items:center; justify-content:center; gap:7px; font-weight:800; cursor:pointer; }.theme-toggle { width:38px; padding:0; }.theme-toggle svg,.language svg { width:17px; }
 .status-strip { min-height:48px; padding:0 14px; border-radius:10px; background:var(--surface); }.live-status { color:var(--soft); }.live-status svg,.live-status strong { color:var(--green); }.preview-note { background:#ffc857; color:#241b00; font-weight:700; }.preview-note svg { color:#241b00; }
 .view-tabs { background:var(--surface-alt); }.view-tabs button { color:var(--soft); font-size:13px; }.view-tabs button.active { background:var(--accent); color:#fff; }.autosub-toggle { color:var(--soft); }.autosub-toggle button { background:var(--raised); }.autosub-toggle button.enabled { background:var(--accent); }.autosub-toggle b { color:var(--green); }
-.league-table { border:1px solid color-mix(in srgb,var(--green) 42%,var(--raised)); background:color-mix(in srgb,var(--surface) 91%,transparent); box-shadow:0 22px 58px rgba(0,0,0,.3),0 0 42px color-mix(in srgb,var(--green) 17%,transparent),0 0 10px color-mix(in srgb,var(--green) 12%,transparent),inset 0 1px 0 rgba(255,255,255,.1); backdrop-filter:blur(12px); }.table-head { background:linear-gradient(180deg,color-mix(in srgb,var(--raised) 82%,white 18%),color-mix(in srgb,var(--raised) 94%,transparent)); box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 color-mix(in srgb,var(--green) 30%,transparent); }.sort-header { color:var(--soft); font-size:10px; }.sort-header.active { color:var(--text); }
+.league-table { border:1px solid color-mix(in srgb,var(--green) 42%,var(--raised)); background:color-mix(in srgb,var(--surface) 91%,transparent); box-shadow:0 22px 58px rgba(0,0,0,.3),0 0 42px color-mix(in srgb,var(--green) 17%,transparent),0 0 10px color-mix(in srgb,var(--green) 12%,transparent),inset 0 1px 0 rgba(255,255,255,.1); backdrop-filter:blur(12px); }.table-head { background:linear-gradient(180deg,color-mix(in srgb,var(--raised) 82%,white 18%),color-mix(in srgb,var(--raised) 94%,transparent)); box-shadow:inset 0 1px 0 rgba(255,255,255,.14),inset 0 -1px 0 color-mix(in srgb,var(--green) 30%,transparent); }/* The head band is lighter than a row, so --soft lands at 3.94:1 on it where it clears
+   5:1 everywhere else. Mixed a third of the way to the ink rather than given a token of
+   its own, because one band is not a reason for a seventh grey. */
+.sort-header { color:color-mix(in srgb,var(--soft) 68%,var(--text)); }.sort-header.active { color:var(--text); }
 .manager-block { background:color-mix(in srgb,var(--surface) 93%,transparent); box-shadow:inset 0 1px 0 rgba(255,255,255,.025); }.manager-block:nth-child(even) { background:color-mix(in srgb,var(--surface-alt) 93%,transparent); }.manager-block.open { background:color-mix(in srgb,var(--surface-open) 94%,transparent); }.manager-row:hover { background:var(--raised); }
-.position-cell > strong { font-family:"Archivo Black"; font-weight:400; }.manager-cell a { color:var(--text); font-family:"Inter"; font-size:14px; }.manager-cell a:hover { color:var(--cyan); }.manager-cell > span { color:var(--soft); font-size:12px; }.manager-cell small,.total-cell span { color:var(--faint); }.manager-cell small i { color:var(--soft); }
-.points-cell strong,.total-cell strong,.captain-cell strong { color:var(--text); }.points-formula { color:var(--text); }.captain-cell span,.movement.up { color:var(--green); }.movement.down { color:var(--red); }.manager-cell small.rank-up,.position-or.rank-up { color:var(--green); }.manager-cell small.rank-down,.position-or.rank-down { color:var(--red); }.manager-cell small.rank-neutral,.position-or.rank-neutral { color:var(--faint); }
+.position-cell > strong { font-family:"Archivo Black"; font-weight:400; }.manager-cell a { color:var(--text); font-family:"Inter"; font-size:14px; }.manager-cell a:hover { color:var(--cyan); }.manager-cell > span { color:var(--soft); font-size:12px; }.manager-cell small { color:var(--soft); }.total-cell span { color:var(--faint); }.manager-cell small i { color:var(--soft); }
+.points-cell strong,.total-cell strong,.captain-cell strong { color:var(--text); }.points-formula { color:var(--text); }.captain-cell span,.movement.up { color:var(--green); }.movement.down { color:var(--red); }.manager-cell small.rank-up,.position-or.rank-up { color:var(--green); }.manager-cell small.rank-down,.position-or.rank-down { color:var(--red); }.manager-cell small.rank-neutral,.position-or.rank-neutral { color:var(--soft); }
 .chip { background:#9b5de5; color:#fff; }.transfer-cell small { color:var(--soft); font-size:11px; }.transfer-cell small b { color:var(--cyan); }.transfer-cell .muted { color:var(--faint); }
 .progress-cell .finished { background:#7047d8; color:#fff; }.progress-cell .playing { background:#159a58; color:#fff; box-shadow:none; }.progress-cell .upcoming { background:#ffd34e; color:#171400; }.progress-cell small { color:var(--soft); font-size:10px; }.form-cell i { background:var(--faint); }.form-cell i.current { background:var(--accent); }.form-cell strong { color:var(--text); }
 .squad-panel { background:var(--surface-open); box-shadow:none; }.squad-heading { color:var(--soft); }.player { background:var(--surface); }.player.player-finished { background:#30264b; }.player.player-live { background:#153d30; }.player.player-upcoming { background:#3d351d; }.player-name,.player-points { color:var(--text); }.player-meta { color:var(--soft); }.app-shell[data-theme="light"] .player.player-finished { background:#e8defb; }.app-shell[data-theme="light"] .player.player-live { background:#d5f2e3; }.app-shell[data-theme="light"] .player.player-upcoming { background:#fff0bd; }
@@ -98,7 +101,7 @@ footer a { color:var(--soft); text-decoration:none; transition:color .15s ease; 
   .manager-row > div { padding:3px 4px; }
   .position-cell { grid-column:1; grid-row:1; align-self:start; height:64px; }.manager-cell { grid-column:2; grid-row:1; height:64px; display:grid; grid-template-rows:auto 1fr auto; align-items:start; gap:0; }.manager-cell > span:not(.mobile-captain) { align-self:center; }.mobile-captain { display:flex; align-items:baseline; align-self:end; gap:5px; color:var(--text); }.mobile-captain b { color:var(--cyan); font-size:14px; line-height:1; }.mobile-captain strong { font-size:12px; }.mobile-captain em { color:var(--green); font-size:11px; font-style:normal; }
   .captain-cell { display:none; }.points-cell { grid-column:3; grid-row:1; height:64px; display:grid; grid-template-rows:auto 1fr auto; align-items:start; }.points-cell > strong { align-self:center; }.points-cell .points-formula { align-self:end; }.total-cell { grid-column:4; grid-row:1; height:64px; display:grid; grid-template-rows:auto 1fr auto; align-items:start; }.total-cell > strong { align-self:center; }.total-cell::after { content:""; display:block; height:8px; }
-  .transfer-cell { grid-column:1 / 3; grid-row:2 / 4; }.season-transfers-cell,.bench-points-cell { display:none; }.chips-cell { grid-column:1 / 3; grid-row:4; display:flex; align-items:center; align-self:end; margin:3px 4px 0; padding-top:5px; border-top:1px solid color-mix(in srgb,var(--faint) 20%,transparent); }.chips-cell span { min-width:23px; padding:3px 4px; font-size:7px; }.progress-cell { display:block; grid-column:3 / 5; grid-row:2; justify-self:start; }.progress-summary { font-size:10px; }.team-value-cell { grid-column:3 / 5; grid-row:3 / 5; justify-self:end; align-self:end; margin-top:7px; padding:4px 7px; flex-direction:row; align-items:baseline; gap:5px; border-radius:5px; background:var(--raised); }.team-value-cell::before { content:attr(data-label); color:var(--faint); font-size:7px; font-weight:900; text-transform:uppercase; }.team-value-cell strong { font-size:10px; }.team-value-cell span { font-size:8px; }.form-cell,.desktop-gw-progress,.desktop-progress-summary { display:none; }
+  .transfer-cell { grid-column:1 / 3; grid-row:2 / 4; }.season-transfers-cell,.bench-points-cell { display:none; }.chips-cell { grid-column:1 / 3; grid-row:4; display:flex; align-items:center; align-self:end; margin:3px 4px 0; padding-top:5px; border-top:1px solid color-mix(in srgb,var(--faint) 20%,transparent); }.chips-cell span { min-width:23px; padding:3px 4px; font-size:8px; }.progress-cell { display:block; grid-column:3 / 5; grid-row:2; justify-self:start; }.progress-summary { font-size:10px; }.team-value-cell { grid-column:3 / 5; grid-row:3 / 5; justify-self:end; align-self:end; margin-top:7px; padding:4px 7px; flex-direction:row; align-items:baseline; gap:5px; border-radius:5px; background:var(--raised); }.team-value-cell::before { content:attr(data-label); color:var(--faint); font-size:7px; font-weight:900; text-transform:uppercase; }.team-value-cell strong { font-size:10px; }.team-value-cell span { font-size:8px; }.form-cell,.desktop-gw-progress,.desktop-progress-summary { display:none; }
   .position-cell > strong { font-size:20px; }.manager-cell a { font-size:15px; }.manager-cell > span { font-size:12px; }
   .captain-cell::before,.transfer-cell::before,.form-cell::before,.progress-cell::before,.points-cell::before,.total-cell::before { display:block; position:static; width:auto; height:auto; background:none; color:var(--faint); font-size:8px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin-bottom:2px; }
   .captain-cell::before,.transfer-cell::before,.form-cell::before,.progress-cell::before,.points-cell::before,.total-cell::before { content:attr(data-label); }
@@ -107,7 +110,7 @@ footer a { color:var(--soft); text-decoration:none; transition:color .15s ease; 
   .toolbar-toggles { gap:8px; width:100%; flex-wrap:wrap; }.toolbar-toggles .details-toggle,.toolbar-toggles .autosub-toggle { flex:1 1 150px; min-width:0; }.details-toggle { display:flex; }.autosub-toggle { flex-direction:row; align-items:center; gap:8px; }.autosub-toggle > span { display:block; order:1; font-size:9px; font-weight:800; white-space:nowrap; }.autosub-toggle button { order:2; }.autosub-toggle b { display:none; }
   .captain-cell { flex-direction:row; align-items:baseline; gap:5px; flex-wrap:wrap; }.captain-cell::before { content:"C"; margin:0; color:var(--cyan); font-size:14px; line-height:1; font-weight:900; }.captain-cell strong { font-size:12px; }.captain-cell span { margin:0; font-size:11px; }
   .transfer-cell { flex-direction:row; align-items:center; gap:3px 6px; flex-wrap:wrap; }.transfer-cell::before { display:none; }.transfer-cell small { flex-basis:100%; display:flex; align-items:baseline; gap:3px; font-size:9px; }.transfer-cell small > b { margin-left:auto; }.desktop-transfer-row,.desktop-transfer-footer { display:none; }.mobile-transfer-row { display:inline; }.mobile-transfer-footer { flex-basis:100%; display:flex; align-items:center; gap:4px; margin-top:2px; font-size:9px; }.mobile-transfer-footer strong { font-size:9px; }.mobile-transfer-footer strong + span { padding-left:6px; border-left:1px solid var(--faint); }.mobile-transfer-footer span { color:var(--soft); font-weight:800; }.wildcard-transfer > b { margin-left:4px; }
-  .position-cell button { display:none; }.position-cell { display:grid; grid-template-columns:auto auto; align-content:start; align-items:center; gap:1px 3px; }.position-cell .movement { position:static; margin-left:0; font-size:9px; white-space:nowrap; }.position-cell .movement svg { width:9px; }.position-or { display:block; grid-column:1 / 3; color:var(--faint); font-size:7px; font-weight:600; white-space:nowrap; }.manager-cell small { display:none; }
+  .position-cell button { display:none; }.position-cell { display:grid; grid-template-columns:auto auto; align-content:start; align-items:center; gap:1px 3px; }.position-cell .movement { position:static; margin-left:0; font-size:9px; white-space:nowrap; }.position-cell .movement svg { width:9px; }.position-or { display:block; grid-column:1 / 3; color:var(--soft); font-size:9px; font-weight:700; white-space:nowrap; }.manager-cell small { display:none; }
   .progress-cell::before { display:none; }.progress-cell { gap:3px; }.progress-cell em { display:inline; }.progress-cell > small { display:block; }.progress-summary { font-size:10px; }
   .points-cell::before { content:"GW"; }.points-cell.top-score { border-left:0; padding-left:4px; }.points-cell.top-score::before { content:"GW"; position:static; width:auto; height:auto; background:none; }.progress-cell small { white-space:normal; line-height:1.2; }.points-cell small { display:none; }.points-formula { margin-top:0; font-size:8px; }.points-cell > strong { justify-self:start; width:max-content; margin-left:-5px; font-size:18px; padding:2px 4px; }.total-cell strong { font-size:20px; }
   .squad-panel { min-width:0; padding:11px 8px 15px; }.mobile-squad-label { display:inline; }.desktop-squad-label { display:none; }.squad-heading { margin-bottom:24px; }.squad-players { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); column-gap:4px; row-gap:21px; }.squad-players .squad-grid.starters { display:contents; }.squad-players .squad-grid.bench { grid-column:5 / span 4; grid-row:2; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin:-15px -3px -5px 0; padding:17px 3px 5px; border-radius:8px; }.squad-grid.bench .bench-frame-label { top:4px; left:auto; right:6px; font-size:6px; }.squad-players .bench-heading { display:none; }.player { height:94px; padding:3px 1px 3px; border-radius:6px; overflow:visible; }.player-group-label { top:-15px; left:1px; font-size:6px; letter-spacing:.03em; }.player.group-start:not(:first-child) { margin-left:2px; }.player.group-start:not(:first-child)::after { top:-15px; left:-4px; bottom:0; width:1px; }.player-visual { height:35px; overflow:hidden; align-items:start; }.shirt { position:absolute; left:50%; width:62px; height:58px; transform:translate(-50%,-3px); }.player-name { font-size:7px; line-height:1.1; margin-top:3px; }.player-bottom { grid-template-rows:28px 9px; gap:2px; margin-top:3px; padding:0; }.player-fixture { max-width:100%; font-size:7px; font-weight:700; line-height:1; text-align:center; }.player-fixture .state-dot,.player-fixture b,.desktop-fixture { display:none; }.mobile-opponent { display:inline; }.venue-a .mobile-opponent { text-transform:lowercase; }.venue-h .mobile-opponent { text-transform:uppercase; }.desktop-player-score { display:none; }.player-points { width:32px; height:28px; font-size:16px; line-height:1; }.player-points .mobile-player-score { display:inline; margin:0; color:var(--text); font-size:16px; }.armband { left:2px; top:1px; min-width:14px; height:14px; font-size:8px; }.player-best::before,.player-worst::before { display:none; }
@@ -128,7 +131,7 @@ footer a { color:var(--soft); text-decoration:none; transition:color .15s ease; 
   .app-shell[data-mobile-details="off"] .position-cell > strong { font-size:16px; }
   .app-shell[data-mobile-details="off"] .position-cell .movement { font-size:7px; }
   .app-shell[data-mobile-details="off"] .position-cell .movement svg { width:7px; }
-  .app-shell[data-mobile-details="off"] .position-or { font-size:6px; }
+  .app-shell[data-mobile-details="off"] .position-or { font-size:8px; }
   .app-shell[data-mobile-details="off"] .manager-cell { height:42px; display:flex; justify-content:center; gap:1px; }
   .app-shell[data-mobile-details="off"] .manager-cell a { font-size:11px; line-height:1.15; }
   .app-shell[data-mobile-details="off"] .manager-cell > span:not(.mobile-captain) { align-self:auto; font-size:9px; line-height:1.15; }
@@ -158,7 +161,7 @@ footer a { color:var(--soft); text-decoration:none; transition:color .15s ease; 
 
 /* Single luminous Farmisarja theme */
 .app-shell {
-  --page:#edf7f1;
+  --page-ink:rgba(16,32,25,.8); --page:#edf7f1;
   --header:#071a12;
   --surface:rgba(255,255,255,.88);
   --menu:#ffffff;
@@ -217,7 +220,8 @@ main::before { content:""; position:fixed; inset:72px 0 auto; height:260px; poin
    gradient to a light var(--raised) to match the price page, so this text follows it there
    rather than staying the white it was written for. */
 .table-head .sort-header,.table-head .sort-header.active { color:var(--text); }
-.table-head .sort-header:not(.active) { color:var(--soft); opacity:1; }
+/* The head band is lighter than a row, so --soft clears 5:1 on a row and 3.94:1 here. */
+.table-head .sort-header:not(.active) { color:color-mix(in srgb,var(--soft) 62%,var(--text)); opacity:1; }
 .manager-block,.manager-block:nth-child(even) {
   background:rgba(255,255,255,.86);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.95);
@@ -254,7 +258,7 @@ footer a { color:#b8d3c5; }
 
 /* Evening-balanced version: emerald energy with violet/blue contrast. */
 .app-shell {
-  --page:#0b1215;
+  --page-ink:rgba(243,247,245,.78); --page:#0b1215;
   --header:#07110f;
   --surface:rgba(23,34,32,.94);
   --menu:#172220;
@@ -365,21 +369,36 @@ footer { background:#080f0e; box-shadow:0 -12px 34px rgba(0,0,0,.18); }
 
 /* Indigo night + neon green liquid-glass direction. */
 .app-shell {
+  /* For the few strings that sit on the page ground rather than on a panel — the price
+     page's foot and its footnote. They were --soft and --faint, which are picked for a
+     light panel, so on this theme's dark ground they read 3.02:1 and 3.33:1: dark grey on
+     dark green. */
+  --page-ink:rgba(238,240,248,.8);
   --page:#111225;
   --header:#0d0e20;
-  --surface:rgba(246,247,255,.76);
+  /* Measured, not chosen. At .76 over this page's dark ground the panel composites to
+     #bcc2c7 — a mid grey, not the near-white every secondary colour was picked against —
+     and everything but --text landed between 2.1 and 3.7:1 where 4.5 is needed. At .96 it
+     is #eceef6, which carries --soft at 5.06 and --green at 4.69 and still reads as glass:
+     it is not white, and the backdrop-filter is untouched. */
+  --surface:rgba(246,247,255,.96);
   --menu:#f6f7ff;
-  --surface-alt:rgba(229,231,247,.72);
-  --surface-open:rgba(232,231,248,.72);
-  --raised:rgba(205,208,232,.78);
+  --surface-alt:rgba(229,231,247,.94);
+  --surface-open:rgba(232,231,248,.94);
+  --raised:rgba(205,208,232,.92);
   --text:#17192b;
   --soft:#5f6478;
-  --faint:#7d8297;
+  /* #7d8297 read 3.57:1 even on an opaque panel. This is the same grey a shade down. */
+  --faint:#5f6373;
   --accent:#202552;
   --cyan:#166d78;
   --yellow:#9c6900;
-  --green:#007a43;
-  --red:#d53755;
+  /* Both measured on a price row, which is the lightest ground either sits on: #007a43 read
+     4.12:1 there and #c4334e 4.05:1. Neither token is used on a dark surface — the ticker
+     and the topbar spell their greens out in white and #42f5a1 — so this costs nothing
+     anywhere else. */
+  --green:#00703e;
+  --red:#b42f48;
   --purple:#6653d9;
   background:
     radial-gradient(ellipse 65% 55% at 84% 4%,rgba(74,70,151,.19),transparent 72%),
@@ -1324,7 +1343,7 @@ footer a { color:#c4c6d8; }
 .fixture-button:hover .fixture-count { opacity:.72; }
 .fixture-count { display:flex; flex-direction:column; align-items:center; gap:1px; line-height:1; }
 .fixture-count b { font:800 12px/1 "Inter",sans-serif; }
-.fixture-count small { font:800 7px/1 "Inter",sans-serif; letter-spacing:.12em; text-transform:uppercase; opacity:.62; }
+.fixture-count small { font:800 8px/1 "Inter",sans-serif; letter-spacing:.1em; text-transform:uppercase; opacity:.62; }
 .fixture-button span { padding:0; }
 .fixture-button svg { width:13px; height:13px; }
 
@@ -1384,7 +1403,7 @@ footer a { color:#c4c6d8; }
 @media (max-width:800px) {
   .gameweek-status .deadline small { display:none; }
   .fixture-count b { font-size:11px; }
-  .fixture-count small { font-size:6px; }
+  .fixture-count small { font-size:8px; }
   .fixture-modal-overlay { padding:0; align-items:flex-end; }
   .fixture-modal { width:100%; max-height:88vh; border-radius:14px 14px 0 0; }
   .fixture-item .fixture-row { grid-template-columns:50px 1fr auto 16px; }
@@ -1644,8 +1663,12 @@ footer a { color:#c4c6d8; }
   .manager-row .captain-cell > span,
   .manager-row .transfer-cell small { font-size:var(--fs-sub); line-height:1.15; }
 
+  /* The overall rank is the one figure on this row the page works out for itself, and at
+     --fs-meta in --faint it was the smallest and faintest thing on the page: 2.13:1. A
+     number nobody can read is not worth estimating. */
+  .manager-row .manager-cell small { font-size:var(--fs-sub); font-variant-numeric:tabular-nums; }
+
   /* Sub-figures and labels. */
-  .manager-row .manager-cell small,
   .manager-row .season-transfers-cell > span,
   .manager-row .team-value-cell > span,
   .manager-row .bench-points-cell > span,
@@ -1906,7 +1929,6 @@ footer a { color:#c4c6d8; }
   background:none;
   color:var(--text);
   font:700 12px "Inter",sans-serif;
-  outline:none;
 }
 /* The tabs and the switch on one row: both are about what the list under them holds, and
    stacked they read as unrelated settings above it rather than as its controls. */
@@ -2240,7 +2262,7 @@ footer a { color:#c4c6d8; }
 }
 .price-countdown svg { width:14px; color:#fff; flex:none; }
 .price-countdown strong { color:#fff; font:400 15px/1 "Archivo Black",sans-serif; font-variant-numeric:tabular-nums; }
-.price-countdown small { color:rgba(255,255,255,.75); font-size:10px; font-weight:700; }
+.price-countdown small { color:rgba(255,255,255,.92); font-size:10px; font-weight:700; }
 
 .price-filters { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
 .price-search {
@@ -2262,7 +2284,6 @@ footer a { color:#c4c6d8; }
   background:none;
   color:var(--text);
   font:600 13px "Inter",sans-serif;
-  outline:none;
 }
 .price-direction { display:flex; gap:3px; padding:4px; border-radius:10px; background:var(--surface); }
 .price-direction button {
@@ -2294,7 +2315,7 @@ footer a { color:#c4c6d8; }
   padding:0 16px;
 }
 .price-head { min-height:42px; background:var(--raised); }
-.price-head > span { color:var(--soft); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.price-head > span { color:color-mix(in srgb,var(--soft) 62%,var(--text)); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
 .price-sort {
   display:flex;
   align-items:center;
@@ -2380,7 +2401,7 @@ footer a { color:#c4c6d8; }
 
 .price-empty { padding:26px 16px; color:var(--soft); text-align:center; font-size:13px; }
 
-.price-foot { display:flex; flex-wrap:wrap; align-items:center; gap:12px; color:var(--soft); font-size:11px; font-weight:700; }
+.price-foot { display:flex; flex-wrap:wrap; align-items:center; gap:12px; color:var(--page-ink); font-size:11px; font-weight:700; }
 .price-foot label { display:flex; align-items:center; gap:6px; }
 .price-foot .period-select { height:30px; }
 .price-pager { display:flex; align-items:center; gap:8px; margin-left:auto; }
@@ -2401,7 +2422,7 @@ footer a { color:#c4c6d8; }
 .price-disclaimer {
   max-width:82ch;
   margin:14px 0 0;
-  color:var(--faint);
+  color:var(--page-ink);
   font-size:10px;
   font-weight:500;
   line-height:1.5;
@@ -2665,7 +2686,7 @@ footer a { color:#c4c6d8; }
 }
 .ticker-owners b.is-captain::after { content:" (C)"; color:rgba(255,255,255,.42); }
 
-.ticker-empty { color:rgba(255,255,255,.4); font-size:11px; font-weight:700; }
+.ticker-empty { color:rgba(255,255,255,.62); font-size:11px; font-weight:700; }
 .ticker-toggle {
   flex:none;
   display:grid;
@@ -3079,4 +3100,57 @@ footer a { color:#c4c6d8; }
   font-weight:600;
   line-height:1.35;
   text-align:left;
+}
+
+/* ==========================================================================
+   What the readability pass of 25 Aug settled
+   --------------------------------------------------------------------------
+   Everything above this line was measured before it was changed: contrast
+   computed per style against the composited background, sizes read out of the
+   DOM at 375 and 1280, tap targets and focus walked element by element. The
+   panel opacity and the two tokens are up in the theme block where they belong;
+   what is left is global and had nowhere else to live.
+   ========================================================================== */
+
+/* Nothing on this page showed where the keyboard was. Two `:focus-visible`
+   rules existed in the whole file, and two text inputs went further and set
+   `outline:none` — so 18 of 23 focusable things were invisible to anyone not
+   using a mouse. One rule covers all of them; the two that had their own keep
+   them, because a switch and a checkbox want a ring their own shape.
+   Written out rather than wrapped in :where(), which would give it zero
+   specificity — nothing beats it today, and this way nothing can beat it by
+   accident tomorrow either. */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[role="switch"]:focus-visible,
+[tabindex]:focus-visible {
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+  border-radius:4px;
+}
+
+/* Figures in a table are read down the column, and proportional digits do not
+   line up: Inter's `1` is 4.86px against `0` at 7.61px. The header has been
+   tabular since the clock started jittering the row; the table itself never
+   was, so a live gameweek score shifted inside its own cell every time it
+   moved. */
+.manager-row :is(.points-cell, .total-cell, .team-value-cell, .bench-points-cell,
+  .season-transfers-cell, .position-cell, .captain-cell) :is(strong, b, span, small) {
+  font-variant-numeric:tabular-nums;
+}
+
+@media (max-width:800px) {
+  /* A finger is about 44px and these were 19 to 24. The row itself is the big
+     target — it opens the squad — so these only need to stop being smaller than
+     what is around them: the link to FPL inside the row, the two page links,
+     and the chevron that opens the event log. */
+  .manager-cell a { padding:3px 0; }
+  .top-nav a { display:inline-flex; align-items:center; min-height:36px; padding:0 10px; }
+  .ticker-toggle { min-width:38px; min-height:38px; }
+  /* The header's own controls stay at 28–30px. They were measured to fit 375px beside the
+     wordmark and the gameweek card, and WCAG 2.2's own floor is 24×24 — the 44 everyone
+     quotes is Apple's guidance, not the bar. Growing them here would cost the header its
+     one line. */
 }

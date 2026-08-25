@@ -94,8 +94,8 @@ last block of `src/styles.css` on purpose.
 - **No award names in the table.** The shouted labels (ÖLJYPOHATTA, EI SAATANA and the
   rest) were removed on 23 Aug. `awardFor()` still returns a `level` and a `tone`, which
   tint the winning figure; only the naming went. The nicknames live on the awards card.
-- **Nothing relies on grey for legibility** on the share cards; the dashboard still uses
-  `--soft` and `--faint`, which is fine on its own dark ground.
+- **Nothing relies on grey for legibility** on the share cards. The dashboard uses `--soft`
+  and `--faint`, and both were measured and moved on 25 Aug — see **Readability** below.
 
 ### Column widths
 
@@ -678,6 +678,79 @@ Nothing shows on the page until the sample completes, and for GW1 nothing will s
 then: FPL reprocessed it at 12:40, so every row's rank is already exact and the estimate
 stands down. **The first time this is seen for real is GW2's opening kick-off**, when FPL's
 own figure freezes and ours does not.
+
+## Readability, and the one thing behind most of it
+
+A pass on 25 Aug, measured before anything was changed: contrast computed per style against
+the composited background, sizes read out of the DOM at 375 and 1280, tap targets and focus
+walked element by element. **Fifty-three distinct text styles, of which twenty-four failed.**
+After it, none do — worst on the table 5.07:1, worst on the price page 4.53:1.
+
+### The panel was a mid grey, not a near-white
+
+`--surface` was `rgba(246,247,255,.76)` over a dark page, which composites to **`#bcc2c7`**.
+Every secondary colour had been chosen against a near-white panel, so on the real ground
+`--text` sat at 9.65:1 and everything else between 2.1 and 3.7. That one value explains most
+of the twenty-four: the club-and-position line under a player was **1.88:1** across 123 rows,
+the overall rank **2.13:1**, and the price page's own headline figures — `+122.4 %`, `+3.21`,
+the ownership arrows — **2.68:1** on nearly three hundred rows.
+
+At `.96` the panel is `#eceef6`, which still reads as glass — it is not white and the
+`backdrop-filter` is untouched — and carries `--soft` at 5.06 and `--green` at 4.69. Two
+tokens went a shade darker with it, because even on an opaque panel they fell short:
+`--faint` `#7d8297` → `#5f6373`, `--red` `#d53755` → `#b42f48`, and `--green` `#007a43` →
+`#00703e`. **None of the three is used on a dark surface** — the ticker and the topbar spell
+their greens out in white and `#42f5a1` — so darkening them costs nothing elsewhere. That was
+checked, not assumed.
+
+### Text on the page rather than on a panel
+
+The price page's foot and its footnote sit on the page ground, and they were `--soft` and
+`--faint`: tokens picked for a light panel, rendering dark grey on dark green at 3.02:1 and
+3.33:1. `--page-ink` is declared beside every `--page` for exactly this, and is light where
+the ground is dark.
+
+### The head band is lighter than a row
+
+`--soft` clears 5:1 on a row and only 3.94:1 on the head, on both pages. Both heads take
+`color-mix(in srgb, var(--soft) 62%, var(--text))` rather than a seventh grey being invented
+for one band. Note that `.table-head .sort-header:not(.active)` and `.price-head > span` are
+the rules that actually win — changing the base `.sort-header` colour does nothing.
+
+### The rest of the pass
+
+- **The overall rank was the smallest and faintest thing on the page**, at `--fs-meta` in
+  `--faint`: 2.13:1 on desktop and 7px on a phone. It is now `--fs-sub` in `--soft` at
+  **5.07:1**, and 9px on a phone. It is also the one figure the page works out for itself, so
+  it had the least business being unreadable.
+- **Nothing showed where the keyboard was.** Two `:focus-visible` rules existed in the whole
+  file and two inputs set `outline:none`, leaving 18 of 23 focusable things invisible to
+  anyone not using a mouse. One rule now covers them all, written out rather than wrapped in
+  `:where()` so nothing can outrank it by accident.
+- **No text under 8px.** A phone had 6px on `PELATTU` and 7px on the chips and the rank,
+  under the project's own `--fs-micro`.
+- **Figures in the table are `tabular-nums`.** They are read down a column and Inter's `1` is
+  4.86px against `0` at 7.61px, so a live score shifted inside its own cell every time it
+  moved. The header had been tabular since the clock jittered the row; the table never was.
+- **Seven font sizes became six again**: the column headers were 10px, which is in no
+  `--fs-*` step, and are now `--fs-meta`.
+- **Tap targets.** The nav links went from 22px to 36 and the ticker chevron from 20×24 to
+  38×38. The header's own controls stay at 28–30: they were measured to fit 375px beside the
+  wordmark and the gameweek card, and WCAG 2.2's floor is 24×24 — the 44 everyone quotes is
+  Apple's guidance, not the bar.
+
+### Two things that were checked and left alone
+
+Colour is never the only carrier — prices have a sign, ranks an arrow, fixtures a word. And
+`--text` was already 9.65:1, so what is actually read was never the problem.
+
+### If this is measured again
+
+The instrument matters. A naive walk up the ancestors for a background misses pseudo-elements
+and `backdrop-filter`, and the first run of this pass was taken in a collapsed browser pane
+reporting a viewport of 0, which put the whole page in its phone layout. Both were caught by
+checking a figure by hand — `--faint` on the panel, computed at three gradient stops — before
+believing any of it.
 
 ## The demo data
 
