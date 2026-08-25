@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Clock3, Lock, Search } from "lucide-react";
 import { translations } from "./i18n";
-import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor } from "./services/priceChanges";
+import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor, outlookRank } from "./services/priceChanges";
 import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
 import type { DashboardData, Language, PriceRow } from "./types";
 
-type SortKey = "progress" | "perHour" | "ownership" | "cost" | "name";
+type SortKey = "progress" | "outlook" | "perHour" | "ownership" | "cost" | "name";
 type Direction = "all" | "risers" | "fallers" | "locked";
 
 const PAGE_SIZES = [10, 15, 25, 50, 100];
@@ -62,6 +62,9 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
 
   const owners = useMemo(() => ownersByPlayer(data.managers, autosubs), [data.managers, autosubs]);
   const market = data.prices;
+  // One reading per render. The sort and the rows have to agree about what time it is, and
+  // a clock read twice inside one render can straddle a change deadline.
+  const now = Date.now();
 
   const clubs = useMemo(
     () => [...new Set((market?.players ?? []).map((row) => row.club))].sort(),
@@ -90,12 +93,26 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
       if (sort === "ownership") return row.ownership;
       return row.cost;
     };
-    return [...filtered].sort((a, b) => sort === "name"
-      ? a.name.localeCompare(b.name) * (descending ? -1 : 1)
-      : (value(a) - value(b)) * (descending ? -1 : 1));
-  }, [market, owners, search, position, club, manager, direction, sort, descending]);
+    // The prediction is tiers before it is a number, so it compares as a list.
+    const ranked = sort === "outlook" && market
+      ? new Map(filtered.map((row) => [row.id, outlookRank(row, market, now)]))
+      : null;
+    const byRank = (a: PriceRow, b: PriceRow) => {
+      const left = ranked!.get(a.id)!, right = ranked!.get(b.id)!;
+      for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+        const gap = (left[index] ?? 0) - (right[index] ?? 0);
+        if (gap) return gap;
+      }
+      return 0;
+    };
+    return [...filtered].sort((a, b) => (sort === "name"
+      ? a.name.localeCompare(b.name)
+      : ranked ? byRank(a, b) : value(a) - value(b)) * (descending ? -1 : 1));
+  }, [market, owners, search, position, club, manager, direction, sort, descending, now]);
 
-  useEffect(() => { setPage(0); }, [search, position, club, manager, direction, pageSize]);
+  // Sorting belongs in here too. A re-order means page 4 holds different players than the
+  // page 4 you were looking at, and the prediction sort moves every row at once.
+  useEffect(() => { setPage(0); }, [search, position, club, manager, direction, pageSize, sort, descending]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const visible = rows.slice(page * pageSize, page * pageSize + pageSize);
@@ -103,7 +120,9 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
 
   const header = (label: string, key: SortKey) => <button
     className={`price-sort ${sort === key ? "active" : ""}`}
-    onClick={() => { if (sort === key) setDescending((value) => !value); else { setSort(key); setDescending(true); } }}
+    // Soonest first is what "sort by prediction" means; every other column here opens on
+    // its largest figure.
+    onClick={() => { if (sort === key) setDescending((value) => !value); else { setSort(key); setDescending(key !== "outlook"); } }}
   >{label}{sort === key && (descending ? <ArrowDown /> : <ArrowUp />)}</button>;
 
   // The day the change belongs to, not the offset of the projection that predicted it.
@@ -156,13 +175,12 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         <span className="head-player">{header(t.player, "name")}</span>
         <span className="head-owners">{t.leagueOwners}</span>
         <span className="head-progress">{header(t.priceProgress, "progress")}</span>
-        <span className="head-outlook">{t.priceOutlook}</span>
+        <span className="head-outlook">{header(t.priceOutlook, "outlook")}</span>
         <span className="head-rate">{header(t.perHour, "perHour")}</span>
         <span className="head-ownership">{header(t.ownership, "ownership")}</span>
         <span className="head-cost">{header(t.price, "cost")}</span>
       </div>
       {visible.map((row) => {
-        const now = Date.now();
         const outlook = outlookFor(row, market.deadlines, now);
         // Not reaching a change, but near enough by the last one before the deadline to be
         // worth a hedge rather than a flat no.

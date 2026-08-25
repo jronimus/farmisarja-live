@@ -224,6 +224,38 @@ export function maybeThisWeek(
   return projected > 0 ? "rise" : "fall";
 }
 
+/**
+ * The prediction column as a sortable value: how soon a change is, and how sure of it.
+ *
+ * The column means *when*, so it sorts by when — one axis, risers and fallers together.
+ * Ranking it by direction was the other option and it is the same mistake the progress
+ * column already refused: a header sorts its column, and this column does not say which
+ * way a price moves. The filter buttons are there for that.
+ *
+ * A list of numbers rather than one, compared in order, because the tiers do not share a
+ * scale — hours until a change and points short of the line are not the same quantity and
+ * folding them into a single figure would only invent an exchange rate between them.
+ *
+ *  0  a named change, by the hours until it, then by how far past the line it lands
+ *  1  near enough to hedge, closest to the line first
+ *  2  going nowhere this week, again closest first
+ *  3  calibrating, which is FPL saying it does not know yet
+ *  4  locked, where there is nothing to predict at all, by when it comes free
+ */
+export function outlookRank(row: PriceRow, market: PriceMarket, now: number): number[] {
+  if (row.lockedUntil) return [4, Date.parse(row.lockedUntil)];
+  if (row.calibrating) return [3, 0];
+  const outlook = outlookFor(row, market.deadlines, now);
+  if (outlook) {
+    const hours = (Date.parse(outlook.deadline) - now) / 3_600_000;
+    // Two players changing the same night are not equally certain of it.
+    return [0, hours, -(Math.abs(projectedAt(row, outlook.deadline, now)) - 100)];
+  }
+  const cutoff = lastChangeBeforeDeadline(market);
+  const projected = cutoff ? Math.abs(projectedAt(row, cutoff, now)) : Math.abs(row.progress);
+  return [maybeThisWeek(row, market, now) ? 1 : 2, -projected];
+}
+
 /** The next change FPL has published, or null once its list runs out. */
 export function nextPriceDeadline(market: PriceMarket | undefined, now: number): string | null {
   if (!market) return null;

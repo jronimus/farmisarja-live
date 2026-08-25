@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildPriceMarket, daysUntilChangeDay, hoursToChange, lastChangeBeforeDeadline, maybeThisWeek, nextPriceDeadline, outlookFor, perHourFromProjections, type PriceElement } from "./priceChanges";
+import type { PriceRow } from "../types";
+import { buildPriceMarket, daysUntilChangeDay, hoursToChange, lastChangeBeforeDeadline, maybeThisWeek, nextPriceDeadline, outlookFor, outlookRank, perHourFromProjections, type PriceElement } from "./priceChanges";
 
 const projections = (a: number, b: number, c: number, likelihood = 3) => [
   { offset: 0, projected_percent: String(a), likelihood },
@@ -137,6 +138,42 @@ describe("price changes", () => {
     // would announce a fall.
     expect(maybeThisWeek({ progress: 40, perHour: -2.5 }, week, morning)).toBeNull();
     expect(maybeThisWeek({ progress: 40, perHour: 0.9 }, week, Date.parse("2026-08-28T05:00:00Z"))).toBeNull();
+  });
+
+  it("ranks the prediction column by when, and by how sure of it", () => {
+    const row = (over: Partial<PriceRow>): PriceRow => ({
+      id: 1, name: "X", club: "ARS", clubCode: 3, position: "DEF", cost: 5.5, costChangeStart: 0,
+      ownership: 10, netTransfers: 0, progress: 0, projections: [], perHour: 0,
+      lockedUntil: null, calibrating: false, ...over,
+    });
+    const rank = (over: Partial<PriceRow>) => outlookRank(row(over), week, morning);
+    const order = (entries: Array<Partial<PriceRow>>) => entries
+      .map((entry, index) => ({ index, key: rank(entry) }))
+      .sort((a, b) => {
+        for (let i = 0; i < 3; i += 1) { const gap = (a.key[i] ?? 0) - (b.key[i] ?? 0); if (gap) return gap; }
+        return 0;
+      })
+      .map((entry) => entry.index);
+
+    // Tonight, tonight but less certainly, tomorrow, hedged, going nowhere, calibrating,
+    // locked — fed in backwards and sorted into that order.
+    expect(order([
+      { progress: 50, perHour: 0.2, lockedUntil: "2026-08-28T23:00:00Z" },
+      { progress: 50, perHour: 0.2, calibrating: true },
+      { progress: 20, perHour: 0.3 },
+      { progress: 40, perHour: 0.9 },
+      { progress: 81.3, perHour: 0.85 },
+      { progress: 82.3, perHour: 1.07 },
+      { progress: 105.3, perHour: 2.14 },
+    ])).toEqual([6, 5, 4, 3, 2, 1, 0]);
+
+    // A faller ranks beside a riser on the same night: the column says when, not which way.
+    expect(rank({ progress: -105, perHour: -2 })[0]).toBe(0);
+    expect(rank({ progress: -105, perHour: -2 })[1]).toBeCloseTo(rank({ progress: 105, perHour: 2 })[1], 5);
+
+    // Locked sorts by when it comes free, so the tier is not one undifferentiated heap.
+    expect(rank({ lockedUntil: "2026-08-26T23:00:00Z" })[1])
+      .toBeLessThan(rank({ lockedUntil: "2026-08-28T23:00:00Z" })[1]);
   });
 
   it("maps an element onto a row, strings and tenths included", () => {
