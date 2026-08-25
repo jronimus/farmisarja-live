@@ -563,12 +563,14 @@ rescores them every tick.
 
 ### The shape of it
 
-- **120 pages of 8, spread on a log scale.** A rank is read as a proportion — fifty thousand
-  places matter at rank 600 000 and are invisible at rank eight million — so evenly spaced
-  pages put the resolution in the wrong place. Measured with an even spread: 6.5 % out at
-  the top of this league and 0.1 % at the bottom. Each page carries the weight of the field
-  between its neighbours' midpoints, which is what lets an uneven sample still add up to a
-  whole.
+- **120 pages of 8, spread on a log scale**, which comes to **106 unique pages and 848
+  managers** once the low end stops colliding — the first ten pages asked for are 1 to 10,
+  and the last three are 145 326, 160 867 and 178 069. A rank is read as a proportion —
+  fifty thousand places matter at rank 600 000 and are invisible at rank eight million — so
+  evenly spaced pages put the resolution in the wrong place. Measured with an even spread:
+  6.5 % out at the top of this league and 0.1 % at the bottom. Each page carries the weight
+  of the field between its neighbours' midpoints, which is what lets an uneven sample still
+  add up to a whole.
 - **20 requests a tick**, which finishes a sample in under an hour and leaves room under the
   50-subrequest ceiling for the feed and the Telegram schedule. It is also a public API being
   read in bulk, and twenty a minute once a week is a rate worth being able to state plainly.
@@ -657,12 +659,25 @@ Worst error 1.89 %, on a fifth of the sample the Worker draws. And the predictio
 mattered held: our leader gained nothing from autosubs while the field gained 2.09 points,
 so the estimate said he would fall from 642 802 to about 776 000 — FPL now says 785 979.
 
-### What is not done
+### Deployed, 25 Aug
 
-**The Worker has not been deployed with any of this.** Until it is, `/rank` answers 404, the
-page falls back to FPL's stored rank, and the tilde does not appear. The sample must be built
-after a deadline — GW2's is Friday 28 Aug at 20:30 — so the first real run cannot happen
-before then. See **Open tasks**.
+`npx wrangler deploy` at 13:47. The sample started on the next cron tick and `wrangler tail`
+showed clean ticks with no `rank_sample_error`. Progress is not on any endpoint, so read it
+straight out of KV:
+
+```bash
+npx wrangler kv key get --binding TELEGRAM_STATE "rank:gw:1" --remote
+```
+
+`pending` counts pages left, `queue` counts squads still to fetch, `entries` counts squads
+in hand, and `completedAt` appears when it is whole. Pages are all taken before any picks,
+because each page is what produces the queue the rest of the budget is spent on. From empty
+it is about 45 minutes.
+
+Nothing shows on the page until the sample completes, and for GW1 nothing will show even
+then: FPL reprocessed it at 12:40, so every row's rank is already exact and the estimate
+stands down. **The first time this is seen for real is GW2's opening kick-off**, when FPL's
+own figure freezes and ours does not.
 
 ## The demo data
 
@@ -1102,26 +1117,30 @@ arrived with all three cards correct.
 3. **Watch the write budget now the cron ticks every minute.** A heavy Saturday was
    measured at about 200 writes at two minutes a tick and should be about 400 at one,
    against the free plan's 1,000 a day. GW1 was a light test of this — one live match.
-4. **Deploy the Worker and watch the first rank sample build.** `npx wrangler deploy`. The
-   sample starts on the next cron tick — GW1's deadline is long past, so its picks are
-   already public and there is no need to wait for Friday. The cron spends 20 requests a tick
-   and finishes in under an hour. `npx wrangler tail --format json` and look for `rank_sample_error`,
+4. **Watch the live rank through a gameweek that is actually running.** Deployed 25 Aug and
+   the GW1 sample built cleanly, but GW1 cannot show the feature: FPL had already reprocessed
+   it, so every rank is exact and the estimate stands down. GW2's first kick-off is the first
+   time FPL's figure freezes and ours has to carry it. Watch that the tildes appear, that the
+   ranks move with the ticker rather than lagging it, and that they stand down again when FPL
+   reprocesses on the Tuesday. `npx wrangler tail --format json` for `rank_sample_error`,
    `rank_page_error` and `rank_picks_error` — the last two are per-item and tolerated, the
-   first is not. Nothing appears on the page until the sample completes; then the OR figures
-   should grow a tilde. Check the estimate against LiveFPL, and against the true ranks once
-   the gameweek settles.
-5. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
+   first is not. The GW2 sample builds itself after Friday's 20:30 deadline; check it has
+   completed before Saturday.
+5. **Watch what 848 requests a gameweek does to FPL's patience.** Twenty a minute for
+   45 minutes, once a week. Nothing suggested a limit on 25 Aug, but the sample was also
+   built on a quiet Tuesday afternoon rather than an hour before kick-off.
+6. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
    Nothing else needs changing; the card picks the plate by row count.
-6. **`feed:gw:1` carries about twenty stray bonus lines.** `repairEvents` wound every
+7. **`feed:gw:1` carries about twenty stray bonus lines.** `repairEvents` wound every
    player's stored bonus back to the last one reported, including players whose match had
    long finished and whose bonus had never been reported at all, so one tick emitted a
    `0 → N` line for each of them. Harmless, invisible from GW2 on, and left alone
    deliberately: the fix belongs in the next repair version if it is ever worth one.
 
-Nothing is half-built. The working tree is clean, everything is pushed, and the four
-checks — `npm test` (31 passing), `npm run build`, `npm run worker:check` and
-`node scripts/check-overflow.mjs` (28 widths and 14 picker menus) — all pass as of the
-last commit.
+Nothing is half-built. The working tree is clean, everything is pushed, the Worker is
+deployed, and the four checks — `npm test` (56 passing), `npm run build`,
+`npm run worker:check` and `node scripts/check-overflow.mjs` (28 widths and 14 picker
+menus) — all pass as of the last commit.
 
 ## What the first live gameweek corrected, 24 Aug
 
