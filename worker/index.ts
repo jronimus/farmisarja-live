@@ -1,4 +1,5 @@
 import { captureCard, handleTelegramWebhook, runTelegramSchedule, type ShareCardKind, type TelegramEnv } from "./telegram";
+import { advanceSample, readCurve, updateRankCurve, type LiveRankEnv } from "./liveRank";
 import { readFeed, updateFeed, type EventsEnv } from "./events";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
@@ -68,6 +69,17 @@ export default {
     }
     if (request.method !== "GET") return json({ error: "Method not allowed" }, request, env, 405);
     if (url.pathname === "/health") return json({ ok: true, leagueId: env.FPL_LEAGUE_ID }, request, env);
+    if (url.pathname === "/rank") {
+      const gameweek = Number(url.searchParams.get("gw"));
+      if (!Number.isInteger(gameweek) || gameweek < 1) return json({ error: "gw is required" }, request, env, 400);
+      const curve = await readCurve(env as LiveRankEnv, gameweek);
+      if (!curve) return json({ error: "no rank sample yet" }, request, env, 404);
+      // The curve is rewritten every two and a half minutes at most, so a minute of cache
+      // costs it nothing and keeps a page left open all evening off the KV read budget.
+      return new Response(JSON.stringify(curve), {
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=60" },
+      });
+    }
     if (url.pathname === "/events") {
       const gameweek = Number(url.searchParams.get("gw"));
       if (!Number.isInteger(gameweek) || gameweek < 1) return json({ error: "gw is required" }, request, env, 400);
@@ -92,6 +104,14 @@ export default {
     // Independent of the Telegram switch: the feed is the site's, not the chat's.
     ctx.waitUntil(updateFeed(env as EventsEnv).catch((error) => {
       console.error(JSON.stringify({ event: "feed_update_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // The sample is built once a gameweek and scored on the ticks after that. Both are
+    // separately guarded, so a failure in either leaves the feed and the reminders alone.
+    ctx.waitUntil(advanceSample(env as LiveRankEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "rank_sample_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    ctx.waitUntil(updateRankCurve(env as LiveRankEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "rank_curve_error", error: error instanceof Error ? error.message : String(error) }));
     }));
   },
 } satisfies ExportedHandler<Env>;

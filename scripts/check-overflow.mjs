@@ -238,10 +238,16 @@ for (const width of widths) {
 
   // The picker only exists on the table page, and only where the toolbar shows it.
   if (!url.includes("#/hinnat")) {
-    const { result: menu = {} } = await send("Runtime.evaluate", { expression: MENU_PROBE, returnByValue: true, awaitPromise: true });
-    // A probe that threw in the page reports no value, and a check that cannot run has to
-    // say so rather than crash the script and leave the other widths untested.
-    const menuReport = menu && typeof menu.value === "string" ? JSON.parse(menu.value) : { failed: true };
+    // Two attempts. The evaluate comes back without a result when its execution context
+    // was destroyed under it — a hot reload landing mid-probe, or the page still settling
+    // right after a resize — and that is a transient, not a finding. A real containment
+    // failure measures the same geometry on the second run and is still reported.
+    let menu = {};
+    for (let attempt = 0; attempt < 2 && typeof menu.value !== "string"; attempt += 1) {
+      if (attempt) await sleep(500);
+      ({ result: menu = {} } = await send("Runtime.evaluate", { expression: MENU_PROBE, returnByValue: true, awaitPromise: true }));
+    }
+    const menuReport = typeof menu.value === "string" ? JSON.parse(menu.value) : { failed: true };
     if (menuReport.failed) {
       console.error(`FAIL ${width}px menu — the probe did not run`);
       menuFailures.push({ width, offenders: [] });

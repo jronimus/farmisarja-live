@@ -137,6 +137,8 @@ export interface DashboardData {
   leagueName: string;
   gameweek: number;
   deadline: string;
+  /** The gameweek after this one, which the header counts down to once this one is done. */
+  nextEvent?: { gameweek: number; deadline: string };
   updatedAt: string;
   isPreview: boolean;
   rosterOnly?: boolean;

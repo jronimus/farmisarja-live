@@ -57,6 +57,8 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/Ticker.tsx` | The live event ticker under the header |
 | `src/services/liveFeed.ts` | Reads the event log from the Worker |
 | `worker/events.ts` | Derives the events by diffing snapshots, and serves `/events` |
+| `worker/liveRank.ts` | Samples the global league, scores it live, and serves `/rank` |
+| `src/services/liveRank.ts` | Reads that curve and looks a total up on it |
 | `src/services/liveDashboard.ts` | FPL response mapping and dashboard composition |
 | `src/services/fplRules.ts` | Chips, free transfers, provisional autosubs |
 | `src/i18n.ts` | FI/EN strings |
@@ -394,7 +396,35 @@ Measured, because this column has been sized wrong before: VAHVISTETTU is the lo
 the four and renders 60px in a 72px column, leaving 12px of clear space to the season
 total beside it — more than the 8px gutter the row uses elsewhere. Note that `?demo=1`
 carries `pointsFinalized: false` and unfinished fixtures, so **the demo never shows this
-cell's worst case** and `check-overflow.mjs` cannot see it. Measure it on live data. The live
+cell's worst case** and `check-overflow.mjs` cannot see it. Measure it on live data.
+
+#### Handing the card over to the next gameweek
+
+Twelve hours after a gameweek is confirmed, the card stops being about it: the number
+becomes the next gameweek's and the badge becomes a countdown to its deadline.
+`gameweekHandsOverAt()` in `src/services/fplRules.ts`.
+
+Both halves of that are load-bearing. FPL leaves `is_current` on a finished gameweek long
+after the football is over — on 25 Aug every GW1 fixture read `finished: true` while the
+event still read `is_current`, so without this the card would have said GW 1 VAHVISTETTU
+for three days while the only thing worth counting was Friday's deadline. But handing over
+the moment the fixtures are confirmed would mean the confirmed state is never seen at all:
+it would appear and be replaced on the same tick.
+
+**The confirmation is derived, because FPL publishes no timestamp for it.** It confirms a
+gameweek's fixtures together at 09:00 UK the morning after the last match, and the model is
+checkable against what happened: GW1's last kick-off was 20:00 London on Monday 24 Aug, the
+model puts the confirmation at 09:00 on Tuesday, and the fixtures actually flipped at 09:13.
+Thirteen minutes out, on a twelve-hour delay. The clock change is read back out of
+`Europe/London` rather than tabulated, and there is a winter case in the tests for it.
+
+The handover is gated on the fixtures really being confirmed, so the model can only ever
+delay it and never bring it forward on a gameweek FPL has not finished with.
+
+**Only the card moves.** The table, the awards and the share cards stay on the gameweek
+that has the points, and the card gives up its played count and its fixture menu along with
+the old number, because both of those are about the gameweek it just left. One card, one
+gameweek — a GW 2 heading over a 10/10 PELATTU from GW 1 is worse than either half alone. The live
 state is red text, `--live:#ff5f77`, not a red pill, and it does not pulse. The count sits
 over a small `PELATTU` caption. The same card is used on mobile a size down; measured at
 375px it ends 14px from the right edge with the language switch beside it.
@@ -501,6 +531,102 @@ line had to carry.
 
 **The Worker must be deployed for any of this to have data**: `npx wrangler deploy`. Until
 then `/events` answers 404 and the ticker says it is waiting.
+
+## The live overall rank
+
+FPL does not publish one, and it cannot be derived from what it does publish. It is built
+here, and it is the one number on the page that is an estimate — so it is printed with a
+tilde, `OR ~2 648 280`, and never as though it were FPL's own.
+
+### Why FPL's own figure will not do
+
+`summary_overall_rank` is stored, not live. It does not move at all while matches run, and
+even once every fixture is confirmed it still excludes every autosub in the game: on 25 Aug
+four of these seven rows showed more points than the rank beside them belonged to — Jankon
+betoni 56 against a rank for 54, Tussulan voittajat 37 against a rank for 34. The tooltip
+called it *Arvioitu live-yleissija*, which it was not on either count.
+
+### What makes it possible
+
+Two things, both checked before a line was written.
+
+- **A rank is a pure function of total points.** Every manager on 87 points holds rank
+  21 754 — visible on any page of the global league, where all fifty rows of page 500 share
+  one rank. So a rank is only ever a count of who stands above a total, and nothing has to
+  be interpolated.
+- **Picks freeze at the deadline.** The expensive half happens once a gameweek; every tick
+  afterwards is arithmetic on the `/event/{gw}/live/` payload the feed already reads.
+
+The global league, id 314, is pageable end to end at 50 rows a page, and any entry's picks
+are public. So `worker/liveRank.ts` samples the league, fetches those squads once, and
+rescores them every tick.
+
+### The shape of it
+
+- **120 pages of 8, spread on a log scale.** A rank is read as a proportion — fifty thousand
+  places matter at rank 600 000 and are invisible at rank eight million — so evenly spaced
+  pages put the resolution in the wrong place. Measured with an even spread: 6.5 % out at
+  the top of this league and 0.1 % at the bottom. Each page carries the weight of the field
+  between its neighbours' midpoints, which is what lets an uneven sample still add up to a
+  whole.
+- **20 requests a tick**, which finishes a sample in under an hour and leaves room under the
+  50-subrequest ceiling for the feed and the Telegram schedule. It is also a public API being
+  read in bulk, and twenty a minute once a week is a rate worth being able to state plainly.
+- **Nothing is published until the sample is whole.** Pages are fetched in order, so a
+  half-built sample is all top-of-the-table managers carrying weights that claim to speak for
+  the whole field, and a curve from it would put this league far below where it is. There
+  are hours between a Friday deadline and a Saturday kick-off; it waits for them.
+- **Three reasons to write the curve, and no others**: there is none yet, a match is running
+  and the last one is 150 seconds old, or the gameweek has just settled. An interval on its
+  own rewrote it around the clock — some six hundred writes a day against a free-plan
+  thousand, for a number that had not moved since Sunday. With the gate it is one write
+  between gameweeks and roughly two hundred on a heavy Saturday, on top of the feed's four
+  hundred.
+- Provisional autosubs are applied to every sampled squad by the same rule the table applies
+  to ours, because otherwise the field is under-scored and our own rows look better than they
+  are. FPL rewrites the multipliers itself once it settles a fixture, so this only covers the
+  hours in between — which are the hours the number is watched.
+
+### What was measured
+
+Against 195 real managers drawn across the field, before any of it was written:
+
+- **Scoring is exact.** All 104 squads with no autosubs matched FPL's own gameweek points to
+  the point. Every one of the 87 that disagreed had autosubs, and disagreed upward — which
+  is how we know the disagreement is the autosubs and not the scorer.
+- **Autosubs are worth 2.09 points to the average manager.** 44 % of the field gains
+  anything at all, and those that do gain 4.76 each.
+- Which is why looking a corrected total up on FPL's own curve is wrong, and by a lot. Our
+  leader gained nothing from autosubs, so with the field gaining two points he goes **down**:
+  642 802 becomes 787 102.
+
+And then against LiveFPL, which publishes an exact live overall rank from its own
+aggregation of the whole game — the only independent check there is. On the 195-squad
+sample, through the real code path:
+
+| | pts | LiveFPL | ours | error |
+| --- | ---: | ---: | ---: | ---: |
+| Tiksi United FC | 67 | 787 102 | 776 221 | −1.38 % |
+| Jankon betoni | 56 | 2 678 094 | 2 648 280 | −1.11 % |
+| Karjarannan Hurjat | 52 | 3 771 860 | 3 835 439 | +1.69 % |
+| Airola Albion | 49 | 4 675 372 | 4 657 318 | −0.39 % |
+| KERPA RULZ | 37 | 7 662 365 | 7 579 557 | −1.08 % |
+| Tussulan voittajat | 37 | 7 662 365 | 7 579 557 | −1.08 % |
+| Pirkkolan Beckham | 34 | 8 096 899 | 8 173 136 | +0.94 % |
+
+Worst error 1.69 %, on a fifth of the sample the Worker will draw. Note that KERPA RULZ and
+Tussulan voittajat share a rank in both columns, which is the pure-function property again.
+
+**This can be checked every week.** Once a gameweek settles, our seven managers get their
+true ranks and the estimate's error can be read off them. Do that rather than trusting the
+figures above to keep holding.
+
+### What is not done
+
+**The Worker has not been deployed with any of this.** Until it is, `/rank` answers 404, the
+page falls back to FPL's stored rank, and the tilde does not appear. The sample must be built
+after a deadline — GW2's is Friday 28 Aug at 20:30 — so the first real run cannot happen
+before then. See **Open tasks**.
 
 ## The demo data
 
@@ -900,6 +1026,9 @@ These cost real debugging time. Do not re-derive them from assumptions.
 - **`finished` and `finished_provisional` are different things.** `finished_provisional`
   is full time; `finished` is the confirmed result. Bonus being published is *not* a signal
   that a result is settled any more.
+- **`is_current` stays on a finished gameweek.** It was still on GW1 on 25 Aug with every
+  GW1 fixture confirmed and GW2 four days out, so nothing that should follow the *live*
+  gameweek may key off it alone — see the header handover above.
 - **A gameweek is confirmed all at once, at 09:00 UK the morning after its last match**,
   which is new for 2026-27 — `finished` flips on every fixture together rather than
   trickling in. `event.data_checked` does **not** follow at the same moment: at 11:13 on
@@ -937,9 +1066,16 @@ arrived with all three cards correct.
 3. **Watch the write budget now the cron ticks every minute.** A heavy Saturday was
    measured at about 200 writes at two minutes a tick and should be about 400 at one,
    against the free plan's 1,000 a day. GW1 was a light test of this — one live match.
-4. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
+4. **Deploy the Worker and watch the first rank sample build.** `npx wrangler deploy`, then
+   after Friday's 20:30 deadline the cron should start spending 20 requests a tick on it and
+   finish in under an hour. `npx wrangler tail --format json` and look for `rank_sample_error`,
+   `rank_page_error` and `rank_picks_error` — the last two are per-item and tolerated, the
+   first is not. Nothing appears on the page until the sample completes; then the OR figures
+   should grow a tilde. Check the estimate against LiveFPL, and against the true ranks once
+   the gameweek settles.
+5. **Eighth manager.** `round-8.webp`, `total-8.webp` and `deadline-8.webp` are ready.
    Nothing else needs changing; the card picks the plate by row count.
-5. **`feed:gw:1` carries about twenty stray bonus lines.** `repairEvents` wound every
+6. **`feed:gw:1` carries about twenty stray bonus lines.** `repairEvents` wound every
    player's stored bonus back to the last one reported, including players whose match had
    long finished and whose bonus had never been reported at all, so one tick emitted a
    `0 → N` line for each of them. Harmless, invisible from GW2 on, and left alone

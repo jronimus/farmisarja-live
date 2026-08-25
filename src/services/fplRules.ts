@@ -88,3 +88,61 @@ export function provisionalAutosubSquad(squad: SquadPlayer[], enabled: boolean):
     viceCaptain: promoteVice ? player.id === originalCaptain.id : player.viceCaptain,
   }));
 }
+
+/**
+ * When the header should stop reporting a settled gameweek and start counting down the
+ * next one.
+ *
+ * Two things had to be true at once. FPL leaves `is_current` on a finished gameweek long
+ * after the football is over — on 25 Aug every GW1 fixture read `finished: true` while the
+ * event still read `is_current`, so the card would have said GW 1 VAHVISTETTU for days
+ * while the only thing worth counting was Friday's deadline. But handing over the moment
+ * the fixtures are confirmed would mean the confirmed state is never seen at all: it would
+ * appear and be replaced in the same tick.
+ *
+ * So the handover is `HANDOVER_HOURS` after the confirmation, and the confirmation is
+ * derived rather than stored, because FPL publishes no timestamp for it. It confirms a
+ * gameweek's fixtures together at **09:00 UK the morning after the last match**, which is
+ * new for 2026-27 — and the model is checkable: GW1's last kick-off was 20:00 London on
+ * Monday 24 Aug, this puts the confirmation at 09:00 on Tuesday, and the fixtures actually
+ * flipped at 09:13. Thirteen minutes out, on a twelve-hour delay.
+ *
+ * The caller gates this on the fixtures really being confirmed, so the model can only ever
+ * delay the handover and never bring it forward on a gameweek FPL has not finished with.
+ */
+export const HANDOVER_HOURS = 12;
+
+/** 09:00 in London on a given day, whichever side of the clock change it falls. */
+function londonNine(within: number): number {
+  const day = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(within));
+  const hourIn = (ms: number) => Number(new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London", hour: "2-digit", hour12: false,
+  }).format(new Date(ms)));
+  // BST or GMT, without a table of them: try both and keep the one that reads back as 09.
+  for (const offset of [0, 1]) {
+    const guess = Date.parse(`${day}T${String(9 - offset).padStart(2, "0")}:00:00Z`);
+    if (hourIn(guess) === 9) return guess;
+  }
+  return Date.parse(`${day}T09:00:00Z`);
+}
+
+/**
+ * The moment FPL confirms a gameweek: the first 09:00 UK after its last match ends. Three
+ * hours are allowed for the match itself, so a late kick-off is not read as confirmed on
+ * the morning it started.
+ */
+export function gameweekConfirmedAt(lastKickoff: string): number {
+  const fullTime = Date.parse(lastKickoff) + 3 * 3_600_000;
+  for (let day = 0; day <= 3; day += 1) {
+    const nine = londonNine(fullTime + day * 86_400_000);
+    if (nine > fullTime) return nine;
+  }
+  return fullTime;
+}
+
+/** The instant the header hands over to the next gameweek. */
+export function gameweekHandsOverAt(lastKickoff: string): number {
+  return gameweekConfirmedAt(lastKickoff) + HANDOVER_HOURS * 3_600_000;
+}

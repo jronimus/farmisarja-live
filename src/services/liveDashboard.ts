@@ -283,6 +283,10 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
   );
   const event = bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next);
   if (!event) return null;
+  // Not `is_next`: FPL leaves that on the gameweek after the current one, which is the same
+  // thing here, but by id it stays right through the handover if FPL ever moves the flags
+  // early.
+  const following = bootstrap.events.find((item) => item.id === event.id + 1);
   const startedMonths = [...new Set(bootstrap.events.filter((item) => item.finished || Date.now() >= new Date(item.deadline_time).getTime()).map((item) => item.deadline_time.slice(0, 7)))];
   const eventFixtures = fixtures.filter((fixture) => fixture.event === event.id);
   const teamsById = new Map(bootstrap.teams.map((team) => [team.id, team]));
@@ -341,6 +345,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     leagueName: league.league.name,
     gameweek: event.id,
     deadline: event.deadline_time,
+    nextEvent: following ? { gameweek: following.id, deadline: following.deadline_time } : undefined,
     updatedAt: new Date().toISOString(),
     isPreview: false,
     dataPending: true,
@@ -373,6 +378,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     leagueName: league.league.name,
     gameweek: event.id,
     deadline: event.deadline_time,
+    nextEvent: following ? { gameweek: following.id, deadline: following.deadline_time } : undefined,
     updatedAt: new Date().toISOString(),
     isPreview: false,
     // Every fixture confirmed is the signal, not `event.data_checked`.

@@ -3,12 +3,13 @@ import { createPortal } from "react-dom";
 import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, Globe, Medal, Search, X } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
-import { provisionalAutosubSquad } from "./services/fplRules";
+import { gameweekHandsOverAt, provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
 import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, type Highlight, type PlayerOwnership } from "./services/ownership";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import Ticker from "./Ticker";
+import { estimateRank, loadRankCurve, type RankCurve } from "./services/liveRank";
 import type { DashboardData, FixtureStatKey, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
 
 type SortKey = "position" | "gameweekPoints" | "totalPoints" | "overallRank" | "captainPoints" | "upcoming" | "form" | "teamValue" | "seasonTransfers" | "benchPointsBeforeGw";
@@ -635,6 +636,27 @@ export default function App() {
   }), [data.managers, autosubs]);
 
   const ownership = useMemo(() => buildOwnership(liveManagers, autosubs, !startersOnly), [liveManagers, autosubs, startersOnly]);
+  /*
+   * The live overall rank. FPL's own figure is stored, not live: it does not move while
+   * matches run, and even once every fixture is confirmed it still excludes every autosub
+   * in the game — measured on 25 Aug, four of these seven rows showed more points than the
+   * rank beside them belonged to. The Worker's curve is a count of who stands above a
+   * total, so the same total the row shows can simply be looked up on it.
+   */
+  const [rankCurve, setRankCurve] = useState<RankCurve | null>(null);
+  useEffect(() => {
+    if (!liveReady || demoMode) return;
+    let cancelled = false;
+    const read = () => loadRankCurve(data.gameweek)
+      .then((curve) => { if (!cancelled) setRankCurve(curve); })
+      .catch(() => { /* the rank is an extra; the table is not waiting on it */ });
+    read();
+    // The Worker rewrites the curve every two and a half minutes at most, so this reads it
+    // on the same rhythm as the feed rather than more often than it can change.
+    const timer = window.setInterval(read, 90_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [liveReady, demoMode, data.gameweek]);
+
   const clubOwnership = useMemo(() => buildClubOwnership(liveManagers, autosubs, !startersOnly), [liveManagers, autosubs, startersOnly]);
   // A highlighted player can be transferred out from under the selection between refreshes,
   // and the last player of a club can go with him.
@@ -747,7 +769,18 @@ export default function App() {
   const nextFixture = gameweekFixtures.find((fixture) => fixture.status === "upcoming");
   // Fixture data tells whether the gameweek is running even before any picks are published.
   const gameweekIsLive = gameweekFixtures.length ? liveFixtures.length > 0 : data.managers.some((manager) => manager.live > 0);
-  const deadlineMs = Math.max(0, new Date(data.deadline).getTime() - now);
+  /*
+   * Once a gameweek is confirmed and has had its half day of saying so, the card is about
+   * the next one. Nothing else moves: the table, the awards and the share cards stay on the
+   * gameweek that has the points, and the card gives up its played count and fixture menu
+   * along with the old number, because both of those are about the gameweek it just left.
+   * One card, one gameweek — a GW 2 heading over a 10/10 played from GW 1 is worse than
+   * either half on its own.
+   */
+  const lastKickoff = gameweekFixtures.reduce((latest, fixture) => fixture.kickoff > latest ? fixture.kickoff : latest, "");
+  const handedOver = Boolean(data.pointsFinalized && data.nextEvent && lastKickoff && now >= gameweekHandsOverAt(lastKickoff));
+  const shown = handedOver && data.nextEvent ? data.nextEvent : { gameweek: data.gameweek, deadline: data.deadline };
+  const deadlineMs = Math.max(0, new Date(shown.deadline).getTime() - now);
   const deadlineLabel = countdownLabel(deadlineMs, language);
   const compactDeadlineLabel = deadlineLabel;
   const nextKickoffLabel = nextFixture ? countdownLabel(Math.max(0, new Date(nextFixture.kickoff).getTime() - now), language) : "";
@@ -776,8 +809,8 @@ export default function App() {
         <a href="#/hinnat" className={view === "prices" ? "active" : ""} aria-current={view === "prices" ? "page" : undefined}>{t.navPrices}</a>
       </nav>
       <div className="top-actions">
-        {liveReady && <div className={`gameweek-status ${gameweekFixtures.length > 0 ? "has-fixture-menu" : ""}`}>
-          <b>GW&nbsp;{data.gameweek}</b>
+        {liveReady && <div className={`gameweek-status ${gameweekFixtures.length > 0 && !handedOver ? "has-fixture-menu" : ""}`}>
+          <b>GW&nbsp;{shown.gameweek}</b>
           {deadlineMs > 0
             ? <span className="deadline"><Clock3 /><i className="deadline-full">{deadlineLabel}</i><i className="deadline-compact">{compactDeadlineLabel}</i></span>
             : gameweekIsLive
@@ -785,7 +818,7 @@ export default function App() {
               : nextFixture
                 ? <span className="deadline next-kickoff"><Clock3 /><small>{t.nextMatch}</small><i>{nextKickoffLabel}</i></span>
                 : <span className={`gameweek-state ${data.pointsFinalized ? "is-final" : "is-provisional"}`}>{data.pointsFinalized ? t.fixtureFinal : t.fixtureProvisional}</span>}
-          {gameweekFixtures.length > 0 && <FixtureModal fixtures={gameweekFixtures} played={playedFixtures.length} language={language} />}
+          {gameweekFixtures.length > 0 && !handedOver && <FixtureModal fixtures={gameweekFixtures} played={playedFixtures.length} language={language} />}
         </div>}
         <button className="language-switch" type="button" onClick={() => setLanguage((value) => value === "fi" ? "en" : "fi")} aria-label={language === "fi" ? "Vaihda kieli englanniksi" : "Switch language to Finnish"}>
           <Globe className="language-globe" aria-hidden="true" />
@@ -886,11 +919,16 @@ export default function App() {
             const open = expanded === manager.id;
             const displayedGwPoints = manager.gameweekPoints + manager.provisionalBonus - manager.hit;
             const captain = captainDisplay(manager, autosubs);
+            // The estimate is looked up on the very total the row prints, so the two can
+            // never disagree about what this manager has scored.
+            const estimated = estimateRank(manager.totalPoints + manager.provisionalBonus - manager.hit, rankCurve);
+            const shownRank = estimated ?? manager.overallRank;
+            const rankTitle = estimated ? t.rankEstimate : t.rankStored;
             // Without a previous rank there is no movement to draw, which is every row
             // in GW1.
             const rankClass = !manager.previousOverallRank ? "rank-neutral"
-              : manager.overallRank < manager.previousOverallRank ? "rank-up"
-              : manager.overallRank > manager.previousOverallRank ? "rank-down" : "rank-neutral";
+              : shownRank < manager.previousOverallRank ? "rank-up"
+              : shownRank > manager.previousOverallRank ? "rank-down" : "rank-neutral";
             const progress = weightedProgress(manager, autosubs);
             const transferScore = transferNet(manager);
             const benchScore = currentBenchPoints(manager, autosubs);
@@ -941,8 +979,10 @@ export default function App() {
             })();
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""} ${picked.owns ? "owns-picked" : ""} ${picked.captains ? "captains-picked" : ""} ${picked.benched ? "benches-picked" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
-                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${number.format(manager.overallRank)}`}>OR {compactRank(manager.overallRank)}</small>}</div>
-                <div className="manager-cell"><a className={picked.owns ? "picked-name" : ""} href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><em>{captain.points} pts</em></span>}{sortMeta && <span className="mobile-sort-meta">{sortMeta}</span>}{!data.rosterOnly && manager.overallRank > 0 && hasSeasonPoints && <small className={rankClass} title={t.rankEstimate}>OR {number.format(manager.overallRank)}</small>}</div>
+                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && shownRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${estimated ? "~" : ""}${number.format(shownRank)} · ${rankTitle}`}>OR {estimated ? "~" : ""}{compactRank(shownRank)}</small>}</div>
+                <div className="manager-cell"><a className={picked.owns ? "picked-name" : ""} href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><em>{captain.points} pts</em></span>}{sortMeta && <span className="mobile-sort-meta">{sortMeta}</span>}{/* The tilde is the whole disclaimer. A rank read off a sample is not FPL's number and
+                    must not be printed as though it were. */}
+                  {!data.rosterOnly && shownRank > 0 && hasSeasonPoints && <small className={rankClass} title={rankTitle}>OR {estimated ? "~" : ""}{number.format(shownRank)}</small>}</div>
                 <div className={`captain-cell ${captainAward ? "award-cell" : ""} ${metric("captainPoints")}`} data-label={sort === "captainPoints" ? captain.name : t.captain}><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><span className={captainAward ? `award-target award-${captainAward.tone} award-level-${captainAward.level}` : ""}>{captain.points} pts</span></div>
                 <TransferCell manager={manager} language={language} award={transferAward} gameweek={data.gameweek} />
                 <SeasonTransfersCell manager={manager} label={t.seasonTransfers} extra={metric("seasonTransfers")} />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextGameweekFreeTransfers, provisionalAutosubSquad, usedChipsForHalf } from "./fplRules";
+import { HANDOVER_HOURS, gameweekConfirmedAt, gameweekHandsOverAt, nextGameweekFreeTransfers, provisionalAutosubSquad, usedChipsForHalf } from "./fplRules";
 import type { SquadPlayer } from "../types";
 
 const player = (id: number, position: SquadPlayer["position"], squadPosition: number, starter: boolean, state: SquadPlayer["state"] = "upcoming", minutes = 0): SquadPlayer => ({
@@ -43,5 +43,30 @@ describe("FPL rules", () => {
     const result = provisionalAutosubSquad(squad, true);
     expect(result.find((item) => item.id === 13)?.starter).toBe(true);
     expect(result.filter((item) => item.starter && item.position === "MID")).toHaveLength(2);
+  });
+});
+
+describe("handing the header over to the next gameweek", () => {
+  it("puts the confirmation at 09:00 UK the morning after the last match", () => {
+    // GW1's last kick-off was 20:00 London on Monday 24 Aug 2026, and the fixtures
+    // actually flipped to confirmed at 09:13 the next morning. The model says 09:00.
+    expect(new Date(gameweekConfirmedAt("2026-08-24T19:00:00Z")).toISOString())
+      .toBe("2026-08-25T08:00:00.000Z");
+
+    // A Sunday tea-time kick-off is confirmed on the Monday, not on the Sunday it started.
+    expect(new Date(gameweekConfirmedAt("2026-08-23T15:30:00Z")).toISOString())
+      .toBe("2026-08-24T08:00:00.000Z");
+
+    // Winter: London is on GMT, so 09:00 there is 09:00 UTC. A table of clock changes was
+    // not written for this — the hour is read back out of the zone.
+    expect(new Date(gameweekConfirmedAt("2026-12-14T20:00:00Z")).toISOString())
+      .toBe("2026-12-15T09:00:00.000Z");
+  });
+
+  it("waits half a day after that, so the confirmed state is seen at all", () => {
+    const kickoff = "2026-08-24T19:00:00Z";
+    expect(gameweekHandsOverAt(kickoff) - gameweekConfirmedAt(kickoff)).toBe(HANDOVER_HOURS * 3_600_000);
+    // 21:00 London on the day of the confirmation, which is 23:00 in Finland.
+    expect(new Date(gameweekHandsOverAt(kickoff)).toISOString()).toBe("2026-08-25T20:00:00.000Z");
   });
 });
