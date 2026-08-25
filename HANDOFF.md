@@ -200,30 +200,54 @@ him. `buildOwnership()` in `src/services/ownership.ts` reads the squads through
 `provisionalAutosubSquad`, so the armband and the eleven it counts are the ones the table
 is showing under the current autosubs setting.
 
-### The picker is a menu, not a select
+### The picker is a menu, and it holds two lists
 
-`PlayerPicker` in `src/App.tsx`. A native `<select>` can hold a list and nothing else, so
-"Vain avaus" had to sit outside it as a third control in the toolbar, and there was no way
-to ask the list a question at all — least of all the one this league actually asks, which
-is *who here owns Arsenal players*. The three things that narrow the list now live inside
-the thing they narrow: a search, a club filter, and the switch.
+`HighlightPicker` in `src/App.tsx`. A native `<select>` can hold a list and nothing else,
+so "Vain avaus" had to sit outside it as a third control in the toolbar, and there was no
+way to ask the list a question at all — least of all the one this league actually asks,
+which is *who here owns Arsenal players*.
 
+That question is a club and not a player, and it wants the same answer painted on the same
+table, so **the clubs are a second tab and not a filter on the first**. A filter narrows
+which players you may pick; what was wanted was to pick the club. The selection is one
+value, `Highlight` in `src/services/ownership.ts` — `{ kind: "player" }` or
+`{ kind: "club" }` — because the two are the same question and the table paints them
+identically. Two pieces of state could both be set at once, and nothing on the page could
+have drawn that.
+
+- **A club row carries both numbers and neither twice**: `ARS`, *7/7 joukkueessa* under it,
+  and **16** *pelaajaa* on the right. `picks` is squad places and not distinct footballers,
+  because that is what the question means — six managers holding Haaland is six places City
+  has taken in this league, not one — and it is what orders the list, so the big figure the
+  row shows is the figure it is sorted by.
+- **`ownershipOf()` takes the whole `Highlight`.** A club is captained when the armband is
+  on any of its players, and it is *benched* only when every one of its players in that
+  squad is: one on the pitch is the manager being exposed to it, and the other way round a
+  squad with ten Arsenal starters and one Arsenal substitute would read as benching
+  Arsenal.
+- The player search matches the club too, so typing `liv` in the players tab still finds
+  the three Liverpool players — the club column is right there in the row.
 - The trigger is a `<button>` wearing `.period-select`, not a restyled button. Later layers
   in `styles.css` restyle that class twice over and a copy of it would drift from them.
-  Only what a button does not inherit from a select is set: left alignment and truncation.
 - The menu closes on a click anywhere else and on Escape, which is the form popover's rule,
   and it stops propagation so its own controls do not close it. Arrow keys move one
   highlight and Enter takes it; a separate `:hover` style would have given the list two
   active rows at once, so the pointer sets the same index the keyboard does.
-- **The club survives a pick and the search does not.** Picking one Arsenal player after
-  another is the whole point of the club filter; text left in the search box is only a list
-  narrowed for a reason you have already forgotten.
-- The switch inside the menu shows its own effect for the first time: with it on, Gyökeres
-  drops out of the Arsenal list, because his one owner has him benched and a benched player
-  is worth nothing. Outside the menu that was invisible.
-- No viewport unit in the menu's width, and no cap either. A cap only ever bound on a
-  phone, where the trigger is the full width of the row and a narrower menu under it read
-  as misaligned. `100vw` is the bug `check-overflow.mjs` greps the CSSOM for.
+- The switch inside the menu shows its own effect for the first time: with it on, a club's
+  benched players leave the count and a player benched by his only owner leaves the list.
+  Outside the menu that was invisible.
+
+**The menu paints `--menu`, never `--surface`.** Every glass theme in this file makes
+`--surface` translucent — `rgba(246,247,255,.76)` in the one the page ships with — which is
+right for a panel that sits *in* the page and wrong for one that sits *over* it: the
+table's team names read straight through the first version of this menu. `--menu` is each
+theme's own surface colour at full strength. Compositing the surface over `--page` instead
+was tried and is wrong: in the glass themes `--page` is a dark leftover the visible page
+does not use, and the menu came out a muddy grey.
+
+No viewport unit in the menu's width, and no cap either. A cap only ever bound on a phone,
+where the trigger is the full width of the row and a narrower menu under it read as
+misaligned. `100vw` is the bug `check-overflow.mjs` greps the CSSOM for.
 
 The switch reads **Vain avaus** and is off by default: turning it on
 narrows the count to the eleven on the pitch, and the managers who own him but have

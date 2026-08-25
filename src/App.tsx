@@ -5,7 +5,7 @@ import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
-import { buildOwnership, ownershipOf, type PlayerOwnership } from "./services/ownership";
+import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, type Highlight, type PlayerOwnership } from "./services/ownership";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import Ticker from "./Ticker";
@@ -118,23 +118,24 @@ function StateToggle({ label, checked, onChange, className = "" }: { label: stri
 }
 
 /**
- * The player highlight, which is a menu rather than a select because three things decide
- * which player you are after and only one of them is his name.
+ * The highlight picker: one menu, two lists, one selection.
  *
- * A native `<select>` could hold the list and nothing else, so "Vain avaus" sat outside it
- * as a third control in the toolbar and there was no way at all to ask the list a question
- * — least of all the one this league actually asks, which is *who here owns Arsenal
- * players*. The search, the club and the switch all narrow the same list, so they belong
- * inside the thing they narrow.
+ * A native `<select>` can hold a list and nothing else, so "Vain avaus" sat outside it as a
+ * third control in the toolbar and there was no way to ask the list a question at all —
+ * least of all the one this league actually asks, which is *who here owns Arsenal
+ * players*. That question is a club, not a player, and it wants the same answer painted on
+ * the same table, so the club list is a second tab rather than a filter on the first: a
+ * filter narrows the players you can pick, and what was wanted was to pick the club.
  *
- * The trigger keeps `.period-select` rather than restyling a button to look like one: the
+ * The trigger is a `<button>` wearing `.period-select` rather than a restyled button. The
  * page's later layers restyle that class twice over and a copy of it would drift.
  */
-function PlayerPicker({ ownership, total, selected, onSelect, startersOnly, onStartersOnly, language }: {
-  ownership: PlayerOwnership[];
+function HighlightPicker({ players, clubs, total, highlight, onSelect, startersOnly, onStartersOnly, language }: {
+  players: PlayerOwnership[];
+  clubs: ClubOwnership[];
   total: number;
-  selected: PlayerOwnership | null;
-  onSelect: (id: number | null) => void;
+  highlight: Highlight;
+  onSelect: (next: Highlight) => void;
   startersOnly: boolean;
   onStartersOnly: (value: boolean) => void;
   language: Language;
@@ -142,22 +143,18 @@ function PlayerPicker({ ownership, total, selected, onSelect, startersOnly, onSt
   const t = translations(language);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  // The club survives a pick and the search does not. Picking one Arsenal player after
-  // another is the whole point of the club filter; leftover text in the search box is only
-  // a list narrowed for a reason you have already forgotten.
-  const [club, setClub] = useState("");
+  const [tab, setTab] = useState<"players" | "clubs">("players");
   const [active, setActive] = useState(0);
   const field = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const share = (value: number) => language === "fi" ? Math.round(value) + " %" : Math.round(value) + "%";
 
-  const clubs = useMemo(() => [...new Set(ownership.map((entry) => entry.club))].sort(), [ownership]);
   const matches = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return ownership.filter((entry) =>
-      (!term || entry.name.toLowerCase().includes(term))
-      && (!club || entry.club === club));
-  }, [ownership, search, club]);
+    return tab === "players"
+      ? players.filter((entry) => !term || entry.name.toLowerCase().includes(term) || entry.club.toLowerCase().includes(term))
+      : clubs.filter((entry) => !term || entry.club.toLowerCase().includes(term));
+  }, [players, clubs, search, tab]);
 
   // The same rule the form popover follows: anything that is not the menu closes it.
   useEffect(() => {
@@ -167,7 +164,7 @@ function PlayerPicker({ ownership, total, selected, onSelect, startersOnly, onSt
     return () => window.removeEventListener("click", away);
   }, [open]);
   useEffect(() => { if (open) field.current?.focus(); }, [open]);
-  useEffect(() => { setActive(0); }, [search, club]);
+  useEffect(() => { setActive(0); }, [search, tab]);
   // The arrow keys move a highlight through a list longer than the box, so the row has to
   // be scrolled to and not merely marked.
   useEffect(() => {
@@ -175,10 +172,15 @@ function PlayerPicker({ ownership, total, selected, onSelect, startersOnly, onSt
     list.current?.querySelector(".is-active")?.scrollIntoView({ block: "nearest" });
   }, [active, open]);
 
-  const dismiss = (next?: number | null) => {
+  const dismiss = (next?: Highlight) => {
     if (next !== undefined) onSelect(next);
     setOpen(false);
     setSearch("");
+  };
+  const pick = (index: number) => {
+    const entry = matches[index];
+    if (!entry) return;
+    dismiss("id" in entry ? { kind: "player", id: entry.id } : { kind: "club", club: entry.club });
   };
 
   const keys = (event: React.KeyboardEvent) => {
@@ -188,19 +190,26 @@ function PlayerPicker({ ownership, total, selected, onSelect, startersOnly, onSt
       setActive((index) => Math.max(0, Math.min(matches.length - 1, index + (event.key === "ArrowDown" ? 1 : -1))));
       return;
     }
-    if (event.key === "Enter" && matches[active]) { event.preventDefault(); dismiss(matches[active].id); }
+    if (event.key === "Enter") { event.preventDefault(); pick(active); }
   };
+
+  const label = !highlight ? t.allPlayers
+    : highlight.kind === "club" ? `${t.clubWord} ${highlight.club}`
+    : (() => {
+      const entry = players.find((item) => item.id === highlight.id);
+      return entry ? `${entry.name} (${entry.club})` : t.allPlayers;
+    })();
 
   return <div className="player-picker" onClick={(event) => event.stopPropagation()}>
     <button
       type="button"
-      className={`period-select player-picker-button ${selected ? "chosen" : ""}`}
+      className={`period-select player-picker-button ${highlight ? "chosen" : ""}`}
       aria-haspopup="listbox"
       aria-expanded={open}
       aria-label={t.highlightPlayer}
       onKeyDown={keys}
       onClick={() => setOpen((value) => !value)}
-    >{selected ? `${selected.name} (${selected.club})` : t.allPlayers}</button>
+    >{label}</button>
 
     {open && <div className="player-picker-menu" role="dialog" aria-label={t.highlightPlayer} onKeyDown={keys}>
       <label className="player-picker-search">
@@ -209,35 +218,45 @@ function PlayerPicker({ ownership, total, selected, onSelect, startersOnly, onSt
           ref={field}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder={t.searchPlayer}
-          aria-label={t.searchPlayer}
+          placeholder={tab === "players" ? t.searchPlayer : t.searchClub}
+          aria-label={tab === "players" ? t.searchPlayer : t.searchClub}
         />
       </label>
       <div className="player-picker-filters">
-        <select className="period-select" value={club} onChange={(event) => setClub(event.target.value)} aria-label={t.allClubs}>
-          <option value="">{t.allClubs}</option>
-          {clubs.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-        </select>
+        {/* Two tabs and a switch on one row: all three are about what the list under them
+            holds, and stacked they read as unrelated settings above it. */}
+        <div className="player-picker-tabs" role="tablist">
+          {([["players", t.tabPlayers], ["clubs", t.tabClubs]] as Array<["players" | "clubs", string]>).map(([key, name]) =>
+            <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{name}</button>)}
+        </div>
         <StateToggle label={t.startersOnly} checked={startersOnly} onChange={onStartersOnly} className="bench-toggle" />
       </div>
       <div className="player-picker-list" role="listbox" ref={list}>
-        {selected && <button type="button" className="player-picker-clear" onClick={() => dismiss(null)}>{t.clearPlayer}</button>}
-        {matches.map((entry, index) => <button
-          type="button"
-          key={entry.id}
-          role="option"
-          aria-selected={entry.id === selected?.id}
-          className={`player-picker-option ${index === active ? "is-active" : ""} ${entry.id === selected?.id ? "is-picked" : ""}`}
-          onMouseEnter={() => setActive(index)}
-          onClick={() => dismiss(entry.id)}
-        >
-          <b>{entry.name}</b>
-          {/* The club disambiguates: FPL's short names are not unique, and a league can
-              easily hold two Fernandes. */}
-          <small>{entry.club}</small>
-          <span>{share(entry.effectivePercent)}</span>
-          <i>{entry.owners}/{total}</i>
-        </button>)}
+        {highlight && <button type="button" className="player-picker-clear" onClick={() => dismiss(null)}>{t.clearPlayer}</button>}
+        {matches.map((entry, index) => {
+          const isClub = !("id" in entry);
+          const picked = highlight
+            ? isClub ? highlight.kind === "club" && highlight.club === entry.club
+              : highlight.kind === "player" && highlight.id === entry.id
+            : false;
+          return <button
+            type="button"
+            key={isClub ? entry.club : entry.id}
+            role="option"
+            aria-selected={picked}
+            className={`player-picker-option ${index === active ? "is-active" : ""} ${picked ? "is-picked" : ""}`}
+            onMouseEnter={() => setActive(index)}
+            onClick={() => pick(index)}
+          >
+            {/* The club is under a player's name because FPL's short names are not unique
+                and a league can easily hold two Fernandes; under a club's own name it is
+                the count that says what the row is worth. */}
+            <b>{isClub ? entry.club : entry.name}</b>
+            <small>{isClub ? `${entry.owners}/${total} ${t.inSquads}` : entry.club}</small>
+            <span>{isClub ? entry.picks : share(entry.effectivePercent)}</span>
+            <i>{isClub ? t.playersWord : `${entry.owners}/${total}`}</i>
+          </button>;
+        })}
         {!matches.length && <p className="player-picker-empty">{t.noPlayersMatch}</p>}
       </div>
     </div>}
@@ -465,7 +484,7 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
   </div>;
 }
 
-function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerRow; language: Language; autosubs: boolean; highlighted?: number | null }) {
+function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerRow; language: Language; autosubs: boolean; highlighted: Highlight }) {
   const t = translations(language);
   const originalOrder = provisionalAutosubSquad(manager.squad, autosubs);
   // A substitute keeps his bench squadPosition, so sorting by that alone dropped him after
@@ -495,7 +514,7 @@ function Squad({ manager, language, autosubs, highlighted }: { manager: ManagerR
     : { GK: "GK", DEF: "DEF", MID: "MID", FWD: "FWD" };
   const renderPlayer = (player: SquadPlayer, groupLabel?: string, mobileGroupLabel?: string, groupKind?: "position" | "bench") => {
     const liveScore = (player.points + player.bonus) * scoreMultiplier(player);
-    return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} highlighted={player.id === highlighted} />;
+    return <PlayerCard key={player.id} player={player} best={hasSpread && settled(player) && (player.starter || manager.chip === "BB") && liveScore === best} language={language} tripleCaptain={manager.chip === "TC"} scoreMultiplier={scoreMultiplier(player)} groupLabel={groupLabel} mobileGroupLabel={mobileGroupLabel} groupKind={groupKind} highlighted={Boolean(highlighted && (highlighted.kind === "player" ? highlighted.id === player.id : highlighted.club === player.club))} />;
   };
   return <div className="squad-panel">
     <div className="squad-heading"><span><b className="mobile-squad-label">{t.squad}</b></span><div className="squad-legend"><span className="legend-finished">{t.finished}</span><span className="legend-live">{t.playing}</span><span className="legend-upcoming">{t.toPlay}</span>{hasSpread && <><span className="legend-best"><i />{t.best}</span></>}</div></div>
@@ -528,7 +547,7 @@ export default function App() {
   const [autosubs, setAutosubs] = useState(true);
   const [mobileDetails, setMobileDetails] = useState(true);
   const [period, setPeriod] = useState("total");
-  const [highlighted, setHighlighted] = useState<number | null>(null);
+  const [highlighted, setHighlighted] = useState<Highlight>(null);
   // The switch reads "Vain avaus", so it is off by default and turning it on narrows the
   // count to the eleven on the pitch. It is a preference rather than a view, so it
   // outlives the session the way the language does.
@@ -616,8 +635,21 @@ export default function App() {
   }), [data.managers, autosubs]);
 
   const ownership = useMemo(() => buildOwnership(liveManagers, autosubs, !startersOnly), [liveManagers, autosubs, startersOnly]);
-  // A highlighted player can be transferred out from under the selection between refreshes.
-  const selected = ownership.find((entry) => entry.id === highlighted) ?? null;
+  const clubOwnership = useMemo(() => buildClubOwnership(liveManagers, autosubs, !startersOnly), [liveManagers, autosubs, startersOnly]);
+  // A highlighted player can be transferred out from under the selection between refreshes,
+  // and the last player of a club can go with him.
+  const selected = highlighted?.kind === "player" ? ownership.find((entry) => entry.id === highlighted.id) ?? null : null;
+  const selectedClub = highlighted?.kind === "club" ? clubOwnership.find((entry) => entry.club === highlighted.club) ?? null : null;
+  const picking = selected ?? selectedClub;
+  /** What the highlight is, said in words. The two readouts and the caption share it. */
+  const highlightSentence = () => selectedClub
+    ? <><b>{selectedClub.owners}/{data.managers.length}</b> {t.inSquads} · <b>{selectedClub.picks}</b> {t.playersWord}
+      {selectedClub.captains > 0 && <> · <b>{selectedClub.captains}</b> {t.asCaptain}</>}</>
+    : selected
+      ? <><b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
+        {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
+        {!startersOnly && selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}</>
+      : null;
 
   const managers = useMemo(() => [...liveManagers].sort((a, b) => {
     // A gameweek in progress has no settled form behind it yet, so the series can be empty.
@@ -779,20 +811,17 @@ export default function App() {
             {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
           </select>
           {!data.rosterOnly && ownership.length > 0 && <>
-            <PlayerPicker
-              ownership={ownership}
+            <HighlightPicker
+              players={ownership}
+              clubs={clubOwnership}
               total={data.managers.length}
-              selected={selected}
+              highlight={highlighted}
               onSelect={setHighlighted}
               startersOnly={startersOnly}
               onStartersOnly={setStartersOnly}
               language={language}
             />
-            {selected && <span className="ownership-readout">
-              <b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
-              {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
-              {!startersOnly && selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}
-            </span>}
+            {picking && <span className="ownership-readout">{highlightSentence()}</span>}
           </>}
         </div>
         <div className="toolbar-toggles">
@@ -807,27 +836,25 @@ export default function App() {
           go quiet while a player is highlighted, because then the caption is about him. */}
       <div className="table-caption">
         <strong>
-          {selected
-            ? <><b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
-              {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}
-              {!startersOnly && selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}</>
+          {picking
+            ? highlightSentence()
             : [period === "total" ? "Total" : monthLabel(period), sortLabel].filter(Boolean).join(" · ")}
         </strong>
         <div className="caption-picks">
-          <label className={`caption-pick ${!selected && period !== "total" ? "chosen" : ""}`}>
+          <label className={`caption-pick ${!picking && period !== "total" ? "chosen" : ""}`}>
             <CalendarDays aria-hidden="true" />
             <i>{t.month}</i>
-            <select value={period} disabled={!!selected} onChange={(event) => setPeriod(event.target.value)} aria-label={t.month}>
+            <select value={period} disabled={!!picking} onChange={(event) => setPeriod(event.target.value)} aria-label={t.month}>
               <option value="total">Total</option>
               {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
             </select>
           </label>
-          <label className={`caption-pick ${!selected && sort !== "position" ? "chosen" : ""}`}>
+          <label className={`caption-pick ${!picking && sort !== "position" ? "chosen" : ""}`}>
             <ArrowUpDown aria-hidden="true" />
             <i>{t.sortBy}</i>
             <select
               value={sort}
-              disabled={!!selected}
+              disabled={!!picking}
               /* The same default direction a header click picks, so the two agree. */
               onChange={(event) => {
                 const key = event.target.value as SortKey;
@@ -846,7 +873,7 @@ export default function App() {
         <Clock3 />
         <strong>{language === "fi" ? "Peliviikon joukkueita päivitetään" : "Gameweek teams are being updated"}</strong>
         <span>{language === "fi" ? "Taulukko avautuu automaattisesti heti, kun FPL-data on saatavilla." : "The table will open automatically as soon as the FPL data is available."}</span>
-      </section> : <section className={`league-table ${selected ? "has-highlight" : ""}`}>
+      </section> : <section className={`league-table ${picking ? "has-highlight" : ""}`}>
         <div className="table-head">{headers.map(([label, key, note], index) => <SortHeader key={`${label}-${index}`} label={label} note={note} sortKey={key} active={sort} direction={direction} onSort={handleSort} />)}</div>
         <div className="rows">
           <div className="mobile-simple-head">
@@ -880,7 +907,7 @@ export default function App() {
               : awardsAvailable && awardStats.bestForm !== awardStats.worstForm && formAverage === awardStats.worstForm ? awardFor("formWorst", formAverage) : undefined;
             const gwAward = awardsAvailable && awardStats.bestGw > awardStats.lowestGw && displayedGwPoints === awardStats.bestGw ? awardFor("gw", displayedGwPoints) : undefined;
             const gwMedalRank = awardsAvailable ? gwMedalRanks.get(manager.id) : undefined;
-            const picked = ownershipOf(manager, selected?.id ?? null, autosubs, !startersOnly);
+            const picked = ownershipOf(manager, highlighted, autosubs, !startersOnly);
             // Marks the one cell the compact phone card keeps when a sort is chosen.
             const metric = (key: SortKey) => sort === key ? "sorted-metric" : "";
             /**
@@ -956,7 +983,7 @@ export default function App() {
               </div>
               {open && (data.rosterOnly
                 ? <div className="squad-panel squad-unavailable">{language === "fi" ? "Pelaajat tulevat näkyviin, kun peliviikon deadline on sulkeutunut." : "Players will appear after the gameweek deadline has passed."}</div>
-                : <Squad manager={manager} language={language} autosubs={autosubs} highlighted={selected?.id ?? null} />)}
+                : <Squad manager={manager} language={language} autosubs={autosubs} highlighted={highlighted} />)}
             </div>;
           })}
         </div>

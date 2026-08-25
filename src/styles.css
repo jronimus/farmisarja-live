@@ -50,9 +50,9 @@ footer { min-height: 42px; display: flex; align-items: center; justify-content: 
 @media (max-width: 800px) { .topbar { padding: 0 16px; }.sync { display: none; } main { padding: 14px 10px 30px; }.preview-note { display: none; }.toolbar { align-items: flex-end; }.view-tabs button { padding: 7px 9px; }.autosub-toggle > span { display: none; }.autosub-toggle button,.details-toggle button { padding:6px 9px; font-size:11px; }.squad-panel { padding-left: 20px; min-width: 950px; } }
 
 /* Flat, high-contrast theme system */
-.app-shell { --page:#090d0b; --header:#0f1512; --surface:#171e1a; --surface-alt:#202923; --surface-open:#29372f; --raised:#34463c; --text:#f7f8f4; --soft:#a9b8af; --faint:#768a7e; --accent:#276b4b; --cyan:#45c9b0; --yellow:#ffd34e; --purple:#a66cf2; --logo-live-bg:#dce5df; --brand-live-text:#111914; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; min-height:100vh; display:flex; flex-direction:column; color:var(--text); background:var(--page); }
+.app-shell { --page:#090d0b; --header:#0f1512; --surface:#171e1a; --menu:#171e1a; --surface-alt:#202923; --surface-open:#29372f; --raised:#34463c; --text:#f7f8f4; --soft:#a9b8af; --faint:#768a7e; --accent:#276b4b; --cyan:#45c9b0; --yellow:#ffd34e; --purple:#a66cf2; --logo-live-bg:#dce5df; --brand-live-text:#111914; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; min-height:100vh; display:flex; flex-direction:column; color:var(--text); background:var(--page); }
 .app-shell > main { width:100%; flex:1 0 auto; }
-.app-shell[data-theme="light"] { --page:#eef1ec; --header:#fbfcf8; --surface:#ffffff; --surface-alt:#e2eae4; --surface-open:#d5e2d9; --raised:#c5d5ca; --text:#142019; --soft:#617268; --faint:#7b8d82; --accent:#0a5d37; --cyan:#168d78; --yellow:#a56800; --green:#087a46; --red:#c72f48; --purple:#6d2fc0; --logo-live-bg:#161925; --brand-live-text:#f7f8fc; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; }
+.app-shell[data-theme="light"] { --page:#eef1ec; --header:#fbfcf8; --surface:#ffffff; --menu:#ffffff; --surface-alt:#e2eae4; --surface-open:#d5e2d9; --raised:#c5d5ca; --text:#142019; --soft:#617268; --faint:#7b8d82; --accent:#0a5d37; --cyan:#168d78; --yellow:#a56800; --green:#087a46; --red:#c72f48; --purple:#6d2fc0; --logo-live-bg:#161925; --brand-live-text:#f7f8fc; --logo-dot-on:#ff4058; --logo-dot-off:#7a202f; }
 .app-shell[data-theme="light"] .period-select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23171a29' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
 .topbar { background:var(--header); color:var(--text); }
 .brand-mark { background:var(--accent); color:#fff; box-shadow:none; }.brand h1 em { color:var(--cyan); }.brand span,.sync { color:var(--soft); }.sync b { color:var(--text); }
@@ -161,6 +161,7 @@ footer a { color:var(--soft); text-decoration:none; transition:color .15s ease; 
   --page:#edf7f1;
   --header:#071a12;
   --surface:rgba(255,255,255,.88);
+  --menu:#ffffff;
   --surface-alt:rgba(224,243,233,.9);
   --surface-open:#d7f4e5;
   --raised:#c8e8d7;
@@ -256,6 +257,7 @@ footer a { color:#b8d3c5; }
   --page:#0b1215;
   --header:#07110f;
   --surface:rgba(23,34,32,.94);
+  --menu:#172220;
   --surface-alt:rgba(31,44,41,.95);
   --surface-open:#233833;
   --raised:#304943;
@@ -366,6 +368,7 @@ footer { background:#080f0e; box-shadow:0 -12px 34px rgba(0,0,0,.18); }
   --page:#111225;
   --header:#0d0e20;
   --surface:rgba(246,247,255,.76);
+  --menu:#f6f7ff;
   --surface-alt:rgba(229,231,247,.72);
   --surface-open:rgba(232,231,248,.72);
   --raised:rgba(205,208,232,.78);
@@ -1868,7 +1871,14 @@ footer a { color:#c4c6d8; }
   padding:10px;
   border:1px solid color-mix(in srgb,var(--faint) 30%,transparent);
   border-radius:12px;
-  background:var(--surface);
+  /* `--menu` and not `--surface`. Every glass theme here makes `--surface` translucent —
+     rgba(246,247,255,.76) in the one this page ships with — which is right for a panel that
+     sits in the page and wrong for one that sits over it: the table's team names read
+     straight through. `--menu` is each theme's own surface colour at full strength, so the
+     menu is that theme's panel and simply solid. Compositing it over `--page` instead was
+     tried and is wrong: in the glass themes `--page` is a dark leftover the visible page
+     does not use, and the menu came out a muddy grey. */
+  background:var(--menu);
   box-shadow:0 26px 60px rgba(0,0,0,.45);
 }
 .player-picker-search {
@@ -1890,11 +1900,25 @@ footer a { color:#c4c6d8; }
   font:700 12px "Inter",sans-serif;
   outline:none;
 }
-/* The club and the switch on one row: both narrow the list under them, and stacked they
-   read as two unrelated settings above a list rather than as two halves of one filter. */
-.player-picker-filters { display:flex; align-items:center; gap:10px; }
-.player-picker-filters .period-select { min-width:0; flex:1 1 auto; height:36px; padding:0 34px 0 10px; background-position:right 10px center; font-size:12px; }
+/* The tabs and the switch on one row: both are about what the list under them holds, and
+   stacked they read as unrelated settings above it rather than as its controls. */
+.player-picker-filters { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .player-picker-filters .bench-toggle { flex:0 0 auto; font-size:9px; }
+/* A segmented pair, which is what a two-way switch between two lists is. It is not the
+   view tabs' style borrowed: those change the page, these change what is under them. */
+.player-picker-tabs { display:flex; gap:2px; padding:2px; border-radius:8px; background:var(--raised); }
+.player-picker-tabs button {
+  border:0;
+  border-radius:6px;
+  padding:5px 10px;
+  background:none;
+  color:var(--soft);
+  font:800 10px "Inter",sans-serif;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.player-picker-tabs button.active { background:var(--surface); color:var(--text); }
 
 .player-picker-list { max-height:320px; overflow-y:auto; margin:0 -4px; padding:0 4px; }
 .player-picker-option,

@@ -73,16 +73,72 @@ export function buildOwnership(managers: ManagerRow[], autosubs: boolean, includ
       || a.name.localeCompare(b.name));
 }
 
+export interface ClubOwnership {
+  club: string;
+  /** Managers holding at least one of the club's players. */
+  owners: number;
+  /** Squad places the club takes across the league, the same player twice counted twice. */
+  picks: number;
+  /** Squads where the armband is on one of the club's players. */
+  captains: number;
+}
+
+/**
+ * The same question as `buildOwnership`, asked of a club instead of a player: how much of
+ * this league is exposed to Arsenal.
+ *
+ * `picks` is squad places and not distinct footballers, because that is what the question
+ * means — six managers holding Haaland is six places City has taken in this league, not
+ * one. It is also what orders the list, so the figure the row shows is the figure it is
+ * sorted by.
+ */
+export function buildClubOwnership(managers: ManagerRow[], autosubs: boolean, includeBench = true): ClubOwnership[] {
+  const byClub = new Map<string, ClubOwnership>();
+  for (const manager of managers) {
+    const held = new Set<string>();
+    for (const player of provisionalAutosubSquad(manager.squad, autosubs)) {
+      if (!includeBench && pickMultiplier(player, manager.chip) === 0) continue;
+      const entry = byClub.get(player.club) ?? { club: player.club, owners: 0, picks: 0, captains: 0 };
+      entry.picks += 1;
+      entry.captains += player.captain ? 1 : 0;
+      // Once per manager, however many of the club's players he holds.
+      if (!held.has(player.club)) { entry.owners += 1; held.add(player.club); }
+      byClub.set(player.club, entry);
+    }
+  }
+  return [...byClub.values()].sort((a, b) =>
+    b.picks - a.picks
+    || b.owners - a.owners
+    || a.club.localeCompare(b.club));
+}
+
+/**
+ * What the table highlights: one player, or one club.
+ *
+ * The two are the same question — which of these seven squads is exposed to this — and the
+ * table paints them identically, so they are one selection and not two pieces of state
+ * that could both be set at once.
+ */
+export type Highlight = { kind: "player"; id: number } | { kind: "club"; club: string } | null;
+
 const nobody = { owns: false, captains: false, benched: false };
 
-/** Whether a manager holds the player, and whether he is their captain. */
-export function ownershipOf(manager: ManagerRow, playerId: number | null, autosubs: boolean, includeBench = true) {
-  if (!playerId) return nobody;
-  const player = provisionalAutosubSquad(manager.squad, autosubs).find((item) => item.id === playerId);
-  if (!player) return nobody;
-  const benched = pickMultiplier(player, manager.chip) === 0;
-  if (benched && !includeBench) return nobody;
-  return { owns: true, captains: Boolean(player.captain), benched };
+/** Whether a manager holds the highlighted player or club, and whether he captains it. */
+export function ownershipOf(manager: ManagerRow, highlight: Highlight, autosubs: boolean, includeBench = true) {
+  if (!highlight) return nobody;
+  const squad = provisionalAutosubSquad(manager.squad, autosubs);
+  const held = highlight.kind === "player"
+    ? squad.filter((item) => item.id === highlight.id)
+    : squad.filter((item) => item.club === highlight.club);
+  const counted = includeBench ? held : held.filter((item) => pickMultiplier(item, manager.chip) !== 0);
+  if (!counted.length) return nobody;
+  return {
+    owns: true,
+    captains: counted.some((item) => item.captain),
+    // A club is benched only when every one of its players here is: one on the pitch is
+    // the manager being exposed to it, which is what the mark means.
+    benched: counted.every((item) => pickMultiplier(item, manager.chip) === 0),
+  };
 }
 
 export interface PlayerOwner {
