@@ -225,35 +225,37 @@ export function maybeThisWeek(
 }
 
 /**
- * The prediction column as a sortable value: how soon a change is, and how sure of it.
+ * The prediction column as one signed number: rising soonest at the top, falling soonest at
+ * the bottom, nothing much happening in the middle.
  *
- * The column means *when*, so it sorts by when — one axis, risers and fallers together.
- * Ranking it by direction was the other option and it is the same mistake the progress
- * column already refused: a header sorts its column, and this column does not say which
- * way a price moves. The filter buttons are there for that.
+ * This is the progress column's own rule applied to a different quantity — the signed
+ * value, always. Ranking by *when* alone was tried first and is wrong for the same reason
+ * ranking progress by distance from nothing was: it put *Nousee tänään* and *Laskee
+ * tänään* at the same height, so the two rows you most want at the ends of the sort were
+ * interleaved in one block, and both ends of the column held the same calm rows.
  *
- * A list of numbers rather than one, compared in order, because the tiers do not share a
- * scale — hours until a change and points short of the line are not the same quantity and
- * folding them into a single figure would only invent an exchange rate between them.
+ * The scale is tiers, spaced far enough apart that none can reach into the next:
  *
- *  0  a named change, by the hours until it, then by how far past the line it lands
- *  1  near enough to hedge, closest to the line first
- *  2  going nowhere this week, again closest first
- *  3  calibrating, which is FPL saying it does not know yet
- *  4  locked, where there is nothing to predict at all, by when it comes free
+ *   1350–2000  a named change, later nights lower, ties broken by how far past the line
+ *              the projection lands — two players changing the same night are not equally
+ *              sure of it
+ *     295–300  near enough to hedge
+ *        1–96  going nowhere this week, by how near the line it still gets
+ *           0  locked or calibrating, which have no direction to be sorted onto and belong
+ *              at neither end
  */
-export function outlookRank(row: PriceRow, market: PriceMarket, now: number): number[] {
-  if (row.lockedUntil) return [4, Date.parse(row.lockedUntil)];
-  if (row.calibrating) return [3, 0];
+export function outlookRank(row: PriceRow, market: PriceMarket, now: number): number {
+  if (row.lockedUntil || row.calibrating) return 0;
+  const direction = (row.progress !== 0 ? row.progress : row.perHour) > 0 ? 1 : -1;
   const outlook = outlookFor(row, market.deadlines, now);
   if (outlook) {
     const hours = (Date.parse(outlook.deadline) - now) / 3_600_000;
-    // Two players changing the same night are not equally certain of it.
-    return [0, hours, -(Math.abs(projectedAt(row, outlook.deadline, now)) - 100)];
+    const margin = Math.abs(projectedAt(row, outlook.deadline, now)) - 100;
+    return direction * (2000 - hours * 10 + Math.min(Math.max(margin, 0), 99) / 100);
   }
   const cutoff = lastChangeBeforeDeadline(market);
-  const projected = cutoff ? Math.abs(projectedAt(row, cutoff, now)) : Math.abs(row.progress);
-  return [maybeThisWeek(row, market, now) ? 1 : 2, -projected];
+  const projected = Math.min(cutoff ? Math.abs(projectedAt(row, cutoff, now)) : Math.abs(row.progress), 99);
+  return direction * (maybeThisWeek(row, market, now) ? 200 + projected : 1 + projected);
 }
 
 /** The next change FPL has published, or null once its list runs out. */

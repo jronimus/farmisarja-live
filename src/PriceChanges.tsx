@@ -87,27 +87,18 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
       if (sort === "name") return 0;
       // The signed number, always. Ranking by distance from nothing interleaved risers and
       // fallers, and flipping the sign for one filter made the same column mean two
-      // different things: a header sorts its column and nothing else.
+      // different things: a header sorts its column and nothing else. The prediction is
+      // signed for the same reason — rising soonest at one end, falling soonest at the
+      // other, rather than both of them together at the top.
       if (sort === "progress") return row.progress;
+      if (sort === "outlook") return market ? outlookRank(row, market, now) : 0;
       if (sort === "perHour") return row.perHour;
       if (sort === "ownership") return row.ownership;
       return row.cost;
     };
-    // The prediction is tiers before it is a number, so it compares as a list.
-    const ranked = sort === "outlook" && market
-      ? new Map(filtered.map((row) => [row.id, outlookRank(row, market, now)]))
-      : null;
-    const byRank = (a: PriceRow, b: PriceRow) => {
-      const left = ranked!.get(a.id)!, right = ranked!.get(b.id)!;
-      for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
-        const gap = (left[index] ?? 0) - (right[index] ?? 0);
-        if (gap) return gap;
-      }
-      return 0;
-    };
     return [...filtered].sort((a, b) => (sort === "name"
       ? a.name.localeCompare(b.name)
-      : ranked ? byRank(a, b) : value(a) - value(b)) * (descending ? -1 : 1));
+      : value(a) - value(b)) * (descending ? -1 : 1));
   }, [market, owners, search, position, club, manager, direction, sort, descending, now]);
 
   // Sorting belongs in here too. A re-order means page 4 holds different players than the
@@ -120,9 +111,7 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
 
   const header = (label: string, key: SortKey) => <button
     className={`price-sort ${sort === key ? "active" : ""}`}
-    // Soonest first is what "sort by prediction" means; every other column here opens on
-    // its largest figure.
-    onClick={() => { if (sort === key) setDescending((value) => !value); else { setSort(key); setDescending(key !== "outlook"); } }}
+    onClick={() => { if (sort === key) setDescending((value) => !value); else { setSort(key); setDescending(true); } }}
   >{label}{sort === key && (descending ? <ArrowDown /> : <ArrowUp />)}</button>;
 
   // The day the change belongs to, not the offset of the projection that predicted it.

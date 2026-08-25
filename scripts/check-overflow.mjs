@@ -156,7 +156,11 @@ function session(socket) {
     const resolve = pending.get(message.id);
     if (!resolve) return;
     pending.delete(message.id);
-    resolve(message.result);
+    // A CDP call that errors carries no result — an evaluate whose execution context was
+    // destroyed under it, which is what a dev-server hot reload does mid-measurement. An
+    // empty object degrades into "not ready yet" at every call site instead of destructuring
+    // undefined and taking the whole run down with it.
+    resolve(message.result ?? {});
   });
   return (method, params = {}) => new Promise((resolve) => {
     id += 1;
@@ -188,7 +192,7 @@ async function waitForContent(send) {
       expression: "document.querySelectorAll('.manager-row, .price-row').length",
       returnByValue: true,
     });
-    if (result.value > 0) {
+    if ((result?.value ?? 0) > 0) {
       await sleep(300); // let webfonts settle before measuring text
       return true;
     }
@@ -234,7 +238,7 @@ for (const width of widths) {
 
   // The picker only exists on the table page, and only where the toolbar shows it.
   if (!url.includes("#/hinnat")) {
-    const { result: menu } = await send("Runtime.evaluate", { expression: MENU_PROBE, returnByValue: true, awaitPromise: true });
+    const { result: menu = {} } = await send("Runtime.evaluate", { expression: MENU_PROBE, returnByValue: true, awaitPromise: true });
     // A probe that threw in the page reports no value, and a check that cannot run has to
     // say so rather than crash the script and leave the other widths untested.
     const menuReport = menu && typeof menu.value === "string" ? JSON.parse(menu.value) : { failed: true };

@@ -697,28 +697,31 @@ fallers is a filter, not a default: "what is moving" comes before "which way".
 
 ### Sorting the prediction
 
-`outlookRank()` returns a list of numbers, compared in order, and not one figure: the tiers
-do not share a scale, and folding hours until a change together with points short of the
-line would only invent an exchange rate between them.
+`outlookRank()` returns **one signed number**: rising soonest at the top, falling soonest
+at the bottom, and nothing much happening in the middle. It is the progress column's own
+rule applied to a different quantity.
 
-    0  a named change, by the hours until it, then by how far past the line it lands
-    1  near enough to hedge, closest to the line first
-    2  going nowhere this week, again closest first
-    3  calibrating, which is FPL saying it does not know yet
-    4  locked, where nothing is predicted at all, by when it comes free
+    1350–2000  a named change, later nights lower, ties broken by how far past the line
+                 the projection lands — two players changing the same night are not
+                 equally sure of it
+      295–300  near enough to hedge
+         1–96  going nowhere this week, by how near the line it still gets
+            0  locked or calibrating
 
-**The column means *when*, so it sorts by when** — risers and fallers together, ordered by
-the same clock. Splitting them was the other option and it is the mistake the progress
-sort already refused: a header sorts its column, and this column does not say which way a
-price moves. The filter buttons are there for that.
+The tiers are spaced so none can reach into the next, and the whole thing is multiplied by
+the direction. Ranking by *when* alone was built first and is wrong for the same reason
+ranking progress by distance from nothing was: it put *Nousee tänään* and *Laskee tänään*
+at the same height, so the two rows you most want at the ends of the sort sat interleaved
+in one block and both ends of the column held the same calm rows.
 
-The second number is what makes a day's worth of rows an order rather than a heap. Sorted
-soonest first on 25 Aug, the *tänään* block ran De Cuyper at +112.5 %, Sangaré, Martinelli,
-João Pedro, Gyökeres, and then the two the hedge is on — Calafiori and Dowman land within a
-point of the line, so they come last among the players changing tonight.
+**Locked is the midpoint**, at exactly zero, and calibrating sits with it. Neither has a
+direction, so neither belongs at either end. On 25 Aug the 610 rows came out as 4 rising
+tonight, 3 tomorrow, 3 the night after, 4 hedged up, then the *Tuskin* rows thinning toward
+zero, the 41 locked ones at 131–171, and the whole thing mirrored back out to 2 falling
+tonight at the bottom.
 
-It is the one column that opens **ascending**; every other header here opens on its largest
-figure, and soonest-first is what sorting by prediction means.
+Because it is signed it needs no special case in the header: like every other column here
+it opens descending, on its largest value, which is the soonest rise.
 
 Changing the sort now returns to page one, which it did not before. A re-order means page 4
 holds different players than the page 4 you were looking at, and this sort moves every row
