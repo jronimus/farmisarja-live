@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, Globe, Medal, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, Globe, Medal, Search, X } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
-import { buildOwnership, ownershipOf } from "./services/ownership";
+import { buildOwnership, ownershipOf, type PlayerOwnership } from "./services/ownership";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import Ticker from "./Ticker";
@@ -114,6 +114,133 @@ function StateToggle({ label, checked, onChange, className = "" }: { label: stri
   return <div className={`state-toggle ${className}`}>
     <span>{label}</span>
     <button type="button" role="switch" aria-checked={checked} aria-label={label} className={`state-switch ${checked ? "active" : ""}`} onClick={() => onChange(!checked)}><i /></button>
+  </div>;
+}
+
+/**
+ * The player highlight, which is a menu rather than a select because three things decide
+ * which player you are after and only one of them is his name.
+ *
+ * A native `<select>` could hold the list and nothing else, so "Vain avaus" sat outside it
+ * as a third control in the toolbar and there was no way at all to ask the list a question
+ * — least of all the one this league actually asks, which is *who here owns Arsenal
+ * players*. The search, the club and the switch all narrow the same list, so they belong
+ * inside the thing they narrow.
+ *
+ * The trigger keeps `.period-select` rather than restyling a button to look like one: the
+ * page's later layers restyle that class twice over and a copy of it would drift.
+ */
+function PlayerPicker({ ownership, total, selected, onSelect, startersOnly, onStartersOnly, language }: {
+  ownership: PlayerOwnership[];
+  total: number;
+  selected: PlayerOwnership | null;
+  onSelect: (id: number | null) => void;
+  startersOnly: boolean;
+  onStartersOnly: (value: boolean) => void;
+  language: Language;
+}) {
+  const t = translations(language);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  // The club survives a pick and the search does not. Picking one Arsenal player after
+  // another is the whole point of the club filter; leftover text in the search box is only
+  // a list narrowed for a reason you have already forgotten.
+  const [club, setClub] = useState("");
+  const [active, setActive] = useState(0);
+  const field = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const share = (value: number) => language === "fi" ? Math.round(value) + " %" : Math.round(value) + "%";
+
+  const clubs = useMemo(() => [...new Set(ownership.map((entry) => entry.club))].sort(), [ownership]);
+  const matches = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return ownership.filter((entry) =>
+      (!term || entry.name.toLowerCase().includes(term))
+      && (!club || entry.club === club));
+  }, [ownership, search, club]);
+
+  // The same rule the form popover follows: anything that is not the menu closes it.
+  useEffect(() => {
+    if (!open) return;
+    const away = () => setOpen(false);
+    window.addEventListener("click", away);
+    return () => window.removeEventListener("click", away);
+  }, [open]);
+  useEffect(() => { if (open) field.current?.focus(); }, [open]);
+  useEffect(() => { setActive(0); }, [search, club]);
+  // The arrow keys move a highlight through a list longer than the box, so the row has to
+  // be scrolled to and not merely marked.
+  useEffect(() => {
+    if (!open) return;
+    list.current?.querySelector(".is-active")?.scrollIntoView({ block: "nearest" });
+  }, [active, open]);
+
+  const dismiss = (next?: number | null) => {
+    if (next !== undefined) onSelect(next);
+    setOpen(false);
+    setSearch("");
+  };
+
+  const keys = (event: React.KeyboardEvent) => {
+    if (event.key === "Escape") { dismiss(); return; }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      setActive((index) => Math.max(0, Math.min(matches.length - 1, index + (event.key === "ArrowDown" ? 1 : -1))));
+      return;
+    }
+    if (event.key === "Enter" && matches[active]) { event.preventDefault(); dismiss(matches[active].id); }
+  };
+
+  return <div className="player-picker" onClick={(event) => event.stopPropagation()}>
+    <button
+      type="button"
+      className={`period-select player-picker-button ${selected ? "chosen" : ""}`}
+      aria-haspopup="listbox"
+      aria-expanded={open}
+      aria-label={t.highlightPlayer}
+      onKeyDown={keys}
+      onClick={() => setOpen((value) => !value)}
+    >{selected ? `${selected.name} (${selected.club})` : t.allPlayers}</button>
+
+    {open && <div className="player-picker-menu" role="dialog" aria-label={t.highlightPlayer} onKeyDown={keys}>
+      <label className="player-picker-search">
+        <Search aria-hidden="true" />
+        <input
+          ref={field}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder={t.searchPlayer}
+          aria-label={t.searchPlayer}
+        />
+      </label>
+      <div className="player-picker-filters">
+        <select className="period-select" value={club} onChange={(event) => setClub(event.target.value)} aria-label={t.allClubs}>
+          <option value="">{t.allClubs}</option>
+          {clubs.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+        </select>
+        <StateToggle label={t.startersOnly} checked={startersOnly} onChange={onStartersOnly} className="bench-toggle" />
+      </div>
+      <div className="player-picker-list" role="listbox" ref={list}>
+        {selected && <button type="button" className="player-picker-clear" onClick={() => dismiss(null)}>{t.clearPlayer}</button>}
+        {matches.map((entry, index) => <button
+          type="button"
+          key={entry.id}
+          role="option"
+          aria-selected={entry.id === selected?.id}
+          className={`player-picker-option ${index === active ? "is-active" : ""} ${entry.id === selected?.id ? "is-picked" : ""}`}
+          onMouseEnter={() => setActive(index)}
+          onClick={() => dismiss(entry.id)}
+        >
+          <b>{entry.name}</b>
+          {/* The club disambiguates: FPL's short names are not unique, and a league can
+              easily hold two Fernandes. */}
+          <small>{entry.club}</small>
+          <span>{share(entry.effectivePercent)}</span>
+          <i>{entry.owners}/{total}</i>
+        </button>)}
+        {!matches.length && <p className="player-picker-empty">{t.noPlayersMatch}</p>}
+      </div>
+    </div>}
   </div>;
 }
 
@@ -652,20 +779,15 @@ export default function App() {
             {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
           </select>
           {!data.rosterOnly && ownership.length > 0 && <>
-            <select
-              className="period-select player-select"
-              value={selected?.id ?? ""}
-              onChange={(event) => setHighlighted(event.target.value ? Number(event.target.value) : null)}
-              aria-label={t.highlightPlayer}
-            >
-              <option value="">{t.allPlayers}</option>
-              {/* The club disambiguates: FPL's short names are not unique, and a league can
-                  easily hold two Fernandes. */}
-              {ownership.map((entry) => <option value={entry.id} key={entry.id}>
-                {entry.name} ({entry.club}) — {percent(entry.effectivePercent)} ({entry.owners}/{data.managers.length})
-              </option>)}
-            </select>
-            <StateToggle label={t.startersOnly} checked={startersOnly} onChange={setStartersOnly} className="bench-toggle" />
+            <PlayerPicker
+              ownership={ownership}
+              total={data.managers.length}
+              selected={selected}
+              onSelect={setHighlighted}
+              startersOnly={startersOnly}
+              onStartersOnly={setStartersOnly}
+              language={language}
+            />
             {selected && <span className="ownership-readout">
               <b>{selected.owners}/{data.managers.length}</b> {t.inSquads}
               {selected.captains > 0 && <> · <b>{selected.captains}</b> {t.asCaptain}</>}

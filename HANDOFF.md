@@ -187,7 +187,7 @@ because an earlier layer flattens every direct span of that cell:
 
 ### Highlighting one player
 
-The select above the table lists every player anyone in the league owns, ordered by
+The picker above the table lists every player anyone in the league owns, ordered by
 **effective ownership**, and picking one paints the managers who hold him.
 
 Effective ownership is FPL's own measure and the reason the figure passes 100 %: each
@@ -200,7 +200,32 @@ him. `buildOwnership()` in `src/services/ownership.ts` reads the squads through
 `provisionalAutosubSquad`, so the armband and the eleven it counts are the ones the table
 is showing under the current autosubs setting.
 
-The switch beside the select reads **Vain avaus** and is off by default: turning it on
+### The picker is a menu, not a select
+
+`PlayerPicker` in `src/App.tsx`. A native `<select>` can hold a list and nothing else, so
+"Vain avaus" had to sit outside it as a third control in the toolbar, and there was no way
+to ask the list a question at all — least of all the one this league actually asks, which
+is *who here owns Arsenal players*. The three things that narrow the list now live inside
+the thing they narrow: a search, a club filter, and the switch.
+
+- The trigger is a `<button>` wearing `.period-select`, not a restyled button. Later layers
+  in `styles.css` restyle that class twice over and a copy of it would drift from them.
+  Only what a button does not inherit from a select is set: left alignment and truncation.
+- The menu closes on a click anywhere else and on Escape, which is the form popover's rule,
+  and it stops propagation so its own controls do not close it. Arrow keys move one
+  highlight and Enter takes it; a separate `:hover` style would have given the list two
+  active rows at once, so the pointer sets the same index the keyboard does.
+- **The club survives a pick and the search does not.** Picking one Arsenal player after
+  another is the whole point of the club filter; text left in the search box is only a list
+  narrowed for a reason you have already forgotten.
+- The switch inside the menu shows its own effect for the first time: with it on, Gyökeres
+  drops out of the Arsenal list, because his one owner has him benched and a benched player
+  is worth nothing. Outside the menu that was invisible.
+- No viewport unit in the menu's width, and no cap either. A cap only ever bound on a
+  phone, where the trigger is the full width of the row and a narrower menu under it read
+  as misaligned. `100vw` is the bug `check-overflow.mjs` greps the CSSOM for.
+
+The switch reads **Vain avaus** and is off by default: turning it on
 narrows the count to the eleven on the pitch, and the managers who own him but have
 benched him drop out of the list and out of the paint. Effective ownership does not move
 either way, because a benched player was already worth nothing in it — real numbers:

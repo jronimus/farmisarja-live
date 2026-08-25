@@ -1837,9 +1837,96 @@ footer a { color:#c4c6d8; }
   gap:10px;
   min-width:0;
 }
-.player-select {
-  max-width:250px;
+/* The trigger is a button wearing `.period-select`, so the chevron, the height and both
+   later restyles of that class come with it. Only what a button does not get from a select
+   is set here: a select centres its own text and truncates it, a button does neither. */
+.player-picker { position:relative; min-width:0; max-width:250px; flex:1 1 220px; }
+.player-picker-button {
+  width:100%;
+  text-align:left;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
 }
+
+/* The menu is an overlay and must not push the toolbar around, so it is taken out of the
+   flow and pinned under the trigger. `.toolbar` already carries `position:relative;
+   z-index:1`, which is what puts it over the table. */
+.player-picker-menu {
+  position:absolute;
+  z-index:20;
+  top:calc(100% + 6px);
+  left:0;
+  width:max(100%,270px);
+  /* No cap and no viewport unit. A fixed cap only ever bound on a phone, where the trigger
+     is the full width of the row and a narrower menu under it read as misaligned; and
+     100vw counts a classic scrollbar the layout does not have, which is the exact bug
+     check-overflow.mjs greps the CSSOM for. The trigger is already inside a row that fits,
+     so 100% of it is the right width everywhere. */
+  display:grid;
+  row-gap:8px;
+  padding:10px;
+  border:1px solid color-mix(in srgb,var(--faint) 30%,transparent);
+  border-radius:12px;
+  background:var(--surface);
+  box-shadow:0 26px 60px rgba(0,0,0,.45);
+}
+.player-picker-search {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  height:36px;
+  padding:0 10px;
+  border-radius:9px;
+  background:var(--raised);
+}
+.player-picker-search svg { width:14px; color:var(--faint); flex:0 0 auto; }
+.player-picker-search input {
+  min-width:0;
+  flex:1 1 auto;
+  border:0;
+  background:none;
+  color:var(--text);
+  font:700 12px "Inter",sans-serif;
+  outline:none;
+}
+/* The club and the switch on one row: both narrow the list under them, and stacked they
+   read as two unrelated settings above a list rather than as two halves of one filter. */
+.player-picker-filters { display:flex; align-items:center; gap:10px; }
+.player-picker-filters .period-select { min-width:0; flex:1 1 auto; height:36px; padding:0 34px 0 10px; background-position:right 10px center; font-size:12px; }
+.player-picker-filters .bench-toggle { flex:0 0 auto; font-size:9px; }
+
+.player-picker-list { max-height:320px; overflow-y:auto; margin:0 -4px; padding:0 4px; }
+.player-picker-option,
+.player-picker-clear {
+  width:100%;
+  border:0;
+  border-radius:8px;
+  background:none;
+  color:var(--text);
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+/* Four things per row and each one a column of its own, so the percentages line up down
+   the list instead of drifting with the length of the name beside them. */
+.player-picker-option {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  align-items:center;
+  column-gap:8px;
+  padding:7px 8px;
+}
+.player-picker-option b { min-width:0; overflow:hidden; font-size:12px; font-weight:800; text-overflow:ellipsis; white-space:nowrap; }
+.player-picker-option small { grid-column:1; grid-row:2; color:var(--faint); font-size:9px; font-weight:700; }
+.player-picker-option span { grid-column:2; grid-row:1 / 3; font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+.player-picker-option i { grid-column:3; grid-row:1 / 3; color:var(--faint); font-size:9px; font-style:normal; font-weight:800; font-variant-numeric:tabular-nums; }
+/* One highlight, driven by the keyboard and by the pointer alike — a hover style of its
+   own would give the list two active rows at once. */
+.player-picker-option.is-active { background:color-mix(in srgb,var(--faint) 22%,transparent); }
+.player-picker-option.is-picked b { color:var(--accent); }
+.player-picker-clear { padding:7px 8px; color:var(--faint); font-size:11px; font-weight:800; }
+.player-picker-empty { margin:0; padding:14px 8px; color:var(--faint); font-size:11px; font-weight:700; text-align:center; }
 .ownership-readout {
   /* Plain inline text, not a flex row: the sentence has to wrap as a sentence and the
      spaces between its words have to be real spaces. */
@@ -1886,11 +1973,10 @@ footer a { color:#c4c6d8; }
      — .player-select's own flex used to lose to this rule's higher specificity and never
      actually apply. */
   .toolbar-selects { order:3; flex:1 1 100%; flex-wrap:wrap; gap:8px; }
-  /* "Vain avaus" narrows the player select, so it has to sit beside it: on its own row it
-     read as a third, unrelated setting rather than as a qualifier on the player picked
-     beside it. */
-  .toolbar-selects .player-select { flex:1 1 120px; min-width:0; max-width:none; }
-  .toolbar-selects .bench-toggle { flex:0 0 auto; }
+  /* The picker takes the row on its own now: "Vain avaus" used to have to sit beside it,
+     because outside the menu it read as a third unrelated setting, and it is inside the
+     menu it qualifies. */
+  .toolbar-selects .player-picker { flex:1 1 100%; min-width:0; max-width:none; }
   /* Both moved into the caption under the toolbar. */
   .toolbar-selects > .period-select:first-child,
   .ownership-readout { display:none; }
