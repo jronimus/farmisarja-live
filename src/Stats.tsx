@@ -268,7 +268,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
         className="stats-grid"
         style={{
           "--stats-cols": `34px minmax(148px,1.4fr) repeat(${visibleColumns.length}, minmax(88px, auto))`,
-          "--stats-cols-narrow": `28px 118px repeat(${visibleColumns.length}, minmax(64px, auto))`,
+          "--stats-cols-narrow": `28px 136px repeat(${visibleColumns.length}, 72px)`,
         } as CSSProperties}
       >
         <div className="stats-headrow">

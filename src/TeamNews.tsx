@@ -373,7 +373,6 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
       <button className="history-more" onClick={() => setShown((value) => value + PAGE)}>{t.showMore}</button>
     </div>}
 
-    <p className="price-disclaimer">{t.newsNote}</p>
     </>}
   </section>;
 }

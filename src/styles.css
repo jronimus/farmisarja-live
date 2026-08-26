@@ -3105,10 +3105,15 @@ footer a { color:#c4c6d8; }
 .picker-reset { margin-top:4px; padding:8px 14px; border:0; border-radius:9px; background:var(--raised); color:var(--text); font:800 11px "Inter",sans-serif; cursor:pointer; }
 
 @media (max-width:800px) {
-  /* The narrow template. The name column is sticky and was sized by its own content, so on
-     a phone it took 254 of 355 pixels and the table it was pinned to the side of had 67
-     left — the page is for the figures and none of them were on screen. Fixed at 118px the
-     name still reads and three columns of figures fit beside it. */
+  /* The narrow template, and every width in it is measured rather than picked.
+     Two things were wrong at once. The name column was sized by its own content, which on a
+     phone is 254 px of "De Cuyper · BHA · DEF · Pirkkolan Beckham" — and once it was capped
+     at 118 px the name itself had only 72 px left of that, so "Hinshelwood" did not fit
+     either. It gets 136 px, which is 90 px of text and enough for a surname.
+     The figure columns were the other half: every one of them was sized by its *heading*
+     and not by its figures. "Pilkkujärjestys" is 95 px of small caps over a column whose
+     widest value is a single digit, and "Hintaedistyminen" 101 px over 45 px of number. So
+     they are fixed at 72 px and the heading wraps inside that instead of setting it. */
   .stats-grid { grid-template-columns:var(--stats-cols-narrow); }
   .stats-headrow > .head-star,
   .stats-line > .stats-star { padding-inline:2px; }
@@ -3117,7 +3122,38 @@ footer a { color:#c4c6d8; }
   .stats-headrow > span,
   .stats-line > span { padding:0 7px; }
   .stats-line > span { min-height:46px; }
-  .stats-line .price-player b { font-size:12px; }
+  .stats-line .price-player b { font-size:11px; }
+  .stats-line .price-player small { font-size:8px; }
+  /* The figure loses a pixel of type so the widest of them — a six-figure net transfer
+     count with a sign on it — still clears the 58 px a 72 px column leaves. */
+  .stats-cell b { font-size:12px; }
+  /* The ⓘ moves into the corner rather than sitting beside the label: in a 72 px column it
+     and its gap were taking 21 of the 58 px the heading had to fit into. The head grows to
+     58 px to make room above the label — the ⓘ keeps its 24 px target, which is not
+     negotiable on the one device where the target size is the whole point. */
+  .stats-headrow > .head-stat {
+    position:relative;
+    align-items:flex-end;
+    min-height:58px;
+    padding-bottom:5px;
+    /* Six hundredths of an em is worth about six pixels across a heading, which at this
+       width is the difference between one line and two. */
+    letter-spacing:.02em;
+  }
+  .head-stat .head-help { position:absolute; top:1px; right:1px; }
+  .head-stat .head-help svg { width:11px; height:11px; }
+  /* Block rather than flex. As a flex container the label is an anonymous item, which will
+     not shrink below its own max-content however the wrapping is set — so a long compound
+     kept overflowing the column instead of breaking inside it. */
+  .head-stat .price-sort {
+    display:block;
+    white-space:normal;
+    overflow-wrap:break-word;
+    hyphens:auto;
+    line-height:1.15;
+    text-align:right;
+  }
+  .head-stat .price-sort svg { display:inline-block; vertical-align:-1px; }
   .picker-panel { width:calc(100% - 20px); max-height:78vh; }
 }
 

@@ -783,10 +783,30 @@ The name column is sticky, and it was sized by its own content — "De Cuyper ·
 Pirkkolan Beckham" is 254 px. On a 375 px phone that plus the star left **67 px** of
 scrollable table: half of one figure, on a page that exists for figures.
 
-The grid now carries two templates as custom properties, `--stats-cols` and
+The grid carries two templates as custom properties, `--stats-cols` and
 `--stats-cols-narrow`, both built where the column count is known, and the stylesheet picks
-between them at 800 px. Narrow is `28px 118px repeat(n, minmax(64px, auto))`, which leaves
-**209 px** and three columns of figures beside a name that still reads.
+between them at 800 px.
+
+Capping the name at 118 px fixed the wrong half. Measured after that change: the name itself
+had **72 px** of the 118 once the shirt and the padding were out, so "Hinshelwood" did not
+fit either — and every figure column was still sized by its **heading**, not by its figures.
+"Pilkkujärjestys" is 95 px of small caps over a column whose widest value is one digit;
+"Hintaedistyminen" 101 px over 45 px of number. The measurement is worth repeating before
+touching these again: read the widest rendered value per column and compare it with the head.
+
+Narrow is now `28px 136px repeat(n, 72px)` — 90 px of name, which takes a surname, and a
+fixed figure column with the heading wrapping inside it. 1538 px of grid became 1316.
+
+Three details that are each load-bearing:
+
+- `.price-sort` is `display: flex`, so its label is an anonymous flex item and **will not
+  shrink below its own max-content** however the wrapping is set. It has to be `display:
+  block` on the narrow layout or a long compound overflows however it is told to break.
+- The ⓘ moves to the head's top-right corner, because beside the label it and its gap took
+  21 of the 58 px the heading had. It **keeps its 24 px target** — that minimum exists for
+  touch, and this is the touch layout — so the head grows to 58 px to fit it above the label.
+- Letter-spacing drops from `.06em` to `.02em`, worth about six pixels across a heading,
+  which at this width is the difference between one line and two.
 
 ### An explanation for a pointer, without a press
 
@@ -1381,6 +1401,15 @@ them Romano on Nicolas Jackson to Villa.
 A `Medium` now appears in the news list. It still does not mark a shirt in the table:
 that mark has room for one degree and has to mean "likely enough to plan around", which
 `Imminent` and `High` do and `Medium` does not.
+
+### Do the predicted elevens update? Yes, within fifteen minutes
+
+Asked and worth writing down. `updateLineups` runs on a 15-minute gate and re-reads **every
+fixture inside a four-day window**, not only ones it has not seen. `mergeFixtures` keys by
+`matchId` and iterates stored before fresh, so a fresh reading replaces the stored one — a
+revision on FotMob reaches the page within a quarter of an hour, in both directions: a
+`lastStarting11` that becomes a real `predicted` appears, and a prediction FotMob withdraws
+disappears. A fixture the tick failed to read keeps what it last said rather than vanishing.
 
 ## Availability, and the flag FPL does not raise
 
