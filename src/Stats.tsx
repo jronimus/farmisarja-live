@@ -310,7 +310,15 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
             <span className="price-player">
               <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${row.player.position === "GK" ? "optimized-gk" : "optimized"}/${row.player.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
               <b>{row.player.name}</b>
-              <small>{row.player.club} · {row.player.position}{held.length ? ` · ${held.join(", ")}` : ""}</small>
+              <small>{row.player.club} · {row.player.position}</small>
+              {/* The squads that hold him, on a line of their own that is allowed to wrap.
+                  Tacked onto the club and position it was the first thing to be cut off on a
+                  phone, where the name cell has ninety pixels — and a player in three squads
+                  showed part of one name and no sign that there were others, which reads as
+                  "held by one team" rather than as a truncation. */}
+              {held.length > 0 && <small className="price-owners">
+                {held.map((team) => <b key={team}>{team}</b>)}
+              </small>}
             </span>
             {visibleColumns.map((column) => {
               const cell = figure(column, row);

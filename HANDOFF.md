@@ -808,6 +808,26 @@ Three details that are each load-bearing:
 - Letter-spacing drops from `.06em` to `.02em`, worth about six pixels across a heading,
   which at this width is the difference between one line and two.
 
+### The squads, which were being cut off mid-word
+
+They were tacked onto the club and position — `BHA · DEF · Pirkkolan Beckham` — in the one
+cell on the page with no room. On a phone that cell has ninety pixels of text, so a player in
+three squads showed part of one name and no sign that there were others. That is not a
+truncation a reader can see is a truncation; it reads as "held by one team", which is worse
+than showing nothing.
+
+They are their own line now, and a list rather than a sentence: each squad is a chip and the
+line wraps to as many rows as it needs. Nothing is ever cut off.
+
+The cost is a row that grows. Measured: on a 1440 px screen the name column is 448 px, two
+squads share a line and even five take only two, so the row goes from 52 px to 56 px. On a
+phone only one chip fits a line, so a five-squad player makes a 95 px row.
+
+That is the right way round. A widely held player is the one worth noticing, and a lumpy row
+is a smaller price than a list that lies about how long it is. If it ever needs to be
+compact, show the first two and a `+N` chip — **never** a truncated name, which is the bug
+this replaced.
+
 ### An explanation for a pointer, without a press
 
 Each column head shows its own help on hover. The ⓘ button stays, because `title` never

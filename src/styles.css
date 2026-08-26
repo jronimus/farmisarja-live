@@ -2949,6 +2949,25 @@ footer a { color:#c4c6d8; }
 .stats-line .price-player .shirt-image { width:24px; height:24px; object-fit:contain; }
 .stats-line .price-player b { grid-column:2; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .stats-line .price-player small { grid-column:2; color:var(--faint); font-size:9px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* The squads holding him. A list rather than a sentence, so it can wrap to as many lines as
+   it needs instead of ending in an ellipsis that hides how many there were. */
+.stats-line .price-player .price-owners {
+  display:flex;
+  flex-wrap:wrap;
+  gap:2px 4px;
+  margin-top:2px;
+  overflow:visible;
+  white-space:normal;
+}
+.stats-line .price-player .price-owners b {
+  padding:1px 5px;
+  border-radius:99px;
+  background:color-mix(in srgb,var(--pick) 16%,transparent);
+  color:var(--soft);
+  font-size:8px;
+  font-weight:800;
+  letter-spacing:.02em;
+}
 
 .stats-cell { justify-content:flex-end; }
 .stats-cell b { font-size:13px; font-weight:900; font-variant-numeric:tabular-nums; }
