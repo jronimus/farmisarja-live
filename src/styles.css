@@ -17,7 +17,7 @@ main { max-width: 1540px; padding: 22px 30px 42px; margin: 0 auto; }
 .initial-loading { min-height:220px; }
 .status-strip { display: flex; align-items: center; justify-content: space-between; min-height: 42px; margin-bottom: 15px; }.live-status { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #a9bbb2; }.live-status svg { width: 17px; color: var(--green); }.live-status strong { color: var(--green); font: 800 11px "Inter"; letter-spacing: .13em; }.live-status i { width: 3px; height: 3px; border-radius: 50%; background: #4a5e55; }.preview-note { display: flex; gap: 7px; align-items: center; color: #a7b7af; background: #15231e; border-radius: 8px; padding: 8px 11px; font-size: 11px; }.preview-note svg { width: 14px; color: #f8d466; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }.view-tabs { display: flex; gap: 3px; padding: 4px; background: #101a16; border-radius: 10px; }.view-tabs button { border: 0; background: transparent; color: #7f948a; padding: 8px 15px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }.view-tabs button.active { background: #24372f; color: #edf8f2; }.autosub-toggle { display: flex; align-items: center; gap: 8px; color: #a9bbb2; font-size: 12px; }.autosub-toggle button { width: 34px; height: 19px; padding: 2px; border: 0; border-radius: 20px; background: #324039; cursor: pointer; }.autosub-toggle button i { display: block; width: 15px; height: 15px; border-radius: 50%; background: #98a79f; transition: .2s; }.autosub-toggle button.enabled { background: #187c4c; }.autosub-toggle button.enabled i { transform: translateX(15px); background: var(--green); }.autosub-toggle b { min-width: 28px; color: var(--green); font-size: 11px; }
-.period-select { min-width:150px; height:42px; padding:0 44px 0 14px; border:1px solid color-mix(in srgb,var(--faint) 32%,transparent); border-radius:9px; appearance:none; -webkit-appearance:none; background-color:var(--raised); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; color:var(--text); font:800 13px "Inter"; cursor:pointer; }
+.period-select { min-width:150px; height:38px; padding:0 44px 0 14px; border:1px solid color-mix(in srgb,var(--faint) 32%,transparent); border-radius:10px; appearance:none; -webkit-appearance:none; background-color:var(--raised); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; background-size:16px; color:var(--text); font:800 13px "Inter"; cursor:pointer; }
 .league-table { overflow-x:hidden; background:#0a120f; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.25); }.table-head,.manager-row { min-width:1268px; display:grid; grid-template-columns:60px minmax(150px,1fr) 85px minmax(185px,1.5fr) 65px 120px 95px 55px 168px 95px 80px 60px; align-items:center; }
 .league-table,
 .league-table * { font-family:"Inter",sans-serif !important; }
@@ -2297,7 +2297,7 @@ footer a { color:#c4c6d8; }
   color:var(--text);
   font:600 13px "Inter",sans-serif;
 }
-.price-direction { display:flex; gap:3px; padding:4px; border-radius:10px; background:var(--surface); }
+.price-direction { display:flex; align-items:center; min-height:38px; gap:3px; padding:4px; border-radius:10px; background:var(--surface); }
 .price-direction button {
   padding:7px 13px;
   border:0;
@@ -2365,12 +2365,19 @@ footer a { color:#c4c6d8; }
 .price-player { display:grid; grid-template-columns:26px auto; grid-template-rows:auto auto; column-gap:8px; align-items:center; min-width:0; }
 .price-player .shirt { grid-row:1 / 3; width:26px; height:26px; position:relative; }
 .price-player .shirt-image { width:26px; height:26px; object-fit:contain; }
-.price-player b { grid-column:2; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.price-player small { grid-column:2; color:var(--faint); font-size:9px; font-weight:800; letter-spacing:.03em; }
+.price-player > b { grid-column:2; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.price-player > small { grid-column:2; color:var(--faint); font-size:9px; font-weight:800; letter-spacing:.03em; }
 
 .price-owners { display:flex; flex-wrap:wrap; gap:3px; min-width:0; }
 .price-owners.empty { color:var(--faint); }
-.price-owners b {
+/* One squad tag, wherever a squad is named.
+   The price table, the news list and the statistics table had each grown their own — a
+   999px pill in accent tint, a 5px block on a solid raised panel, and a 99px pill in the
+   lime `--pick`. Three chips for one fact is three facts as far as the eye is concerned,
+   and the lime one was not even the same hue as the site. This is the price table's, which
+   was the most neutral of the three and already on the largest surface. */
+.price-owners b,
+.news-owners b {
   max-width:100%;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -2645,8 +2652,8 @@ footer a { color:#c4c6d8; }
   .price-player { grid-template-columns:22px auto; column-gap:6px; }
   .price-player .shirt,
   .price-player .shirt-image { width:22px; height:22px; }
-  .price-player b { font-size:11px; }
-  .price-player small { font-size:8px; }
+  .price-player > b { font-size:11px; }
+  .price-player > small { font-size:8px; }
   .price-progress b { font-size:11px; }
   .price-tonight .at-change { font-size:11px; }
   .price-cost b { font-size:11px; }
@@ -2712,9 +2719,9 @@ footer a { color:#c4c6d8; }
 .news-page { display:flex; flex-direction:column; gap:10px; }
 /* Which of the page's two things is showing. A destination, so it gets the segmented
    control: one of them is always on, and picking the other replaces what is below. */
-.news-sections { display:flex; gap:3px; align-self:flex-start; padding:4px; border-radius:10px; background:var(--surface); }
+.news-sections { display:flex; align-items:center; min-height:38px; gap:3px; align-self:flex-start; padding:4px; border-radius:10px; background:var(--surface); }
 .news-sections button {
-  padding:8px 14px;
+  padding:7px 14px;
   border:0;
   border-radius:7px;
   background:none;
@@ -2732,7 +2739,7 @@ footer a { color:#c4c6d8; }
 .news-filters button {
   padding:5px 11px;
   border:0;
-  border-radius:99px;
+  border-radius:999px;
   background:var(--surface);
   color:var(--soft);
   font:800 11px "Inter",sans-serif;
@@ -2794,17 +2801,7 @@ footer a { color:#c4c6d8; }
 .news-meta a svg { width:10px; height:10px; }
 
 .news-owners { display:flex; flex-wrap:wrap; align-items:center; gap:4px; min-width:0; }
-.news-owners b {
-  padding:3px 7px;
-  border-radius:5px;
-  background:var(--raised);
-  /* 3.85:1 as `--soft`; the chip is small type on a mid-tone panel and needs the page's
-     own ink mixed in to clear the line. */
-  color:color-mix(in srgb,var(--soft) 35%,var(--text));
-  font-size:10px;
-  font-weight:800;
-  white-space:nowrap;
-}
+
 .news-owners .quiet { color:var(--faint); font-size:11px; font-style:normal; }
 .news-owners small { flex:1 1 100%; color:var(--faint); font-size:9px; font-weight:800; }
 
@@ -2833,7 +2830,7 @@ footer a { color:#c4c6d8; }
 .topic-filters button {
   padding:5px 10px;
   border:0;
-  border-radius:99px;
+  border-radius:999px;
   background:var(--surface);
   color:var(--soft);
   font:800 11px "Inter",sans-serif;
@@ -2882,6 +2879,17 @@ footer a { color:#c4c6d8; }
 }
 
 
+
+/* --------------------------------------------------------------------------
+   One filter row, on every page
+   --------------------------------------------------------------------------
+   The three pages had drifted: the price page and the statistics page both set
+   their controls to 38px and a 10px radius, and the native `<select>` beside
+   them was 42px and 9px — four pixels taller than everything it stood next to,
+   on both pages at once. The `<select>` is the one control the browser sizes,
+   so it is the one that has to be told. One height and one radius here fixes
+   both filter rows, which is why it is a note rather than a per-page override.
+   -------------------------------------------------------------------------- */
 
 /* --------------------------------------------------------------------------
    The statistics table
@@ -2947,8 +2955,8 @@ footer a { color:#c4c6d8; }
 .stats-line .price-player { display:grid; grid-template-columns:24px auto; grid-template-rows:auto auto; column-gap:8px; min-width:0; }
 .stats-line .price-player .shirt { grid-row:1 / 3; width:24px; height:24px; position:relative; }
 .stats-line .price-player .shirt-image { width:24px; height:24px; object-fit:contain; }
-.stats-line .price-player b { grid-column:2; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.stats-line .price-player small { grid-column:2; color:var(--faint); font-size:9px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stats-line .price-player > b { grid-column:2; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stats-line .price-player > small { grid-column:2; color:var(--faint); font-size:9px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 /* The squads holding him. A list rather than a sentence, so it can wrap to as many lines as
    it needs instead of ending in an ellipsis that hides how many there were. */
 .stats-line .price-player .price-owners {
@@ -2959,14 +2967,15 @@ footer a { color:#c4c6d8; }
   overflow:visible;
   white-space:normal;
 }
+/* The one place a squad tag may not truncate: in the statistics table it is the whole
+   answer to "whose squad is he in", and the sticky name cell is ninety pixels wide on a
+   phone. A name too long for the line wraps inside the tag instead of ending in an
+   ellipsis that hides how many squads there were. */
 .stats-line .price-player .price-owners b {
-  padding:1px 5px;
-  border-radius:99px;
-  background:color-mix(in srgb,var(--pick) 16%,transparent);
-  color:var(--soft);
-  font-size:8px;
-  font-weight:800;
-  letter-spacing:.02em;
+  max-width:none;
+  overflow:visible;
+  text-overflow:clip;
+  white-space:normal;
 }
 
 .stats-cell { justify-content:flex-end; }
@@ -3098,7 +3107,7 @@ footer a { color:#c4c6d8; }
 .picker-options button {
   padding:6px 10px;
   border:0;
-  border-radius:99px;
+  border-radius:999px;
   background:var(--surface-alt);
   color:var(--soft);
   font:700 11px "Inter",sans-serif;
@@ -3111,7 +3120,7 @@ footer a { color:#c4c6d8; }
 .picker-season-only {
   margin-left:5px;
   padding:1px 5px;
-  border-radius:99px;
+  border-radius:999px;
   background:color-mix(in srgb,var(--text) 12%,transparent);
   font-size:9px;
   font-style:normal;
@@ -3141,8 +3150,8 @@ footer a { color:#c4c6d8; }
   .stats-headrow > span,
   .stats-line > span { padding:0 7px; }
   .stats-line > span { min-height:46px; }
-  .stats-line .price-player b { font-size:11px; }
-  .stats-line .price-player small { font-size:8px; }
+  .stats-line .price-player > b { font-size:11px; }
+  .stats-line .price-player > small { font-size:8px; }
   /* The figure loses a pixel of type so the widest of them — a six-figure net transfer
      count with a sign on it — still clears the 58 px a 72 px column leaves. */
   .stats-cell b { font-size:12px; }

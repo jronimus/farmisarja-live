@@ -875,6 +875,41 @@ difference between two totals nobody wrote down. The exception is the first snap
 while GW1 was finished and checked and GW2 had not kicked off, the season totals *were* GW1's
 own figures. That window closes at the GW2 deadline on 28 Aug.
 
+## One look, after three pages grew their own, 27 Aug
+
+The squad tags gave it away: the same fact — whose squad is this player in — was drawn three
+different ways.
+
+| | radius | size | ground |
+| --- | --- | --- | --- |
+| Price page | 999px pill | 9px | `--accent` at 12 % |
+| News page | 5px block | 10px | solid `--raised` |
+| Statistics | 999px pill | 8px | **`--pick` at 16 %** |
+
+`--pick` is `#d1ed19`, a lime — not a hue the site uses anywhere else. Three chips for one
+fact is three facts as far as the eye is concerned. There is one rule now, the price page's,
+which was the most neutral of the three and already on the largest surface. The statistics
+table keeps one override and only one: its tag **may not truncate**, because in that cell the
+tag is the whole answer and the column is 90 px on a phone.
+
+Two things that had to be fixed to make one rule possible:
+
+- `.price-player b` and `.price-player small` were catching the tags, which are `<b>` inside
+  the `<small>` under the name. They are `> b` and `> small` now. **Any new rule on the name
+  cell has to be child-scoped** or it will reach into the tags again.
+- `border-radius:99px` and `border-radius:999px` draw the same pill and were both in use. One
+  spelling, so a search finds them all.
+
+### The filter row, which was four pixels out on both pages
+
+Every control on the price page and the statistics page is 38 px with a 10 px radius — except
+the native `<select>`, which was **42 px and 9 px**, on both pages at once. The browser sizes
+that one control, so it is the one that has to be told; fixing it there fixed both rows
+rather than adding a per-page override. Two segmented groups were a pixel out and are not now.
+
+Measured after: `[38,38,38,38,38,38,38]` on the price page, `[38,38,38,38,38,38]` on the
+statistics page, `[38]` on the news page.
+
 ## The notes, and the test they now have to pass, 27 Aug
 
 Every explanatory paragraph on the site was read and most of them went. The one that made
