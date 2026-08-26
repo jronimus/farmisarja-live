@@ -21,6 +21,16 @@ export interface SquadPlayer {
    */
   purchasePrice?: number;
   ownership: number;
+  /** FPL's own availability letter: a, d, i, s or u. Absent on demo data. */
+  status?: string;
+  /** FPL's own chance of playing the next round, 0–100. Null unless he is a doubt. */
+  chance?: number | null;
+  /** FPL's own sentence about why, which is the text its site shows on hover. */
+  news?: string;
+  newsAt?: string | null;
+  /** Starts so far, and how many games his club has played, for the flag FPL does not raise. */
+  starts?: number;
+  teamGames?: number;
   /** FPL's own 1–5 fixture difficulty, from the player's side of the tie. */
   difficulty?: number;
   /** Kick-off of the fixture this player is waiting for. */
@@ -134,6 +144,33 @@ export interface PriceRow {
   calibrating: boolean;
 }
 
+export type PlayerFlag = {
+  /** `out` is red, `major` a doubt of 50 or less, `doubt` the ordinary 75. */
+  level: "out" | "major" | "doubt" | "none";
+  chance: number | null;
+};
+
+/** One player FPL has something to say about, with the league's exposure to him attached. */
+export interface PlayerNews {
+  id: number;
+  name: string;
+  club: string;
+  position: SquadPlayer["position"];
+  cost: number;
+  ownership: number;
+  status: string;
+  chance: number | null;
+  news: string;
+  newsAt: string | null;
+  /** FPL's own link to the club's word on it, when it has one. */
+  link?: string;
+  starts: number;
+  minutes: number;
+  teamGames: number;
+  /** Which squads in this league hold him, and whether he is in their eleven. */
+  owners: Array<{ managerId: number; teamName: string; starter: boolean; captain: boolean }>;
+}
+
 export interface PriceMarket {
   /** FPL publishes the exact change times; the countdown is not guesswork. */
   deadlines: string[];
@@ -161,6 +198,8 @@ export interface DashboardData {
   /** FPL's own average score per gameweek, which is what form is measured against. */
   gameweekAverages?: Record<number, number>;
   prices?: PriceMarket;
+  /** Every player FPL has flagged or written a note about, league exposure included. */
+  playerNews?: PlayerNews[];
   /** Only demo data carries its own feed; live data reads it from the Worker. */
   feed?: FeedEvent[];
 }

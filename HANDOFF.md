@@ -54,6 +54,8 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/services/ownership.ts` | League ownership and effective ownership, for the player highlight |
 | `src/services/priceChanges.ts` | FPL's published price-change numbers, and the two figures derived from them |
 | `src/PriceChanges.tsx` | The price change page at `#/hinnat`, and its two tabs |
+| `src/TeamNews.tsx` | The availability page at `#/uutiset` |
+| `src/services/playerNews.ts` | What FPL's status letters mean, and the flag FPL does not raise |
 | `src/PriceHistory.tsx` | The history tab: what prices have already done |
 | `src/services/priceHistory.ts` | Reads the change log from the Worker and groups it by night |
 | `worker/priceHistory.ts` | Watches FPL's prices, writes down what moved, and serves `/price-history` |
@@ -1009,7 +1011,51 @@ width — `1` is 4.86px against `0` at 7.61px — so a running clock in the righ
 shoved `GW 1` and the links about by up to 16px every second. That was measured off the
 font rather than guessed at.
 
-### Selling prices, and why a rise is worth half, 26 Aug
+### Availability, and the flag FPL does not raise
+
+`#/uutiset` is the third destination. It answers one question — who is not playing, and
+whose squad is that a problem for — and the second half of it is the reason it exists.
+
+### What FPL actually publishes
+
+Every element carries `status`, `chance_of_playing_next_round`, `news` and `news_added`,
+and 45 of them also carry `scout_news_link`, a link to the club's own word on it. Counted
+against the live bootstrap on 26 Aug: `a` available (494), `i` injured (55), `u`
+unavailable (41 — where a player who has left the league ends up), `d` doubtful (21), `s`
+suspended (1). Chance is 0 for all of the first three and 75, 50 or 25 for a doubt.
+
+FPL's own site paints a red or yellow corner on the shirt and puts the percentage in a
+hover tooltip only. That is the wrong way round: **the colour says there is something to
+read and the number is the thing you decide on**, so both are on the badge here — red with
+a cross for out, yellow with the figure for a 75, amber for a 50 or 25, which is a
+different decision and is not painted the same. The sentence stays on hover, verbatim from
+FPL, because paraphrasing it would only add a second version to disagree with.
+
+### The flag FPL does not raise
+
+A player can be perfectly fit, unflagged, and not playing — out of favour, on the way out of
+the club, third choice behind two fit keepers. **FPL's status only ever answers "can he
+play", never "will he"**, so a manager holding Martinez at Villa sees a clean shirt every
+week while the transfer talk runs and the team sheets come out without him.
+
+What is available to answer it is FPL's own `starts`, read against the number of games the
+player's club has actually finished. No start in any of them, while FPL says he is
+available, is `benchWatch` — and it is not dressed as a prediction, because it is not one.
+It is a count, printed as a count, in a hollow badge that is deliberately neither of FPL's
+two colours. It is only raised for a player in a manager's **own starting eleven**: a bench
+player who does not start for his club is the ordinary state of a bench player and not news.
+On 26 Aug it catches six players across this league, Martinez among them.
+
+### The half FPL cannot tell you
+
+Every row carries which of these seven squads hold the player, and a squad **starting** him
+is painted apart from one with him on the bench — the first is points this weekend and the
+second is not. That is the whole reason for the page rather than a link to FPL's own list:
+118 flagged players is a fact, and "two of these seven are starting a 3 %-owned keeper who
+has not played a minute" is a problem. The default filter is this league's exposure; the
+whole game is one click away.
+
+## Selling prices, and why a rise is worth half, 26 Aug
 
 Select a squad in the team filter and every row it holds gains a **Myynti** line under the
 price, struck with the highlighter when the change the page is predicting would actually

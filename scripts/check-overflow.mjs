@@ -41,8 +41,8 @@ const arg = (name, fallback) => {
 };
 
 const base = arg("url", "http://localhost:5174/?demo=1");
-// Both pages, at every width. A nav that fits is not proof the page behind it does.
-const urls = [base, `${base}#/hinnat`];
+// Every page, at every width. A nav that fits is not proof the page behind it does.
+const urls = [base, `${base}#/hinnat`, `${base}#/uutiset`];
 const widths = arg("widths", "").length
   ? arg("widths", "").split(",").map(Number)
   : DEFAULT_WIDTHS;
@@ -189,7 +189,7 @@ await send("Runtime.enable");
 async function waitForContent(send) {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const { result } = await send("Runtime.evaluate", {
-      expression: "document.querySelectorAll('.manager-row, .price-row').length",
+      expression: "document.querySelectorAll('.manager-row, .price-row, .news-row').length",
       returnByValue: true,
     });
     if ((result?.value ?? 0) > 0) {
@@ -237,7 +237,7 @@ for (const width of widths) {
   }
 
   // The picker only exists on the table page, and only where the toolbar shows it.
-  if (!url.includes("#/hinnat")) {
+  if (!url.includes("#/")) {
     // Two attempts. The evaluate comes back without a result when its execution context
     // was destroyed under it — a hot reload landing mid-probe, or the page still settling
     // right after a resize — and that is a transient, not a finding. A real containment

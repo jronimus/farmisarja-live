@@ -1,4 +1,4 @@
-import type { DashboardData, FixtureStatCategory, GameweekFixture, ManagerRow, SquadPlayer } from "./types";
+import type { DashboardData, FixtureStatCategory, GameweekFixture, ManagerRow, PlayerNews, SquadPlayer } from "./types";
 import type { FeedEvent } from "./services/liveFeed";
 
 /**
@@ -376,6 +376,52 @@ const demoFeed = (): DashboardData["feed"] => {
   });
 };
 
+/**
+ * A handful of flagged players for the availability page, drawn from the demo squads so the
+ * owners column has something true to say about them. The demo is a stress test of the
+ * layout, so it carries one of each mark: out, a 75, a 50, and one of ours — a fit player
+ * in somebody's eleven who has not started for his club.
+ */
+const demoPlayerNews = (): PlayerNews[] => {
+  const squads = managers.flatMap((manager) => manager.squad.map((player) => ({ manager, player })));
+  const pick = (index: number) => squads[index % squads.length];
+  const ownersOf = (id: number) => managers
+    .filter((manager) => manager.squad.some((player) => player.id === id))
+    .map((manager) => ({
+      managerId: manager.id,
+      teamName: manager.teamName,
+      starter: Boolean(manager.squad.find((player) => player.id === id)?.starter),
+      captain: Boolean(manager.squad.find((player) => player.id === id)?.captain),
+    }));
+  const rows: Array<[number, Partial<PlayerNews>]> = [
+    [3, { status: "i", chance: 0, news: "Hamstring injury - Expected back 12 Sep" }],
+    [9, { status: "d", chance: 75, news: "Knock - 75% chance of playing" }],
+    [17, { status: "d", chance: 50, news: "Illness - 50% chance of playing" }],
+    [24, { status: "s", chance: 0, news: "Suspended until 14 Sep" }],
+    [31, { status: "a", chance: null, news: "", starts: 0 }],
+  ];
+  return rows.map(([index, over]) => {
+    const { player } = pick(index);
+    return {
+      id: player.id,
+      name: player.name,
+      club: player.club,
+      position: player.position,
+      cost: player.cost,
+      ownership: player.ownership,
+      status: "a",
+      chance: null,
+      news: "",
+      newsAt: new Date(Date.now() - 30 * hour).toISOString(),
+      starts: 2,
+      minutes: 180,
+      teamGames: 2,
+      owners: ownersOf(player.id),
+      ...over,
+    };
+  });
+};
+
 export const demoData: DashboardData = {
   leagueName: "Farmisarja",
   gameweek: 24,
@@ -389,5 +435,6 @@ export const demoData: DashboardData = {
   /** The game's own average over the same five gameweeks the form series covers. */
   gameweekAverages: { 19: 48, 20: 51, 21: 44, 22: 57, 23: 53 },
   prices: demoPrices(),
+  playerNews: demoPlayerNews(),
   feed: demoFeed(),
 };

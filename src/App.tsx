@@ -6,8 +6,10 @@ import { loadLiveDashboard } from "./services/liveDashboard";
 import { gameweekHandsOverAt, provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
 import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, type Highlight, type PlayerOwnership } from "./services/ownership";
+import { squadFlag } from "./services/playerNews";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
+import TeamNews from "./TeamNews";
 import Ticker from "./Ticker";
 import { estimateRank, loadRankCurve, type RankCurve } from "./services/liveRank";
 import type { DashboardData, FixtureStatKey, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
@@ -403,6 +405,45 @@ function SortHeader({ label, note, sortKey, active, direction, onSort }: { label
   return <button className={`sort-header ${isActive ? "active" : ""}`} onClick={() => onSort(sortKey)}>{body}{isActive && <ChevronDown className={direction === "asc" ? "rotate" : ""} />}</button>;
 }
 
+/**
+ * The corner mark FPL's own site puts on a flagged shirt, with the number it leaves out.
+ *
+ * FPL paints a red or a yellow triangle and puts the percentage in a hover tooltip only,
+ * which is the wrong way round: the colour says there is something to read and the number
+ * is the thing you decide on. Both are on the badge here, and the sentence is still on
+ * hover, where it also names the club's own word on it when FPL links one.
+ */
+function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: Language }) {
+  const t = translations(language);
+  const { flag, bench } = squadFlag(player);
+  if (flag.level !== "none") {
+    const label = player.news || (flag.chance !== null ? `${flag.chance} %` : t.flagOut);
+    return <i className={`player-flag flag-${flag.level}`} title={label} aria-label={label}>
+      {flag.level === "out" ? "✕" : flag.chance}
+    </i>;
+  }
+  // Ours, not FPL's, and marked apart from FPL's for that reason: hollow, and never the
+  // red or the yellow that mean FPL has said something.
+  if (bench) {
+    const label = t.benchWatchTitle.replace("{games}", String(bench.games));
+    return <i className="player-flag flag-bench" title={label} aria-label={label}>0</i>;
+  }
+  return null;
+}
+
+type View = "table" | "prices" | "news";
+
+/**
+ * Three destinations, still no router: Pages serves this from a subpath and the hash
+ * survives that without a server rewrite.
+ */
+function viewFromHash(): View {
+  const hash = location.hash.replace(/^#\/?/, "");
+  if (hash === "hinnat") return "prices";
+  if (hash === "uutiset") return "news";
+  return "table";
+}
+
 function Shirt({ player }: { player: SquadPlayer }) {
   const kitSet = player.position === "GK" ? "optimized-gk" : "optimized";
   const source = `${import.meta.env.BASE_URL}kits/${kitSet}/${player.club.toLowerCase()}.webp?v=20260823-gk3`;
@@ -461,7 +502,7 @@ function PlayerCard({ player, best, language, tripleCaptain, scoreMultiplier, gr
   const kickoff = waiting && player.kickoff ? kickoffLabel(player.kickoff, language) : "";
   return <div className={`player player-${player.state} position-${player.position.toLowerCase()} ${player.starter ? "player-starter" : "player-bench"} ${best ? "player-best" : ""} ${highlighted ? "player-picked" : ""} ${groupLabel ? `group-start group-${groupKind}` : ""}`}>
     {groupLabel && <span className="player-group-label"><b className="desktop-squad-label">{groupLabel}</b><b className="mobile-squad-label">{mobileGroupLabel ?? groupLabel}</b></span>}
-    <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /></div>
+    <div className="player-visual">{player.captain && <span className={`armband captain ${tripleCaptain ? "triple" : ""}`}>C</span>}{player.viceCaptain && <span className={`armband ${tripleCaptain ? "triple" : ""}`}>V</span>}<Shirt player={player} /><PlayerFlagMark player={player} language={language} /></div>
     {/* The step is chosen from the longest unbreakable token, not the whole name: a space
         or a hyphen can wrap on its own, a surname cannot. Measured against the 43px a card
         gets at eight to a row. */}
@@ -556,7 +597,7 @@ export default function App() {
   const [formOpen, setFormOpen] = useState<number | null>(null);
   // Two pages, no router: Pages serves this from a subpath, and the hash survives that
   // without any server rewrite.
-  const [view, setView] = useState<"table" | "prices">(() => location.hash.replace(/^#\/?/, "") === "hinnat" ? "prices" : "table");
+  const [view, setView] = useState<View>(() => viewFromHash());
   const [expanded, setExpanded] = useState<number | null>(demoMode ? null : 101);
   const [sort, setSort] = useState<SortKey>("position");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
@@ -574,7 +615,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const readHash = () => setView(location.hash.replace(/^#\/?/, "") === "hinnat" ? "prices" : "table");
+    const readHash = () => setView(viewFromHash());
     window.addEventListener("hashchange", readHash);
     return () => window.removeEventListener("hashchange", readHash);
   }, []);
@@ -818,6 +859,7 @@ export default function App() {
       <nav className="top-nav" aria-label={t.navTable}>
         <a href="#/" className={view === "table" ? "active" : ""} aria-current={view === "table" ? "page" : undefined}>{t.navTable}</a>
         <a href="#/hinnat" className={view === "prices" ? "active" : ""} aria-current={view === "prices" ? "page" : undefined}>{t.navPrices}</a>
+        <a href="#/uutiset" className={view === "news" ? "active" : ""} aria-current={view === "news" ? "page" : undefined}>{t.navNews}</a>
       </nav>
       <div className="top-actions">
         {liveReady && <div className={`gameweek-status ${gameweekFixtures.length > 0 && !handedOver ? "has-fixture-menu" : ""}`}>
@@ -847,6 +889,7 @@ export default function App() {
       <small>{language === "fi" ? "Uutta yritystä tehdään automaattisesti. Vanhentunutta tai demodataa ei näytetä." : "Retrying automatically. Stale or demo data is not shown."}</small>
     </section> : !liveReady ? <div className="initial-loading" aria-label={language === "fi" ? "Ladataan FPL-dataa" : "Loading FPL data"} />
       : view === "prices" ? <PriceChanges data={data} language={language} autosubs={autosubs} />
+      : view === "news" ? <TeamNews data={data} language={language} />
       : <>
       <div className="toolbar">
         <div className="toolbar-selects">

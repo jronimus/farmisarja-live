@@ -1,5 +1,6 @@
 import type { DashboardData, FixtureStatCategory, FixtureStatEntry, FixtureStatKey, FixtureStatus, GameweekFixture, ManagerRow, PlayerState, SquadPlayer } from "../types";
 import { buildPriceMarket } from "./priceChanges";
+import type { PlayerNews } from "../types";
 import { nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
 
 const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");
@@ -19,6 +20,9 @@ interface Element {
   cost_change_start: number; transfers_in_event: number; transfers_out_event: number;
   price_change_percent: string; price_change_locked_until: string | null; price_change_calibrating: boolean;
   price_change_projections: Array<{ offset: number; projected_percent: string; likelihood: number }>;
+  // Availability, as FPL states it; see services/playerNews.ts for what the letters mean.
+  status: string; chance_of_playing_next_round: number | null; news: string; news_added: string | null;
+  scout_news_link?: string; minutes: number; starts: number;
 }
 interface Team { id: number; short_name: string; code: number; }
 interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; game_config?: { settings?: { price_change_deadlines?: string[] } }; }
@@ -153,6 +157,7 @@ async function managerRow(
 
   const elements = new Map(bootstrap.elements.map((element) => [element.id, element]));
   const teams = new Map(bootstrap.teams.map((team) => [team.id, team]));
+  const gamesPlayed = teamGamesPlayed(fixtures);
 
   /**
    * What this squad paid for each of its players, in tenths — the number FPL's selling
@@ -201,6 +206,12 @@ async function managerRow(
       cost: element.now_cost / 10,
       purchasePrice: (paidFor.get(element.id) ?? (element.now_cost - element.cost_change_start)) / 10,
       ownership: Number(element.selected_by_percent) || 0,
+      status: element.status,
+      chance: element.chance_of_playing_next_round,
+      news: element.news,
+      newsAt: element.news_added,
+      starts: element.starts,
+      teamGames: gamesPlayed.get(element.team) ?? 0,
       difficulty: firstFixture ? (isHome ? firstFixture.team_h_difficulty : firstFixture.team_a_difficulty) : undefined,
       kickoff: firstFixture?.kickoff_time,
       state,
@@ -287,6 +298,16 @@ async function managerRow(
     formRankMovement: rankMovement(formRows),
     squad,
   };
+}
+
+/** How many league games each club has actually finished, which a start count is read against. */
+export function teamGamesPlayed(fixtures: Fixture[]): Map<number, number> {
+  const played = new Map<number, number>();
+  for (const fixture of fixtures) {
+    if (!fixture.finished) continue;
+    for (const team of [fixture.team_h, fixture.team_a]) played.set(team, (played.get(team) ?? 0) + 1);
+  }
+  return played;
 }
 
 export async function loadLiveDashboard(): Promise<DashboardData | null> {
@@ -404,6 +425,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
   }));
   const rows = await Promise.all(standings.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById)));
   if (rows.some((row) => row === null)) return pendingDashboard();
+  const managerRows = rows.filter((row): row is ManagerRow => row !== null);
   return {
     leagueName: league.league.name,
     gameweek: event.id,
@@ -425,8 +447,52 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
       || (fixtureList.length > 0 && fixtureList.every((fixture) => fixture.status === "final")),
     activeMonths: startedMonths,
     fixtures: fixtureList,
-    managers: rows.filter((row): row is ManagerRow => row !== null),
+    managers: managerRows,
     gameweekAverages,
     prices,
+    playerNews: buildPlayerNews(bootstrap.elements, teamsById, teamGamesPlayed(fixtures), managerRows),
   };
+}
+
+/**
+ * Everything FPL has to say about availability, with this league's exposure attached.
+ *
+ * The exposure is the reason the page exists. FPL's own list is 118 players long and says
+ * nothing about which of them anybody here is starting on Saturday; that half of the
+ * sentence is ours and cannot be got anywhere else.
+ */
+export function buildPlayerNews(
+  elements: Element[],
+  teamsById: Map<number, Team>,
+  gamesPlayed: Map<number, number>,
+  managers: ManagerRow[],
+): PlayerNews[] {
+  const owners = new Map<number, PlayerNews["owners"]>();
+  for (const manager of managers) {
+    for (const player of manager.squad) {
+      owners.set(player.id, [...(owners.get(player.id) ?? []), {
+        managerId: manager.id,
+        teamName: manager.teamName,
+        starter: player.starter,
+        captain: Boolean(player.captain),
+      }]);
+    }
+  }
+  return elements.map((element): PlayerNews => ({
+    id: element.id,
+    name: element.web_name,
+    club: teamsById.get(element.team)?.short_name ?? "UNK",
+    position: positionName(element.element_type),
+    cost: element.now_cost / 10,
+    ownership: Number(element.selected_by_percent) || 0,
+    status: element.status,
+    chance: element.chance_of_playing_next_round,
+    news: element.news ?? "",
+    newsAt: element.news_added,
+    link: element.scout_news_link || undefined,
+    starts: element.starts,
+    minutes: element.minutes,
+    teamGames: gamesPlayed.get(element.team) ?? 0,
+    owners: owners.get(element.id) ?? [],
+  }));
 }
