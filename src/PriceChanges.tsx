@@ -4,6 +4,7 @@ import { translations } from "./i18n";
 import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor, outlookRank, projectedAt } from "./services/priceChanges";
 import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
 import { sellingPrice, sellingPriceMoves } from "./services/fplRules";
+import { loadInsights, per90, threat, type PlayerInsight } from "./services/insights";
 import PriceHistory from "./PriceHistory";
 import type { DashboardData, Language, PriceRow } from "./types";
 
@@ -84,6 +85,24 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
   const [page, setPage] = useState(0);
 
   useEffect(() => { localStorage.setItem(PAGE_SIZE_KEY, String(pageSize)); }, [pageSize]);
+
+  /**
+   * The underlying numbers, beside the market's opinion of them.
+   *
+   * This page says a player is being bought; it cannot say whether he deserves to be. A
+   * transfer flow is a crowd's judgement, and a crowd chases the last thing it saw — the
+   * expected goals and assists behind that judgement are the only thing on this page that
+   * is about the football rather than about the market. Absent until the Worker has the
+   * dataset, and the column simply stays empty until then.
+   */
+  const [insights, setInsights] = useState<Map<number, PlayerInsight>>(new Map());
+  useEffect(() => {
+    let active = true;
+    loadInsights()
+      .then((body) => { if (active && body) setInsights(body.players); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   // Locked is dropped from the filter row on the history tab, so a selection left on it
   // would be a filter nothing can satisfy and no control to undo it with.
@@ -241,6 +260,7 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         <span className="head-tonight">{header(t.priceTonight, "tonight")}</span>
         <span className="head-outlook">{header(t.priceWhen, "outlook")}</span>
         <span className="head-rate">{header(t.perHour, "perHour")}</span>
+        <span className="head-threat">{t.statsThreat}</span>
         <span className="head-ownership">{header(t.ownership, "ownership")}</span>
         <span className="head-cost">{header(t.price, "cost")}</span>
       </div>
@@ -321,6 +341,16 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
           <span className="price-rate" data-label={t.perHour}>
             <b className={row.perHour >= 0 ? "up" : "down"}>{row.perHour > 0 ? "+" : ""}{row.perHour.toFixed(2)}</b>
             {hours !== null && hours < 240 && <small>{t.inAbout} {Math.round(hours)} h</small>}
+          </span>
+          {/* Expected goal involvement per ninety, from FPL Core Insights. Per ninety
+              because a substitute and an ever-present cannot be compared any other way. */}
+          <span className="price-threat" data-label={t.statsThreat}>
+            {insights.get(row.id) && insights.get(row.id)!.minutes > 0
+              ? <>
+                <b>{per90(threat(insights.get(row.id)!), insights.get(row.id)!.minutes).toFixed(2).replace(".", language === "fi" ? "," : ".")}</b>
+                <small>/ 90</small>
+              </>
+              : <b className="quiet">—</b>}
           </span>
           <span className="price-ownership" data-label={t.ownership}>
             <b>{percent(row.ownership)}</b>

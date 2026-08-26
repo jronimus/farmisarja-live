@@ -42,7 +42,7 @@ const arg = (name, fallback) => {
 
 const base = arg("url", "http://localhost:5174/?demo=1");
 // Every page, at every width. A nav that fits is not proof the page behind it does.
-const urls = [base, `${base}#/hinnat`, `${base}#/uutiset`];
+const urls = [base, `${base}#/hinnat`, `${base}#/uutiset`, `${base}#/tilastot`];
 const widths = arg("widths", "").length
   ? arg("widths", "").split(",").map(Number)
   : DEFAULT_WIDTHS;
@@ -189,7 +189,7 @@ await send("Runtime.enable");
 async function waitForContent(send) {
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const { result } = await send("Runtime.evaluate", {
-      expression: "document.querySelectorAll('.manager-row, .price-row, .news-row').length",
+      expression: "document.querySelectorAll('.manager-row, .price-row, .news-row, .stats-line, .data-pending').length",
       returnByValue: true,
     });
     if ((result?.value ?? 0) > 0) {

@@ -2237,6 +2237,18 @@ footer a { color:#c4c6d8; }
   .topbar { flex-wrap:wrap; height:auto; padding-block:10px; row-gap:9px; }
   .top-nav { order:3; flex:1 1 100%; justify-content:center; gap:26px; }
 }
+/* A fourth destination does not fit four abreast on the narrowest phone there is. The gap
+   closes and the type steps down before anything wraps: four short words on one line still
+   read as one navigation, where two over two read as two of them. Measured at 320px, which
+   is where this first pushed the page sideways. */
+@media (max-width:380px) {
+  .top-nav { gap:14px; }
+  .top-nav a { font-size:12px; }
+}
+@media (max-width:339px) {
+  .top-nav { gap:10px; }
+  .top-nav a { font-size:11px; }
+}
 
 /* The page itself. It is a data table like the league table, but it holds 600 rows
    rather than seven, so it is paged and its filters carry the weight. */
@@ -2627,6 +2639,7 @@ footer a { color:#c4c6d8; }
   .price-owners-cell,.head-owners,
   .price-outlook,.head-outlook,
   .price-rate,.head-rate,
+  .price-threat,.head-threat,
   .price-ownership,.head-ownership { display:none; }
   .price-row { min-height:46px; }
   .price-player { grid-template-columns:22px auto; column-gap:6px; }
@@ -2692,10 +2705,9 @@ footer a { color:#c4c6d8; }
    colours: the site's own purple, with the two-way arrow that means a transfer everywhere
    else in football. It only ever appears for a report FotMob grades strong or imminent. */
 .player-flag.flag-rumour { background:#7b3fe4; color:#fff; font-size:12px; }
-/* Left out of a published prediction. Grey on purpose: it is not an injury, not a
-   suspension and not a move — it is a coach's expected team sheet, which is the softest of
-   the four marks and the only one that can be wrong by kick-off. */
-.player-flag.flag-xi { background:#3c4a43; color:#e8f0eb; font-size:9px; letter-spacing:.02em; }
+/* Left out of a published prediction: a red triangle, because it is a warning and not a
+   label. The letters `XI` were tried first and read as *he is in the eleven*, which is the
+   exact opposite of what the mark means. */
 
 .news-page { display:flex; flex-direction:column; gap:10px; }
 .news-filters { display:flex; gap:3px; align-self:flex-start; padding:4px; border-radius:10px; background:var(--surface); }
@@ -2764,7 +2776,9 @@ footer a { color:#c4c6d8; }
   padding:3px 7px;
   border-radius:5px;
   background:var(--raised);
-  color:var(--soft);
+  /* 3.85:1 as `--soft`; the chip is small type on a mid-tone panel and needs the page's
+     own ink mixed in to clear the line. */
+  color:color-mix(in srgb,var(--soft) 35%,var(--text));
   font-size:10px;
   font-weight:800;
   white-space:nowrap;
@@ -2844,6 +2858,288 @@ footer a { color:#c4c6d8; }
   .article-head b { font-size:13px; }
   .article-row em { font-size:11px; }
 }
+
+
+
+/* The squad rating, between the manager's row and his pitch. Somebody else's model marking
+   his team sheet, so it is set as a quotation rather than as one of our own figures: the
+   mark, what it is based on, its own sentences, and a link to whose opinion it is. */
+.squad-rating {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  gap:10px 22px;
+  padding:12px 22px;
+  background:linear-gradient(180deg,#12211a,#0e1b15);
+  border-top:1px solid rgba(255,255,255,.06);
+}
+/* A label over each figure. The mark and the projection are two different things and both
+   are numbers; without a word above them the strip reads as a scoreline. */
+.rating-mark,
+.rating-projection { display:flex; flex-direction:column; gap:2px; }
+.rating-mark > small,
+.rating-projection > small {
+  color:#8ba69b;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.rating-mark > b { display:flex; align-items:baseline; gap:4px; font-weight:400; }
+.rating-mark strong { font:400 22px/1 "Archivo Black",sans-serif; font-variant-numeric:tabular-nums; }
+.rating-mark em { font-size:11px; font-style:normal; font-weight:800; opacity:.75; }
+.rating-mark i { font:900 11px "Inter",sans-serif; font-style:normal; letter-spacing:.04em; }
+.rating-mark.tone-high strong,.rating-mark.tone-high i,.rating-mark.tone-high em { color:#42e394; }
+.rating-mark.tone-good strong,.rating-mark.tone-good i,.rating-mark.tone-good em { color:#c8e86a; }
+.rating-mark.tone-fair strong,.rating-mark.tone-fair i,.rating-mark.tone-fair em { color:#ffd21e; }
+.rating-mark.tone-low strong,.rating-mark.tone-low i,.rating-mark.tone-low em { color:#ff8ba0; }
+.rating-projection > b { color:#e6efea; font-size:15px; font-weight:900; font-variant-numeric:tabular-nums; }
+.rating-projection > em { color:#8ba69b; font-size:10px; font-style:normal; font-weight:700; }
+
+.rating-notes { display:flex; flex-direction:column; gap:3px; flex:1 1 280px; min-width:0; }
+.rating-notes em { font-size:10px; font-style:normal; font-weight:700; line-height:1.4; }
+.rating-notes .good { color:#a8c2b5; }
+.rating-notes .risk { color:#ffb0bf; }
+/* The note that says whose language the sentences above are written in. */
+.rating-notes .rating-language { color:#8ba69b; font-size:9px; font-weight:700; }
+.rating-credit {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  min-height:24px;
+  color:#6fdccd;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.04em;
+  text-decoration:none;
+  text-transform:uppercase;
+}
+.rating-credit:hover { color:#9df0e4; }
+
+@media (max-width:800px) {
+  .squad-rating { gap:8px 14px; padding:10px 12px; }
+  .rating-mark strong { font-size:19px; }
+  .rating-notes { flex-basis:100%; }
+}
+
+/* --------------------------------------------------------------------------
+   The statistics table
+   --------------------------------------------------------------------------
+   The one table on this site whose shape belongs to the reader: he chooses the
+   columns and the choice is kept, so it has to survive being three columns wide
+   or twenty. That is why it is a grid inside its own scroller rather than the
+   page grammar the other tables share — the page must never move sideways, but
+   this table may.
+   -------------------------------------------------------------------------- */
+.stats-page { max-width:100%; }
+.stats-scroll {
+  border-radius:14px;
+  background:var(--surface);
+  overflow-x:auto;
+  overflow-y:hidden;
+  /* A visible, thin bar: a table that scrolls and does not say so is a table with
+     hidden columns. */
+  scrollbar-width:thin;
+}
+.stats-grid { display:grid; min-width:max-content; align-items:stretch; }
+.stats-headrow,
+.stats-line { display:contents; }
+.stats-headrow > span {
+  position:sticky;
+  top:0;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  gap:3px;
+  min-height:42px;
+  padding:0 10px;
+  background:var(--raised);
+  color:color-mix(in srgb,var(--soft) 62%,var(--text));
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.stats-line > span {
+  display:flex;
+  align-items:center;
+  min-height:52px;
+  padding:0 10px;
+  border-top:1px solid color-mix(in srgb,var(--faint) 22%,transparent);
+}
+.stats-line.is-held > span { background:color-mix(in srgb,var(--pick) 6%,transparent); }
+/* The name column stays put while the figures scroll under it: a row of numbers with no
+   name attached is unreadable, and this table is wider than any screen. */
+.stats-headrow > .head-star,
+.stats-headrow > .head-player,
+.stats-line > .stats-star,
+.stats-line > .price-player { position:sticky; z-index:1; background:var(--surface); }
+.stats-headrow > .head-star,
+.stats-headrow > .head-player { z-index:3; background:var(--raised); }
+.stats-headrow > .head-star,
+.stats-line > .stats-star { left:0; padding-inline:6px; }
+.stats-headrow > .head-player,
+.stats-line > .price-player { left:34px; box-shadow:1px 0 0 color-mix(in srgb,var(--faint) 22%,transparent); }
+.stats-line.is-held > .stats-star,
+.stats-line.is-held > .price-player { background:color-mix(in srgb,var(--pick) 6%,var(--surface)); }
+
+.stats-line .price-player { display:grid; grid-template-columns:24px auto; grid-template-rows:auto auto; column-gap:8px; min-width:0; }
+.stats-line .price-player .shirt { grid-row:1 / 3; width:24px; height:24px; position:relative; }
+.stats-line .price-player .shirt-image { width:24px; height:24px; object-fit:contain; }
+.stats-line .price-player b { grid-column:2; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stats-line .price-player small { grid-column:2; color:var(--faint); font-size:9px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.stats-cell { justify-content:flex-end; }
+.stats-cell b { font-size:13px; font-weight:900; font-variant-numeric:tabular-nums; }
+.stats-cell b.up { color:var(--green); }
+.stats-cell b.down { color:var(--red); }
+.stats-empty { grid-column:1 / -1; justify-content:center; padding:26px 16px; color:var(--soft); font-size:13px; }
+
+/* Which source a column came from, said in a hairline rather than a word: there is no room
+   for a word in a nine-pixel head, and the picker names the groups anyway. */
+.head-stat { justify-content:flex-end; border-top:2px solid transparent; }
+.head-stat.source-market { border-top-color:color-mix(in srgb,var(--yellow) 70%,transparent); }
+.head-stat.source-fpl { border-top-color:color-mix(in srgb,var(--accent) 90%,transparent); }
+.head-stat.source-match { border-top-color:color-mix(in srgb,var(--cyan) 70%,transparent); }
+.head-help {
+  display:grid;
+  place-items:center;
+  width:18px;
+  height:18px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:none;
+  color:var(--faint);
+  cursor:pointer;
+}
+.head-help svg { width:12px; height:12px; }
+.head-help:hover { color:var(--text); }
+
+.stats-star button {
+  display:grid;
+  place-items:center;
+  width:22px;
+  height:22px;
+  padding:0;
+  border:0;
+  border-radius:6px;
+  background:none;
+  color:var(--faint);
+  cursor:pointer;
+}
+.stats-star button svg { width:15px; height:15px; }
+.stats-star button.active { color:#c8a200; }
+.stats-star button.active svg { fill:#c8a200; }
+
+.favourite-filter,
+.picker-trigger {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  height:38px;
+  padding:0 13px;
+  border:0;
+  border-radius:10px;
+  background:var(--surface);
+  color:var(--text);
+  font:800 12px "Inter",sans-serif;
+  cursor:pointer;
+}
+.favourite-filter svg,
+.picker-trigger svg { width:14px; height:14px; }
+.favourite-filter.active { background:#ffd21e; color:#231b00; }
+.favourite-filter.active svg { fill:#231b00; }
+
+/* The explanation of one column, opened from its head. A title attribute is invisible on a
+   touchscreen, which is exactly where an unfamiliar column most needs explaining. */
+.stats-explainer {
+  display:flex;
+  align-items:flex-start;
+  gap:9px;
+  padding:11px 14px;
+  border-radius:12px;
+  background:var(--surface-alt);
+  color:var(--text);
+  font-size:12px;
+  line-height:1.5;
+}
+.stats-explainer > svg { flex:none; width:15px; height:15px; margin-top:1px; color:var(--cyan); }
+.stats-explainer b { font-weight:900; }
+.stats-explainer button { margin-left:auto; padding:0; border:0; background:none; color:var(--faint); cursor:pointer; }
+.stats-explainer button svg { width:15px; height:15px; }
+
+.picker-backdrop { position:fixed; inset:0; z-index:60; border:0; background:rgba(4,10,7,.55); cursor:default; }
+.picker-panel {
+  position:fixed;
+  z-index:61;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  /* Not `100vw`: on a desktop window with a classic scrollbar that is fifteen pixels wider
+     than the space there actually is, and the panel would hang over the edge. A percentage
+     on a fixed element resolves against the viewport proper. */
+  width:min(560px,calc(100% - 28px));
+  max-height:min(70vh,640px);
+  overflow-y:auto;
+  padding:16px 18px 18px;
+  border-radius:16px;
+  background:var(--menu);
+  box-shadow:0 24px 60px rgba(0,0,0,.45);
+}
+.picker-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.picker-head b { font-size:15px; font-weight:900; }
+.picker-head button { padding:4px; border:0; border-radius:8px; background:none; color:var(--soft); cursor:pointer; }
+.picker-head button svg { width:17px; height:17px; }
+.picker-note { margin:0 0 12px; color:var(--soft); font-size:11px; line-height:1.5; }
+.picker-group { margin-bottom:14px; }
+.picker-group > b { display:block; margin-bottom:6px; color:var(--faint); font-size:10px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; }
+.picker-options { display:flex; flex-wrap:wrap; gap:5px; }
+.picker-options button {
+  padding:6px 10px;
+  border:0;
+  border-radius:99px;
+  background:var(--surface-alt);
+  color:var(--soft);
+  font:700 11px "Inter",sans-serif;
+  cursor:pointer;
+}
+.picker-options button.active { background:var(--accent); color:#fff; }
+.picker-reset { margin-top:4px; padding:8px 14px; border:0; border-radius:9px; background:var(--raised); color:var(--text); font:800 11px "Inter",sans-serif; cursor:pointer; }
+
+@media (max-width:800px) {
+  .stats-line > span { min-height:46px; }
+  .stats-line .price-player b { font-size:12px; }
+  .picker-panel { width:calc(100% - 20px); max-height:78vh; }
+}
+
+/* --------------------------------------------------------------------------
+   The sources page
+   --------------------------------------------------------------------------
+   A colophon, reached from the footer rather than the navigation: it is not
+   somewhere anybody goes to read the league, but it is where the credit and the
+   caveats belong — off the figures, and gathered into sentences.
+   -------------------------------------------------------------------------- */
+.sources-page { display:flex; flex-direction:column; gap:14px; max-width:900px; }
+.sources-intro { margin:0; color:var(--page-ink); font-size:13px; line-height:1.6; }
+.sources-list { display:flex; flex-direction:column; gap:10px; }
+.source-card { padding:15px 18px; border-radius:14px; background:var(--surface); }
+.source-card > a { display:inline-flex; align-items:center; gap:6px; color:var(--cyan); text-decoration:none; }
+.source-card > a b { font-size:15px; font-weight:900; }
+.source-card > a svg { width:12px; height:12px; }
+.source-card p { margin:7px 0 0; color:var(--soft); font-size:12px; line-height:1.55; }
+.source-card .source-where { color:var(--text); }
+.source-card .source-where b { color:var(--faint); font-size:10px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; }
+/* Set apart, because a caveat that reads like the description is a caveat nobody reads. */
+.source-card .source-caveat {
+  margin-top:9px;
+  padding-left:11px;
+  border-left:2px solid color-mix(in srgb,var(--yellow) 55%,transparent);
+  color:var(--faint);
+  font-size:11px;
+}
+.footer-sources { color:inherit; text-decoration:none; }
+.footer-sources:hover { color:var(--text); }
 
 /* ==========================================================================
    The live ticker
@@ -3524,3 +3820,148 @@ input:focus-visible,
      quotes is Apple's guidance, not the bar. Growing them here would cost the header its
      one line. */
 }
+
+/* ==========================================================================
+   Contrast and target size
+   --------------------------------------------------------------------------
+   Findings from an audit run over all five pages, not a guess: every rule here
+   fixes something measured. Text is held to WCAG AA (4.5:1, or 3:1 once it is
+   large), and anything you can press is held to the 24px minimum target of
+   WCAG 2.2 — which on a phone is the difference between a control and a dare.
+   ========================================================================== */
+
+/* 1.02:1. `--page-ink` is an ink colour for a light panel, and this count sits on the
+   page's own dark ground; it was invisible rather than merely dim. */
+/* Text that sits on the page's own ground rather than on a panel.
+   `--page-ink` is dark and `--soft` is dim, and each of them fails in the skin the other
+   was written for: the count measured 1.02:1 on the dark boards and 3.02:1 on the pale
+   ones. Mixing toward `--text` cannot fail either way, because `--text` is by definition
+   the ink that skin reads with. */
+.news-count { color:color-mix(in srgb,var(--text) 82%,transparent); }
+
+/* An unstyled link inherits the browser's 1990s blue, which read 1.88:1 here. Every link
+   inside a footnote is now the same cyan the rest of the site uses for a link out, and it
+   is underlined: colour alone is not a signal for a reader who cannot separate these two. */
+/* A link in a footnote, kept cyan enough to read as a link and mixed toward the page's own
+   ink so it clears 4.5:1 in every skin. Underlined as well: colour alone is not a signal
+   for a reader who cannot separate these two. */
+.price-disclaimer a,
+.sources-intro a {
+  color:color-mix(in srgb,var(--cyan) 55%,var(--text));
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+
+/* 3.31:1 on a decorative bullet. It is `aria-hidden`, so it is not read out, but it is
+   still drawn — and a mark nobody can see is not a separator. */
+.footer-separator { color:var(--soft); }
+
+/* 4.08:1 on the struck-out figure a bench player's score becomes. It has to stay quieter
+   than the live scores around it; .58 is as quiet as it can be and still be read. */
+.player-points s,
+.points-cell s { color:rgba(255,255,255,.58); }
+
+/* --------------------------------------------------------------------------
+   Target size
+   --------------------------------------------------------------------------
+   Each of these was under 24px in one direction. None of them changes the
+   layout: the extra size is claimed inside padding that was already there, or
+   from a row that is taller than its contents anyway.
+   -------------------------------------------------------------------------- */
+.top-nav a { display:inline-flex; align-items:center; min-height:26px; }
+.price-sort { min-height:24px; min-width:24px; }
+.head-help,
+.stats-explainer button,
+.stats-star button {
+  min-width:24px;
+  min-height:24px;
+}
+.picker-head button { min-width:30px; min-height:30px; display:grid; place-items:center; }
+.picker-options button { min-height:28px; }
+.history-more,
+.picker-reset,
+.picker-trigger,
+.favourite-filter { min-height:34px; }
+
+/* A visible focus ring on everything reachable from a keyboard. The default ring is drawn
+   in the browser's own colour, which disappears against a dark panel — this one is the
+   site's accent and never disappears, and it only shows for keyboard use. */
+:focus-visible {
+  outline:2px solid var(--cyan);
+  outline-offset:2px;
+  border-radius:4px;
+}
+
+/* The shirt marks are buttons now, not decorations: a title attribute is invisible on a
+   phone, so tapping one opens its sentence. The badge keeps the size it had — the 24px
+   target comes from a transparent pad around it, so the pitch does not grow. */
+.player-flag {
+  border:0;
+  cursor:pointer;
+  font-family:"Inter",sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+.player-flag::after {
+  content:"";
+  position:absolute;
+  inset:-4px;
+}
+.player-flag.flag-xi { background:#e8102f; color:#fff; padding:0; }
+.player-flag.flag-xi svg { width:12px; height:12px; }
+
+/* The sentence a tapped mark opens. Over the card rather than inside it: the cards are
+   43px wide at eight to a row, and a sentence has to be readable somewhere. */
+.player-flag-note {
+  position:absolute;
+  top:20px;
+  right:-4px;
+  z-index:12;
+  width:max-content;
+  max-width:170px;
+  padding:7px 9px;
+  border-radius:9px;
+  background:#0b1611;
+  box-shadow:0 10px 28px rgba(0,0,0,.5);
+  color:#e6efea;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.35;
+  text-align:left;
+  white-space:normal;
+}
+
+@media (max-width:800px) {
+  .player-flag-note { max-width:150px; font-size:9px; }
+}
+
+/* --------------------------------------------------------------------------
+   The legend on a light pitch
+   --------------------------------------------------------------------------
+   The squad panel is a dark green board in the base theme and a pale glass one
+   in this skin, but the legend kept the inks it was given for the dark board:
+   `jäljellä` measured 1.61:1 on the pale panel and `Paras` 2.27:1. The skin
+   already re-inks the headings around them; these are the four it missed.
+
+   The colours are the same four meanings — purple for done, green for live,
+   amber for waiting, red for the worst — taken down to shades that hold 4.5:1
+   against the panel rather than against the board.
+   -------------------------------------------------------------------------- */
+.squad-panel .squad-legend .legend-finished { color:#4a2596; }
+.squad-panel .squad-legend .legend-live { color:#08532f; }
+.squad-panel .squad-legend .legend-upcoming { color:#6a4400; }
+.squad-panel .squad-legend .legend-best { color:#08532f; }
+.squad-panel .squad-legend .legend-worst { color:#8f1f33; }
+.squad-panel .bench-frame-label { color:#4b5068; }
+
+/* The bullet between the footer's items. It was dimmer than the words it separates, which
+   is backwards: a separator nobody can see is not separating anything. */
+footer .footer-separator { color:inherit; opacity:.72; }
+
+/* The struck-out figure in the ticker, where a bonus has moved and the old value is shown
+   crossed through. It has to stay quieter than the number replacing it, and .58 is as
+   quiet as it can be while still being legible. */
+/* The whole of a shift line, not only its struck-out half: the arrow between the old value
+   and the new was the same .42 white and just as hard to read. */
+.ticker-shift,
+.ticker-shift s,
+.ticker-shift em { color:rgba(255,255,255,.6); }

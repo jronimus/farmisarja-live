@@ -5,6 +5,8 @@ import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } fro
 import { readArticles, updateArticles, type ArticlesEnv } from "./articles";
 import { readRumours, updateRumours, type RumoursEnv } from "./rumours";
 import { readLineups, updateLineups, type LineupsEnv } from "./lineups";
+import { readScout, updateScout, type ScoutEnv } from "./scout";
+import { readInsights, seasonTotals, updateInsights, type InsightsEnv } from "./insights";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
 
@@ -12,7 +14,18 @@ const FPL_ORIGIN = "https://fantasy.premierleague.com";
 
 function corsHeaders(request: Request, env: Env): HeadersInit {
   const origin = request.headers.get("Origin") ?? "";
-  const allowed = origin === env.ALLOWED_ORIGIN || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  /**
+   * The published site, and a development machine.
+   *
+   * A phone on the same wifi reaches the dev server by its LAN address, not by `localhost`,
+   * so a check that only knew the loopback names answered every fetch from a phone with a
+   * CORS failure — the page drew its header, its footer and nothing in between. Private
+   * ranges are allowed for that reason: they are unroutable from the internet, so this
+   * widens the door only to machines already inside the same house.
+   */
+  const allowed = origin === env.ALLOWED_ORIGIN
+    || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+    || /^https?:\/\/(10\.\d{1,3}|192\.168|172\.(1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin);
   return {
     "Access-Control-Allow-Origin": allowed ? origin : env.ALLOWED_ORIGIN,
     "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -124,6 +137,31 @@ export default {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=180" },
       });
     }
+    if (url.pathname === "/scout") {
+      const stored = await readScout(env as ScoutEnv);
+      return new Response(JSON.stringify({ gameweek: stored?.gameweek ?? 0, ratings: stored?.ratings ?? [], credits: stored?.credits }), {
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
+      });
+    }
+    if (url.pathname === "/insights") {
+      const stored = await readInsights(env as InsightsEnv);
+      // Summed here rather than in the browser: the store is per gameweek so a finished one
+      // is never fetched twice, and the page asks for either the season or one week of it.
+      // `?gw=` takes a list, because the page lets a reader pick any set of gameweeks —
+      // three of them in a row is a form guide, and one is a match report.
+      const wanted = (url.searchParams.get("gw") ?? "")
+        .split(",").map(Number).filter((week) => Number.isInteger(week) && week > 0);
+      const picked = wanted.length
+        ? Object.fromEntries(wanted.map((week) => [week, stored?.byGameweek[week] ?? []]))
+        : stored?.byGameweek ?? {};
+      return new Response(JSON.stringify({
+        gameweek: wanted.length === 1 ? wanted[0] : stored?.current ?? 0,
+        gameweeks: Object.keys(stored?.byGameweek ?? {}).map(Number).sort((a, b) => a - b),
+        players: stored ? seasonTotals(picked) : [],
+      }), {
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=180" },
+      });
+    }
     const route = upstreamPath(url.pathname, env);
     if (!route) return json({ error: "Not found" }, request, env, 404);
     try {
@@ -171,6 +209,15 @@ export default {
     // The fixtures close to kick-off, every quarter of an hour, on the odd minutes.
     if (minute % 2 === 1) ctx.waitUntil(updateLineups(env as LineupsEnv).catch((error) => {
       console.error(JSON.stringify({ event: "lineups_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // Seven small requests to somebody else's model, half-hourly, on their own minute.
+    if (minute % 5 === 3) ctx.waitUntil(updateScout(env as ScoutEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "scout_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // The dataset rebuilds three times a day; reading it hourly, on a minute of its own,
+    // is already more often than it can change.
+    if (minute % 5 === 4) ctx.waitUntil(updateInsights(env as InsightsEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "insights_error", error: error instanceof Error ? error.message : String(error) }));
     }));
   },
 } satisfies ExportedHandler<Env>;

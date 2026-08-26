@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, Globe, Medal, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, ExternalLink, Globe, Medal, Search, TriangleAlert, X } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { gameweekHandsOverAt, provisionalAutosubSquad } from "./services/fplRules";
@@ -9,9 +9,12 @@ import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, ty
 import { flagOf } from "./services/playerNews";
 import { absencesByElement, isStrong, loadFotmob, strongestByPlayer, type Absence, type Rumour } from "./services/rumours";
 import { loadLineups, watchFrom, type LineupWatch } from "./services/lineups";
+import { gradeTone, loadScout, type SquadRating } from "./services/scout";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import TeamNews from "./TeamNews";
+import Stats from "./Stats";
+import Sources from "./Sources";
 import Ticker from "./Ticker";
 import { estimateRank, loadRankCurve, type RankCurve } from "./services/liveRank";
 import type { DashboardData, FixtureStatKey, GameweekFixture, Language, ManagerRow, SquadPlayer } from "./types";
@@ -415,20 +418,39 @@ function SortHeader({ label, note, sortKey, active, direction, onSort }: { label
  * is the thing you decide on. Both are on the badge here, and the sentence is still on
  * hover, where it also names the club's own word on it when FPL links one.
  */
+/**
+ * The corner mark on a shirt, and the note it opens.
+ *
+ * A `title` attribute never appears on a touchscreen, so on a phone every one of these
+ * marks was a coloured square with no way to find out what it meant. Tapping one now opens
+ * the sentence beside the shirt; on a pointer it still hovers, and the badge is a button
+ * either way so a keyboard reaches it too.
+ */
 function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: Language }) {
   const t = translations(language);
+  const [open, setOpen] = useState(false);
   const marks = useContext(RumourContext);
   const rumour = marks.rumours.get(player.id);
   const absence = marks.absences.get(player.id);
   const flag = flagOf(player);
+  const mark = (kind: string, face: ReactNode, label: string) => <>
+    <button
+      type="button"
+      className={`player-flag flag-${kind}`}
+      title={label}
+      aria-label={label}
+      aria-expanded={open}
+      onClick={(event) => { event.stopPropagation(); setOpen((value) => !value); }}
+    >{face}</button>
+    {open && <span className="player-flag-note" role="status">{label}</span>}
+  </>;
+
   if (flag.level !== "none") {
     // FPL's own word first, and FotMob's return date after it when there is one: FPL says
     // "Knee injury" and stops, where FotMob says when he is expected back.
     const label = [player.news || (flag.chance !== null ? `${flag.chance} %` : t.flagOut), absence?.expectedReturn]
       .filter(Boolean).join(" · ");
-    return <i className={`player-flag flag-${flag.level}`} title={label} aria-label={label}>
-      {flag.level === "out" ? "✕" : flag.chance}
-    </i>;
+    return mark(flag.level, flag.level === "out" ? "✕" : flag.chance, label);
   }
   // FotMob knows he is out and FPL has not said so yet. It happens both ways round and this
   // is the direction worth marking, since the shirt would otherwise be clean.
@@ -436,7 +458,7 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
     const label = t.absenceTitle
       .replace("{reason}", t.absenceReason[absence.reason] ?? absence.reason)
       .replace("{return}", absence.expectedReturn || "—");
-    return <i className={`player-flag flag-${absence.reason === "suspension" ? "out" : "major"}`} title={label} aria-label={label}>!</i>;
+    return mark(absence.reason === "suspension" ? "out" : "major", "!", label);
   }
   // Not FPL's, and marked apart from FPL's for that reason: a move is not an injury, and a
   // reported one is not the same claim as a published percentage. Only the strong ones —
@@ -446,7 +468,7 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
     // somebody's interpretation, and it is doing its work already by deciding whether this
     // mark appears at all.
     const label = t.rumourFlagTitle.replace("{to}", rumour.toClub).replace("{source}", rumour.source);
-    return <i className="player-flag flag-rumour" title={label} aria-label={label}>⇄</i>;
+    return mark("rumour", "⇄", label);
   }
   /**
    * His club's eleven has been predicted and he is not in it.
@@ -456,7 +478,10 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
    * and a club with no prediction yet leaves its players unmarked rather than marked wrong.
    */
   if (marks.lineups.benched.has(player.id)) {
-    return <i className="player-flag flag-xi" title={t.notInPredictedXI} aria-label={t.notInPredictedXI}>XI</i>;
+    // Not the letters `XI`, which read as *he is in the eleven* — the exact opposite of what
+    // this mark means. A warning triangle says "there is something to know here" and says
+    // nothing else, which is right for the softest of the four marks.
+    return mark("xi", <TriangleAlert />, t.notInPredictedXI);
   }
   return null;
 }
@@ -479,7 +504,7 @@ const RumourContext = createContext<ShirtMarks>({
   rumours: new Map(), absences: new Map(), lineups: { starting: new Set(), benched: new Set(), unavailable: new Map() },
 });
 
-type View = "table" | "prices" | "news";
+type View = "table" | "prices" | "news" | "stats" | "sources";
 
 /**
  * Three destinations, still no router: Pages serves this from a subpath and the hash
@@ -489,7 +514,71 @@ function viewFromHash(): View {
   const hash = location.hash.replace(/^#\/?/, "");
   if (hash === "hinnat") return "prices";
   if (hash === "uutiset") return "news";
+  if (hash === "tilastot") return "stats";
+  if (hash === "lahteet") return "sources";
   return "table";
+}
+
+/**
+ * OpenFPL's mark for this squad, over the squad it is about.
+ *
+ * An outside model scores the eleven for the gameweek that is still open — out of a
+ * hundred, with the points it projects for this side against the points it projects for
+ * its own, and its own sentences about what is strong and what is risky. It belongs here
+ * rather than on a page of its own: it is a fact about this manager, and every other fact
+ * about him — captain, chips, transfers, value — is already in this row.
+ *
+ * It is somebody else's opinion, and the line under it says so and links to the project.
+ */
+function SquadRatingStrip({ rating, squad, language }: { rating: SquadRating; squad: SquadPlayer[]; language: Language }) {
+  const t = translations(language);
+  const marks = useContext(RumourContext);
+  /**
+   * The players in this eleven that we know something about and OpenFPL does not.
+   *
+   * Its availability score reads FPL's own flag and nothing else, so a squad whose keeper
+   * is being negotiated over — fit, unflagged, and reported all week as leaving — scores a
+   * clean ten and the model writes "all 11 starters are currently marked available". That
+   * sentence sat one panel above our own page saying the opposite about the same player.
+   *
+   * So the sentence is dropped when we can see it is wrong, and the players it was wrong
+   * about are named instead. The rest of the mark is left exactly as it came: this is one
+   * claim we can check, not a licence to rewrite somebody else's model.
+   */
+  const doubts = squad
+    .filter((player) => player.starter)
+    .filter((player) => marks.absences.has(player.id) || marks.rumours.has(player.id) || marks.lineups.benched.has(player.id))
+    .map((player) => player.name);
+  const strengths = doubts.length
+    ? rating.strengths.filter((line) => !/available|saatavill/i.test(line))
+    : rating.strengths;
+  return <div className="squad-rating">
+    {/* Words before figures. "63 C · 38.0" is a scoreline out of a spreadsheet: the reader
+        has to be told what is being marked and what the number beside it is before either
+        means anything, and the label costs one line. */}
+    <span className={`rating-mark tone-${gradeTone(rating.rating)}`}>
+      <small>{t.ratingHeading}</small>
+      <b><strong>{rating.rating}</strong><em>/100</em><i>{rating.grade}</i></b>
+    </span>
+    <span className="rating-projection">
+      <small>{t.ratingProjection}</small>
+      <b>{rating.projected.toFixed(1)} {t.ratingPointsWord}</b>
+      <em>{t.ratingVersusAi.replace("{ai}", rating.aiProjected.toFixed(1))}</em>
+    </span>
+    <span className="rating-notes">
+      {strengths.map((line) => <em key={line} className="good">{line}</em>)}
+      {rating.risks.map((line) => <em key={line} className="risk">{line}</em>)}
+      {doubts.length > 0 && <em className="risk">
+        {t.ratingAvailabilityDoubt.replace("{players}", doubts.join(", "))}
+      </em>}
+      {/* The model writes its own sentences and it writes them in English. Translating
+          somebody else's reasoning would be putting words in his mouth, so they are left
+          as they were written and the page says which language it is quoting in. */}
+      {language === "fi" && (strengths.length > 0 || rating.risks.length > 0)
+        && <em className="rating-language">{t.ratingEnglishOnly}</em>}
+    </span>
+    <a className="rating-credit" href="#/lahteet">OpenFPL</a>
+  </div>;
 }
 
 function Shirt({ player }: { player: SquadPlayer }) {
@@ -684,6 +773,16 @@ export default function App() {
     () => new Map((data.playerNews ?? []).map((player) => [player.id, player.club])),
     [data.playerNews],
   );
+  const [ratings, setRatings] = useState<Map<number, SquadRating>>(new Map());
+  useEffect(() => {
+    let active = true;
+    loadScout()
+      .then((body) => { if (active && body) setRatings(body.ratings); })
+      // A rating that cannot be read is not worth breaking the table over.
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
   useEffect(() => {
     let active = true;
     Promise.all([loadFotmob(), loadLineups()])
@@ -946,6 +1045,7 @@ export default function App() {
         <a href="#/" className={view === "table" ? "active" : ""} aria-current={view === "table" ? "page" : undefined}>{t.navTable}</a>
         <a href="#/hinnat" className={view === "prices" ? "active" : ""} aria-current={view === "prices" ? "page" : undefined}>{t.navPrices}</a>
         <a href="#/uutiset" className={view === "news" ? "active" : ""} aria-current={view === "news" ? "page" : undefined}>{t.navNews}</a>
+        <a href="#/tilastot" className={view === "stats" ? "active" : ""} aria-current={view === "stats" ? "page" : undefined}>{t.navStats}</a>
       </nav>
       <div className="top-actions">
         {liveReady && <div className={`gameweek-status ${gameweekFixtures.length > 0 && !handedOver ? "has-fixture-menu" : ""}`}>
@@ -976,6 +1076,8 @@ export default function App() {
     </section> : !liveReady ? <div className="initial-loading" aria-label={language === "fi" ? "Ladataan FPL-dataa" : "Loading FPL data"} />
       : view === "prices" ? <PriceChanges data={data} language={language} autosubs={autosubs} />
       : view === "news" ? <TeamNews data={data} language={language} />
+      : view === "stats" ? <Stats data={data} language={language} autosubs={autosubs} />
+      : view === "sources" ? <Sources language={language} />
       : <>
       <div className="toolbar">
         <div className="toolbar-selects">
@@ -1163,6 +1265,7 @@ export default function App() {
                 <div className={`progress-cell ${metric("upcoming")}`} data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? t.fixtureFinal : t.fixtureProvisional}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints + manager.provisionalBonus - manager.hit)}</strong></div>
               </div>
+              {open && ratings.get(manager.id) && <SquadRatingStrip rating={ratings.get(manager.id)!} squad={manager.squad} language={language} />}
               {open && (data.rosterOnly
                 ? <div className="squad-panel squad-unavailable">{language === "fi" ? "Pelaajat tulevat näkyviin, kun peliviikon deadline on sulkeutunut." : "Players will appear after the gameweek deadline has passed."}</div>
                 : <Squad manager={manager} language={language} autosubs={autosubs} highlighted={highlighted} />)}
@@ -1174,6 +1277,8 @@ export default function App() {
     <footer>
       <span>Official FPL data</span>
       {liveReady && <span>{t.updated}: {updatedLabel}</span>}
+      <span className="footer-separator" aria-hidden="true">•</span>
+      <a className="footer-sources" href="#/lahteet">{t.navSources}</a>
       <span className="footer-separator" aria-hidden="true">•</span>
       <a className="footer-repository" href="https://github.com/jronimus/farmisarja-live" target="_blank" rel="noreferrer">
         <GitHubLogo />

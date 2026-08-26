@@ -1,6 +1,6 @@
 import type { DashboardData, FixtureStatCategory, FixtureStatEntry, FixtureStatKey, FixtureStatus, GameweekFixture, ManagerRow, PlayerState, SquadPlayer } from "../types";
 import { buildPriceMarket } from "./priceChanges";
-import type { PlayerNews } from "../types";
+import type { PlayerNews, PlayerStat } from "../types";
 import { nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
 
 const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");
@@ -20,9 +20,22 @@ interface Element {
   cost_change_start: number; transfers_in_event: number; transfers_out_event: number;
   price_change_percent: string; price_change_locked_until: string | null; price_change_calibrating: boolean;
   price_change_projections: Array<{ offset: number; projected_percent: string; likelihood: number }>;
+  // FPL's own season figures, carried through for the statistics page. Strings, all of them:
+  // the bootstrap sends every decimal as text.
+  total_points: number; event_points: number; form: string; points_per_game: string;
+  minutes: number; starts: number; goals_scored: number; assists: number; clean_sheets: number;
+  goals_conceded: number; own_goals: number; penalties_saved: number; penalties_missed: number;
+  yellow_cards: number; red_cards: number; saves: number; bonus: number; bps: number;
+  influence: string; creativity: string; threat: string; ict_index: string;
+  expected_goals: string; expected_assists: string; expected_goal_involvements: string;
+  expected_goals_conceded: string; defensive_contribution: number;
+  clearances_blocks_interceptions: number; recoveries: number; tackles: number;
+  dreamteam_count: number; value_season: string;
+  penalties_order: number | null; corners_and_indirect_freekicks_order: number | null;
+  direct_freekicks_order: number | null;
   // Availability, as FPL states it; see services/playerNews.ts for what the letters mean.
   status: string; chance_of_playing_next_round: number | null; news: string; news_added: string | null;
-  scout_news_link?: string; minutes: number; starts: number;
+  scout_news_link?: string;
 }
 interface Team { id: number; short_name: string; code: number; }
 interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; game_config?: { settings?: { price_change_deadlines?: string[] } }; }
@@ -300,6 +313,51 @@ async function managerRow(
   };
 }
 
+/** FPL's own season figures, in the shape the statistics page reads. */
+export function buildPlayerStats(elements: Element[]): PlayerStat[] {
+  const decimal = (value: string | number | null | undefined) => Number(value) || 0;
+  return elements.map((element) => ({
+    id: element.id,
+    totalPoints: element.total_points,
+    eventPoints: element.event_points,
+    form: decimal(element.form),
+    pointsPerGame: decimal(element.points_per_game),
+    minutes: element.minutes,
+    starts: element.starts,
+    goals: element.goals_scored,
+    assists: element.assists,
+    cleanSheets: element.clean_sheets,
+    goalsConceded: element.goals_conceded,
+    ownGoals: element.own_goals,
+    penaltiesSaved: element.penalties_saved,
+    penaltiesMissed: element.penalties_missed,
+    yellowCards: element.yellow_cards,
+    redCards: element.red_cards,
+    saves: element.saves,
+    bonus: element.bonus,
+    bps: element.bps,
+    influence: decimal(element.influence),
+    creativity: decimal(element.creativity),
+    threat: decimal(element.threat),
+    ictIndex: decimal(element.ict_index),
+    expectedGoals: decimal(element.expected_goals),
+    expectedAssists: decimal(element.expected_assists),
+    expectedGoalInvolvements: decimal(element.expected_goal_involvements),
+    expectedGoalsConceded: decimal(element.expected_goals_conceded),
+    defensiveContribution: element.defensive_contribution,
+    clearancesBlocksInterceptions: element.clearances_blocks_interceptions,
+    recoveries: element.recoveries,
+    tackles: element.tackles,
+    dreamteamCount: element.dreamteam_count,
+    valueSeason: decimal(element.value_season),
+    transfersInEvent: element.transfers_in_event,
+    transfersOutEvent: element.transfers_out_event,
+    penaltiesOrder: element.penalties_order,
+    cornersOrder: element.corners_and_indirect_freekicks_order,
+    freekicksOrder: element.direct_freekicks_order,
+  }));
+}
+
 /** How many league games each club has actually finished, which a start count is read against. */
 export function teamGamesPlayed(fixtures: Fixture[]): Map<number, number> {
   const played = new Map<number, number>();
@@ -451,6 +509,7 @@ export async function loadLiveDashboard(): Promise<DashboardData | null> {
     gameweekAverages,
     prices,
     playerNews: buildPlayerNews(bootstrap.elements, teamsById, teamGamesPlayed(fixtures), managerRows),
+    playerStats: buildPlayerStats(bootstrap.elements),
   };
 }
 

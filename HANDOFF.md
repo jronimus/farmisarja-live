@@ -1,21 +1,164 @@
 # Farmisarja Live — handoff
 
-Updated: 2026-08-25
+Updated: 2026-08-26
 
 Source of truth for continuing the project in a new conversation. Read it completely
 before making changes.
+
+## Next up — start here in a new conversation
+
+Seven jobs, agreed on 26 Aug 2026 at the end of a long session. They are in the order they
+are worth doing. Nothing below has been started; the working tree is clean of them.
+
+**Before touching any of it:** the Worker is deployed and current, the front end is *not* —
+`main` has been pushed up to `3f631b9`, and everything after that (the statistics page, the
+sources page, the two integrations, the accessibility pass) is committed locally but has
+never been shipped. Run the validation in *Start here* before the first commit.
+
+### 1. Delete the squad rating strip entirely
+
+The panel under an open manager's row goes. Not trimmed — removed.
+
+The reasoning, which is worth keeping because it applies to the next model somebody
+suggests: **a mark out of a hundred and a projected-points figure are one model's opinion
+dressed as a measurement**, and neither survives the question "what would I do differently
+knowing this". The two sentences the model writes about them — *the lineup trails the AI
+benchmark by 26.4 projected points* and *the captain projects below the AI benchmark
+captain* — restate the mark in words. The one line that was a fact rather than an opinion
+(the count of differentials under 10 % ownership) is already visible in the ownership
+percentages on the same screen, and our own *Emme allekirjoita saatavuusarviota* line only
+existed to correct a claim that is going away with the rest.
+
+- Remove `SquadRatingStrip` and its call site in `src/App.tsx`, the `ratings` state and the
+  `loadScout` effect, and the `.squad-rating` / `.rating-*` block in `src/styles.css`.
+- Remove the `rating*` strings from `src/i18n.ts`.
+- **Then decide about the Worker side.** `worker/scout.ts`, the `/scout` route and its cron
+  entry, `worker/scout.test.ts` and `src/services/scout.ts` would have no consumer left.
+  Recommendation: delete them too. Dead code that still fetches somebody else's service on
+  a schedule is worse than dead code. If they go, drop OpenFPL from `src/Sources.tsx` as
+  well, and from the OpenFPL section of this file.
+
+### 2. A faster and more direct source for transfer news
+
+The complaint that prompted this: our page was still showing a `Goal` rumour about Watkins
+to Al Hilal at a point when Fabrizio Romano had already posted *here we go* — the move was
+effectively done and we were reporting a days-old rumour.
+
+FotMob's `allRumours` is a digest, not a wire. **Research before building** — the pattern
+this project follows is to probe candidate sources with `curl` and report what actually
+answers, never to assume. Worth testing:
+
+- Whether FotMob has a news or transfer *feed* endpoint distinct from the per-club
+  `allRumours` digest, and how quickly a confirmed move appears in `transfers.data`
+  ("Players in" / "Players out") rather than in the rumour list. A completed transfer is
+  already a different field and may well be fast.
+- FPL's own signal, which is authoritative and free: `status` flips to `u` and `news` reads
+  *"Has joined X permanently"*. Slower than Twitter but it is the only source that decides
+  whether the player still scores points. Consider showing "done deals" from FPL alongside
+  rumours from FotMob, clearly separated.
+- Reddit's `r/soccer` and `r/FantasyPL` RSS, filtered to *Here we go* / transfer flair.
+  Note the earlier finding: `reddit.com/r/…/.rss` answered **429** from a datacentre IP, so
+  it needs an OAuth app or it will not work from the Worker.
+- Whether Romano publishes an RSS feed of his own site.
+- X/Twitter's API is priced out of this project; do not plan around it.
+
+Whatever is chosen, keep the existing rules: every line names its source and links to it,
+and nothing is printed as fact that is somebody's report.
+
+### 3. Translate the outside sources' phrases into Finnish
+
+Two sets of English strings leak into a Finnish page, and both look like closed sets rather
+than free text, so both can be mapped. **Collect the real values first** — read a week of
+data and list the distinct strings, do not invent the list.
+
+- **FotMob return dates:** `Early September 2026`, `Mid September 2026`, `A few days`,
+  `About a week`, `Back in training`, `Doubtful`, `Unknown`, `Expected back 14 Sep`. Month
+  names and the shape *Early/Mid/Late + month + year* are mechanical; a small parser plus a
+  month table handles all of them, and anything unmatched falls through as written.
+- **FPL's own flag texts:** `Knee injury - Unknown return date`, `Knock - 75% chance of
+  playing`, `Calf injury - Expected back 5 Sep`, `Suspended until 19 Sep`, `Has joined Paris
+  Saint-Germain permanently`, `Has joined Rangers on loan for the rest of the season`. These
+  are *reason - status* pairs; translate both halves from tables and leave a club name
+  alone.
+- Keep the original visible somewhere — a `title`, or the English text after the Finnish —
+  because a translated medical phrase that is wrong is worse than an English one that is
+  right.
+
+### 4. Articles: a date and a time, not "1 h sitten"
+
+`Since` on the articles list should print the publication date and clock time. Relative time
+is fine for a live feed where "3 min ago" is the point; for an article it hides what a
+reader wants, which is whether this was written before or after the team news he already
+read. Keep the relative form on the availability rows if it still reads well there — decide
+per list rather than globally.
+
+### 5. Statistics: FPL's own figures per gameweek
+
+Today the FPL columns are season totals and only the match statistics follow the gameweek
+picker, which is stated in the picker but is still a seam down the middle of the table.
+
+The way to close it: **snapshot FPL's season totals once per gameweek and difference
+successive snapshots**, exactly as `worker/priceHistory.ts` already does for prices. A
+gameweek's figures are then the snapshot after it minus the snapshot before it.
+
+Be realistic about the cost, and measure before building:
+
+- 612 players × the ~35 numeric fields worth keeping is roughly **150–200 kB of JSON per
+  gameweek**, and 38 gameweeks is 6–8 MB. **A single KV value is capped at 25 MB**, so one
+  value for the season is close enough to the ceiling to be a bad idea by May.
+- Store **one KV key per gameweek** (`fplstats:gw:12`), written once when the gameweek is
+  confirmed and never again — a finished gameweek's totals do not change. That is 38 writes
+  a season against a daily limit of a thousand, and reads are only of the weeks asked for.
+- The endpoint then sums the requested weeks the way `/insights` already does. Note the
+  reads add up: asking for the whole season is 38 KV reads, so cache the season aggregate
+  in its own key rather than recomputing it per request.
+- Snapshots can only start now. GW1 cannot be recovered this way, but its per-gameweek
+  figures are the season totals as they stood after GW1 — take the first snapshot
+  immediately and label anything earlier as unavailable rather than guessing.
+
+### 6. The player count above the statistics table is still dark
+
+`.news-count` reads as near-black on the dark page ground, and it survived an audit that
+reported zero findings — which makes the audit's blind spot the real finding.
+
+**What is actually wrong:** the filter row sits on the page's own dark green ground, but its
+nearest ancestor with a solid background is the pale table, so the audit measured the text
+against the wrong surface and passed it. The colour is `color-mix(in srgb, var(--text) 82%,
+transparent)`, and `--text` in the active skin is `#17192b` — an ink for pale panels.
+
+**The token is the bug.** That skin defines `--page-ink` as `rgba(20,32,25,.78)`, a dark ink,
+while its page ground is dark green: `--page-ink` exists precisely for text on the page
+ground and is wrong in that skin. Fixing the token fixes `.news-count`, `.price-foot` and
+`.price-disclaimer` together. Fix it there rather than patching the three call sites, and
+teach the audit to use the page ground when an element is not inside a solid-background
+panel of its own.
+
+### 7. The squad rating letter, if item 1 is ever reversed
+
+Only if the strip comes back: the grade letter goes first and large, with the number and
+`/100` set smaller beside it. Recorded because the instruction was given before the decision
+to remove the panel, and it is the shape to use if the idea returns.
 
 ## Start here
 
 1. Run `git status --short` first. Do not reset, clean or discard the working tree.
 2. `npm install`, then `npm run dev` for the dashboard.
 3. Validation before any commit: `npm test`, `npm run build`, `npm run worker:check`,
-   and `node scripts/check-overflow.mjs` with the dev server running. That one checks both
-   pages at fourteen widths each, and opens the highlight picker at each of them.
+   and `node scripts/check-overflow.mjs` with the dev server running. That one checks all
+   five pages at fourteen widths each, opens the highlight picker at each of them, and
+   fails on any viewport unit in a width — `100vw` is fifteen pixels too wide wherever a
+   classic scrollbar exists.
 4. Source code, identifiers and comments in English. Visible page content in Finnish
    (the dashboard is bilingual FI/EN; the share cards are Finnish only).
 5. Deploy only when asked. Pages deploys on push to `main`; the Worker needs a separate
    `npx wrangler deploy`.
+6. A phone on the same wifi reads the dev server at the machine's LAN address — the server
+   already listens on `0.0.0.0`, and the Worker's CORS check allows private ranges for
+   exactly this. Without that it answers every fetch with a CORS failure and the page draws
+   its header, its footer and nothing in between.
+7. "Shippaa" is one word for the whole release: tests and build, a commit in the repository's
+   own voice, push to `main`, `npx wrangler deploy`, wait for the Pages action and check the
+   live page.
 
 ## What is here
 
@@ -61,6 +204,10 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `worker/rumours.ts` | FotMob's graded transfer rumours and its club-wide absence lists |
 | `worker/lineups.ts` | Predicted elevens for the fixtures close enough to have one |
 | `src/services/rumours.ts` | Reads that list and picks the strongest report per player |
+| `worker/insights.ts` | FPL Core Insights' CSVs, read into per-player season totals |
+| `worker/scout.ts` | OpenFPL's mark for each squad in this league |
+| `src/Stats.tsx` | The statistics page at `#/tilastot` |
+| `src/Sources.tsx` | Where every figure comes from, at `#/lahteet` |
 | `worker/fixtures/ffs-feed.xml` | A real Fantasy Football Scout feed, saved 26 Aug, for the parser tests |
 | `src/services/articles.ts` | Reads that list and orders the topic pills |
 | `src/PriceHistory.tsx` | The history tab: what prices have already done |
@@ -1052,6 +1199,97 @@ Workers has no `DOMParser` — and it is tested against a real feed saved into
 `worker/fixtures/`, entities, CDATA, tabs and all. The cron refreshes behind a twenty-minute
 gate, so 19 ticks out of 20 cost one KV read; a tick where both feeds fail leaves what is
 stored alone rather than wiping the page.
+
+## What a player deserved, and what a squad is worth
+
+Two outside projects, both read the same way as everything else here: fetched by the
+Worker, cached in KV, attributed on the page, and gone quietly if they ever stop answering.
+
+### FPL Core Insights — the underlying numbers
+
+`olbauday/FPL-Core-Insights` is a dataset rather than a service: CSV files in a git
+repository, rebuilt three times a day by a scheduled action from official FPL data fused
+with per-match Opta-like statistics. Sixty-four columns per player per match — expected
+goals and assists, expected goals on target, big chances missed, touches in the box,
+defensive contributions, saves, goals prevented.
+
+**Its `player_id` is FPL's own element id.** That is the reason it is worth having:
+everything else this site reads from outside has to be matched onto FPL by name and club
+and a tie-break, and every such match is a chance to be wrong. This one joins on a number.
+Checked before building anything — 115 is De Cuyper, 379 is Isak, 40 is Rogers, and the
+fixtures agree.
+
+The README says in as many words that the data may be used for anything, and asks for a
+link back in return; every view built on it carries one.
+
+A finished gameweek's statistics do not change, so `worker/insights.ts` stores them per
+gameweek and re-reads only the current one and the one before it — by May that is the
+difference between one file a tick and thirty-eight. The CSV reader is thirty lines and
+honours quoted commas, because a dependency for that would be more code than the reader is.
+`minutes_played` is the source of truth for minutes: the dataset's own README warns that
+deriving them from the substitution timeline credits a full match to players who were named
+and never came on.
+
+`#/tilastot` is the page it feeds. Sixty-four columns is far more than one table can hold,
+so **the middle of the table changes with the question**: attackers are judged on the
+chances they get and take, defenders on what they do without the ball, keepers on what they
+stop. The same slots in the same grid every time, so the table does not jump about; only
+what fills them does. The gameweek picker turns the same table from a season summary into a
+match report.
+
+One column had to be assembled rather than read. The dataset ships
+`defensive_contributions` and it is **empty** — but clearances, blocks, interceptions,
+tackles and recoveries are all populated, and those are what FPL adds up anyway, so the
+count is built from the parts. Recoveries are stored apart from the other four because FPL
+only counts them for a midfielder or a forward.
+
+The page it feeds It answers the question none of the other three can — **is
+he actually playing well** — by setting what a player returned beside what his chances were
+worth. The gap between them is the column the page exists for, and it is not a verdict: a
+finisher can beat his expected goals for a season and a good player can trail his for a
+month. It is the difference between a run of form and a run of luck, which FPL's own numbers
+cannot tell apart. The same figure, per ninety, is now a column on the price page: that page
+says a player is being bought, and this is the only thing on it about the football rather
+than about the market.
+
+### OpenFPL — a mark for each squad
+
+`elcaiseri/OpenFPL-Scout-AI` runs a four-model ensemble over the official data and its
+`/api/scout/team-rating` route is open: an entry id and a gameweek return a mark out of a
+hundred, the points it projects for that eleven against the points it projects for its own,
+and its own sentences about what is strong and what is risky. About a third of a second a
+squad.
+
+**It rates the gameweek that is still open**, not the current one: a mark for a team sheet
+nobody can change any more is a post-mortem, and the question is "how well is my side set
+up". OpenFPL will rate a future gameweek from the squad as it stands, which is exactly what
+a manager wants before he makes his transfer.
+
+It sits **in the manager's own row** rather than on a page of its own. It is a fact about
+that manager, and every other fact about him — captain, chips, transfers, value — is already
+there. It is set as a quotation, with the model's own wording and a link to whose opinion it
+is; nothing in it is ours.
+
+**Its availability score reads FPL's flag and nothing else**, and that produced the one
+contradiction on the site worth fixing: a squad starting a keeper who is fit, unflagged and
+reported all week as leaving scored a clean ten, and the model wrote "all 11 starters are
+currently marked available" one panel above our own page saying the opposite about the same
+player. So that sentence is dropped whenever our own data disagrees, and the starters it was
+wrong about are named instead. Nothing else about the mark is touched: this is one claim we
+can check, not a licence to rewrite somebody else's model.
+
+Adding a fourth destination pushed the page 16px sideways at 320px, which the overflow guard
+caught. The nav closes its gaps and steps its type down below 380px rather than wrapping:
+four short words on one line still read as one navigation, where two over two read as two.
+
+### Where the credit lives
+
+`#/lahteet`, reached from the footer rather than the navigation. It began as links under
+the figures, which was the wrong currency twice over: a reader has nothing to do in
+somebody's source tree, and a bare link is not much of an acknowledgement either. The page
+gives each project a name, a sentence about what it does, where on this site it is used, and
+what is worth knowing before trusting it. Four of the five sources are somebody else's work,
+which is worth being plain about — this site derives very little and reports a great deal.
 
 ## Availability, and the flag FPL does not raise
 

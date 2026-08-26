@@ -1,0 +1,284 @@
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, Clock3, Info, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { translations } from "./i18n";
+import { insightsEndpoint, loadInsights, type PlayerInsight } from "./services/insights";
+import { COLUMNS_BY_KEY, DEFAULT_COLUMNS, STAT_COLUMNS, help, label, type StatColumn, type StatRow } from "./services/statColumns";
+import { ownersByPlayer } from "./services/ownership";
+import type { DashboardData, Language, PlayerStat } from "./types";
+
+/**
+ * What the players have actually done, as against what they were paid for doing it.
+ *
+ * The other pages answer who is winning, where prices are going and who is fit. This one
+ * answers the question none of them can — **is he actually playing well** — and it does it
+ * by handing the reader the controls rather than choosing for him.
+ *
+ * The first version split the table into attack, defence and goalkeeping. That read as three
+ * positions when it was three sets of columns, and it was the wrong axis anyway: a
+ * midfielder is judged on both halves of the pitch, and a reader wants his own set. So there
+ * is one table, fifty-odd columns to choose from, and the choice is kept. A column costs a
+ * checkbox now rather than a crowded table, which is why there can be so many of them.
+ */
+
+const COLUMNS_KEY = "farmisarja-stat-columns";
+const FAVOURITES_KEY = "farmisarja-favourites";
+const PAGE_STEP = 30;
+
+function stored<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : fallback;
+  } catch {
+    // A corrupt or unavailable store is not worth a broken page.
+    return fallback;
+  }
+}
+
+/** A popover with its own backdrop, used by both pickers. */
+function Panel({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return <>
+    <button className="picker-backdrop" onClick={onClose} tabIndex={-1} aria-hidden="true" />
+    <div className="picker-panel" role="dialog" aria-label={title}>
+      <div className="picker-head">
+        <b>{title}</b>
+        <button onClick={onClose} aria-label={title}><X /></button>
+      </div>
+      {children}
+    </div>
+  </>;
+}
+
+export default function Stats({ data, language, autosubs }: { data: DashboardData; language: Language; autosubs: boolean }) {
+  const t = translations(language);
+  const [insights, setInsights] = useState<Map<number, PlayerInsight> | null>(null);
+  const [gameweeks, setGameweeks] = useState<number[]>([]);
+  const [failed, setFailed] = useState(false);
+
+  const [picked, setPicked] = useState<number[]>([]);
+  const [columns, setColumns] = useState<string[]>(() => stored(COLUMNS_KEY, DEFAULT_COLUMNS));
+  const [favourites, setFavourites] = useState<number[]>(() => stored(FAVOURITES_KEY, [] as number[]));
+  const [onlyFavourites, setOnlyFavourites] = useState(false);
+  const [search, setSearch] = useState("");
+  const [position, setPosition] = useState("");
+  const [manager, setManager] = useState("");
+  const [sort, setSort] = useState("totalPoints");
+  const [descending, setDescending] = useState(true);
+  const [shown, setShown] = useState(PAGE_STEP);
+  const [openPicker, setOpenPicker] = useState<"columns" | "gameweeks" | null>(null);
+  const [explained, setExplained] = useState<StatColumn | null>(null);
+
+  useEffect(() => { localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns)); }, [columns]);
+  useEffect(() => { localStorage.setItem(FAVOURITES_KEY, JSON.stringify(favourites)); }, [favourites]);
+
+  useEffect(() => {
+    let active = true;
+    loadInsights(picked)
+      .then((body) => { if (active && body) { setInsights(body.players); setGameweeks(body.gameweeks); } })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, [picked]);
+
+  const owners = useMemo(() => ownersByPlayer(data.managers, autosubs), [data.managers, autosubs]);
+  const fplStats = useMemo(
+    () => new Map((data.playerStats ?? []).map((stat: PlayerStat) => [stat.id, stat])),
+    [data.playerStats],
+  );
+  const visibleColumns = useMemo(
+    () => columns.map((key) => COLUMNS_BY_KEY.get(key)).filter((column): column is StatColumn => Boolean(column)),
+    [columns],
+  );
+
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const favourite = new Set(favourites);
+    const joined: StatRow[] = (data.prices?.players ?? []).map((player) => ({
+      player,
+      fpl: fplStats.get(player.id),
+      match: insights?.get(player.id),
+    }));
+
+    const filtered = joined.filter(({ player }) => {
+      if (term && !player.name.toLowerCase().includes(term)) return false;
+      if (position && player.position !== position) return false;
+      /**
+       * The team filter and the starred filter add up rather than narrow each other.
+       *
+       * "My squad plus the players I am watching" is a list a manager actually wants;
+       * intersecting the two would leave him only the players he already owns *and* has
+       * starred, which is a list nobody has any use for.
+       */
+      const byTeam = manager ? (owners.get(player.id) ?? []).some((owner) => String(owner.managerId) === manager) : false;
+      const byStar = favourite.has(player.id);
+      if (manager && onlyFavourites) return byTeam || byStar;
+      if (manager) return byTeam;
+      if (onlyFavourites) return byStar;
+      return true;
+    });
+
+    const column = COLUMNS_BY_KEY.get(sort);
+    return [...filtered].sort((a, b) => {
+      if (sort === "name") return a.player.name.localeCompare(b.player.name) * (descending ? -1 : 1);
+      // A missing figure sorts last whichever way the column points: an empty cell is not a
+      // small number, and floating those to the top would bury the answer.
+      const left = column?.value(a) ?? null;
+      const right = column?.value(b) ?? null;
+      if (left === null && right === null) return 0;
+      if (left === null) return 1;
+      if (right === null) return -1;
+      return (left - right) * (descending ? -1 : 1);
+    });
+  }, [data.prices, fplStats, insights, owners, search, position, manager, onlyFavourites, favourites, sort, descending]);
+
+  useEffect(() => { setShown(PAGE_STEP); }, [search, position, manager, onlyFavourites, picked, sort, descending]);
+
+  if (!insightsEndpoint || failed) return <section className="data-pending" role="status">
+    <Clock3 /><strong>{t.statsUnavailable}</strong>
+  </section>;
+  if (!insights) return <section className="data-pending" role="status">
+    <Clock3 /><strong>{t.statsLoading}</strong>
+  </section>;
+
+  const toggle = <T,>(list: T[], value: T) => list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
+
+  const figure = (column: StatColumn, row: StatRow) => {
+    const value = column.value(row);
+    if (value === null || !Number.isFinite(value)) return { text: "—", tone: "" };
+    const text = Math.abs(value).toFixed(column.decimals ?? 0).replace(".", language === "fi" ? "," : ".");
+    if (!column.signed) return { text: (value < 0 ? "−" : "") + text, tone: "" };
+    const rounded = Number(value.toFixed(column.decimals ?? 0));
+    return {
+      text: `${rounded > 0 ? "+" : rounded < 0 ? "−" : ""}${text}`,
+      tone: rounded > 0 ? "up" : rounded < 0 ? "down" : "",
+    };
+  };
+
+  const sortBy = (key: string, downFirst = true) => {
+    if (sort === key) setDescending((value) => !value);
+    else { setSort(key); setDescending(downFirst); }
+  };
+
+  const visible = rows.slice(0, shown);
+  const windowLabel = picked.length === 0 ? t.statsSeason
+    : picked.length === 1 ? t.statsGameweek.replace("{n}", String(picked[0]))
+    : t.statsGameweeksPicked.replace("{n}", String(picked.length));
+
+  return <section className="price-page stats-page">
+    <div className="price-filters">
+      <label className="price-search">
+        <Search />
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t.searchPlayer} aria-label={t.searchPlayer} />
+      </label>
+      <button className="picker-trigger" onClick={() => setOpenPicker("gameweeks")}>{windowLabel}</button>
+      <button className="picker-trigger" onClick={() => setOpenPicker("columns")}>
+        <SlidersHorizontal /> {t.statsColumnsButton.replace("{n}", String(visibleColumns.length))}
+      </button>
+      <select className="period-select" value={manager} onChange={(event) => setManager(event.target.value)} aria-label={t.allTeams}>
+        <option value="">{t.allTeams}</option>
+        {data.managers.map((entry) => <option key={entry.id} value={entry.id}>{entry.teamName}</option>)}
+      </select>
+      <select className="period-select" value={position} onChange={(event) => setPosition(event.target.value)} aria-label={t.allPositions}>
+        <option value="">{t.allPositions}</option>
+        {["GK", "DEF", "MID", "FWD"].map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+      </select>
+      <button
+        className={`favourite-filter ${onlyFavourites ? "active" : ""}`}
+        onClick={() => setOnlyFavourites((value) => !value)}
+        aria-pressed={onlyFavourites}
+      ><Star /> {t.statsFavourites} ({favourites.length})</button>
+      <span className="news-count">{rows.length} {t.playersShown}</span>
+    </div>
+
+    {/* One explanation panel rather than a tooltip on every head: `title` never opens on a
+        touchscreen, and a reader on a phone needs a column's meaning more than anybody. */}
+    {explained && <div className="stats-explainer" role="status">
+      <Info />
+      <span><b>{label(explained, language)}</b> — {help(explained, language)}</span>
+      <button onClick={() => setExplained(null)} aria-label={t.close}><X /></button>
+    </div>}
+
+    {/* The table scrolls inside itself rather than taking the page sideways with it: the
+        column list is the reader's, so it can be longer than the screen. */}
+    <div className="stats-scroll">
+      <div className="stats-grid" style={{ gridTemplateColumns: `34px minmax(148px,1.4fr) repeat(${visibleColumns.length}, minmax(88px, auto))` }}>
+        <div className="stats-headrow">
+          <span className="head-star" aria-hidden="true" />
+          <span className="head-player">
+            <button className={`price-sort ${sort === "name" ? "active" : ""}`} onClick={() => sortBy("name", false)}>
+              {t.player}{sort === "name" && (descending ? <ArrowDown /> : <ArrowUp />)}
+            </button>
+          </span>
+          {visibleColumns.map((column) => <span key={column.key} className={`head-stat source-${column.source}`}>
+            <button
+              className={`price-sort ${sort === column.key ? "active" : ""}`}
+              onClick={() => sortBy(column.key)}
+              title={help(column, language)}
+            >{label(column, language)}{sort === column.key && (descending ? <ArrowDown /> : <ArrowUp />)}</button>
+            <button className="head-help" onClick={() => setExplained(column)} aria-label={`${label(column, language)}: ${help(column, language)}`}><Info /></button>
+          </span>)}
+        </div>
+
+        {visible.map((row) => {
+          const held = (owners.get(row.player.id) ?? []).map((owner) => owner.teamName);
+          const starred = favourites.includes(row.player.id);
+          return <div className={`stats-line ${held.length ? "is-held" : ""}`} key={row.player.id}>
+            <span className="stats-star">
+              <button
+                className={starred ? "active" : ""}
+                onClick={() => setFavourites((list) => toggle(list, row.player.id))}
+                aria-pressed={starred}
+                aria-label={`${t.statsFavourite}: ${row.player.name}`}
+                title={t.statsFavourite}
+              ><Star /></button>
+            </span>
+            <span className="price-player">
+              <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${row.player.position === "GK" ? "optimized-gk" : "optimized"}/${row.player.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
+              <b>{row.player.name}</b>
+              <small>{row.player.club} · {row.player.position}{held.length ? ` · ${held.join(", ")}` : ""}</small>
+            </span>
+            {visibleColumns.map((column) => {
+              const cell = figure(column, row);
+              return <span key={column.key} className="stats-cell"><b className={cell.tone}>{cell.text}</b></span>;
+            })}
+          </div>;
+        })}
+        {!visible.length && <div className="stats-line stats-empty">{t.noPlayersMatch}</div>}
+      </div>
+    </div>
+
+    {shown < rows.length && <div className="price-foot">
+      <button className="history-more" onClick={() => setShown((value) => value + PAGE_STEP)}>{t.showMore}</button>
+    </div>}
+
+    {openPicker === "gameweeks" && <Panel title={t.statsPeriod} onClose={() => setOpenPicker(null)}>
+      <p className="picker-note">{t.statsGameweekNote}</p>
+      <div className="picker-options">
+        <button className={picked.length === 0 ? "active" : ""} onClick={() => setPicked([])}>{t.statsSeason}</button>
+        {[...gameweeks].reverse().map((week) => <button
+          key={week}
+          className={picked.includes(week) ? "active" : ""}
+          aria-pressed={picked.includes(week)}
+          onClick={() => setPicked((list) => toggle(list, week))}
+        >{t.statsGameweek.replace("{n}", String(week))}</button>)}
+      </div>
+    </Panel>}
+
+    {openPicker === "columns" && <Panel title={t.statsColumnsTitle} onClose={() => setOpenPicker(null)}>
+      <p className="picker-note">{t.statsColumnsNote}</p>
+      {(["market", "fpl", "match"] as const).map((source) => <div className="picker-group" key={source}>
+        <b>{t.statsSources[source]}</b>
+        <div className="picker-options">
+          {STAT_COLUMNS.filter((column) => column.source === source).map((column) => <button
+            key={column.key}
+            className={columns.includes(column.key) ? "active" : ""}
+            aria-pressed={columns.includes(column.key)}
+            onClick={() => setColumns((list) => toggle(list, column.key))}
+            title={help(column, language)}
+          >{label(column, language)}</button>)}
+        </div>
+      </div>)}
+      <button className="picker-reset" onClick={() => setColumns(DEFAULT_COLUMNS)}>{t.statsColumnsReset}</button>
+    </Panel>}
+
+    <p className="price-disclaimer">{t.statsNote} <a href="#/lahteet">{t.navSources}</a></p>
+  </section>;
+}

@@ -171,6 +171,56 @@ export interface PlayerNews {
   owners: Array<{ managerId: number; teamName: string; starter: boolean; captain: boolean }>;
 }
 
+/**
+ * FPL's own season figures for one player.
+ *
+ * The bootstrap carries a hundred and nine fields per element and the statistics page lets
+ * a reader choose which of them to look at, so the useful ones are carried through rather
+ * than picked over here. Everything in this shape is FPL's own and is a season total; the
+ * per-match figures live in `services/insights.ts` and come from somewhere else.
+ */
+export interface PlayerStat {
+  id: number;
+  totalPoints: number;
+  eventPoints: number;
+  form: number;
+  pointsPerGame: number;
+  minutes: number;
+  starts: number;
+  goals: number;
+  assists: number;
+  cleanSheets: number;
+  goalsConceded: number;
+  ownGoals: number;
+  penaltiesSaved: number;
+  penaltiesMissed: number;
+  yellowCards: number;
+  redCards: number;
+  saves: number;
+  bonus: number;
+  bps: number;
+  influence: number;
+  creativity: number;
+  threat: number;
+  ictIndex: number;
+  expectedGoals: number;
+  expectedAssists: number;
+  expectedGoalInvolvements: number;
+  expectedGoalsConceded: number;
+  defensiveContribution: number;
+  clearancesBlocksInterceptions: number;
+  recoveries: number;
+  tackles: number;
+  dreamteamCount: number;
+  valueSeason: number;
+  transfersInEvent: number;
+  transfersOutEvent: number;
+  /** 1 is the first-choice taker; absent when he is not on the list at all. */
+  penaltiesOrder: number | null;
+  cornersOrder: number | null;
+  freekicksOrder: number | null;
+}
+
 export interface PriceMarket {
   /** FPL publishes the exact change times; the countdown is not guesswork. */
   deadlines: string[];
@@ -200,6 +250,8 @@ export interface DashboardData {
   prices?: PriceMarket;
   /** Every player FPL has flagged or written a note about, league exposure included. */
   playerNews?: PlayerNews[];
+  /** FPL's own season figures, for the statistics page's column picker. */
+  playerStats?: PlayerStat[];
   /** Only demo data carries its own feed; live data reads it from the Worker. */
   feed?: FeedEvent[];
 }
