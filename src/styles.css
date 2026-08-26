@@ -2688,7 +2688,10 @@ footer a { color:#c4c6d8; }
 .player-flag.flag-doubt { background:#ffd21e; color:#231b00; }
 /* Ours, and neither of FPL's colours on purpose: dark with a light rim, legible on a white
    card and on a green pitch without borrowing the meaning of a red or a yellow. */
-.player-flag.flag-bench { background:#0d1a13; border:1.5px solid rgba(255,255,255,.72); color:#fff; }
+/* A reported move, which is neither an injury nor FPL's word, so it is neither of FPL's
+   colours: the site's own purple, with the two-way arrow that means a transfer everywhere
+   else in football. It only ever appears for a report FotMob grades strong or imminent. */
+.player-flag.flag-rumour { background:#7b3fe4; color:#fff; font-size:12px; }
 
 .news-page { display:flex; flex-direction:column; gap:10px; }
 .news-filters { display:flex; gap:3px; align-self:flex-start; padding:4px; border-radius:10px; background:var(--surface); }
@@ -2730,6 +2733,15 @@ footer a { color:#c4c6d8; }
 .news-flag.flag-major { background:#ff7a18; color:#2a1200; }
 .news-flag.flag-doubt { background:#ffd21e; color:#231b00; }
 .news-flag.flag-bench { background:transparent; border:1.5px solid var(--faint); color:var(--faint); }
+/* The grading is a word, not a number, so this badge is a word: FotMob says Imminent, High
+   or Low and the page says exactly that rather than inventing a percentage for it. */
+.news-flag[class*="strength-"] { min-width:0; padding:5px 8px; border-radius:6px; font-size:9px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+.news-flag.strength-imminent { background:#7b3fe4; color:#fff; }
+.news-flag.strength-high { background:color-mix(in srgb,#7b3fe4 26%,transparent); color:var(--purple); }
+.news-flag.strength-low { background:var(--raised); color:var(--soft); }
+/* The grading column has to fit a word here, where the flag list only ever holds two
+   characters. */
+.news-row[class*="rumour-"] { grid-template-columns:minmax(150px,1.1fr) 92px minmax(190px,1.6fr) minmax(190px,1.2fr); }
 
 .news-word { display:grid; row-gap:3px; min-width:0; }
 .news-word em { font-size:12px; font-style:normal; font-weight:700; line-height:1.35; }
@@ -2767,6 +2779,7 @@ footer a { color:#c4c6d8; }
   }
   .news-word,
   .news-owners { grid-column:1 / -1; }
+  .news-row[class*="rumour-"] { grid-template-columns:minmax(0,1fr) auto; }
   .news-player b { font-size:12px; }
   .news-word em { font-size:11px; }
 }

@@ -3,6 +3,7 @@ import { advanceSample, computeCurve, type LiveRankEnv } from "./liveRank";
 import { readFeed, updateFeed, type EventsEnv } from "./events";
 import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } from "./priceHistory";
 import { readArticles, updateArticles, type ArticlesEnv } from "./articles";
+import { readRumours, updateRumours, type RumoursEnv } from "./rumours";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
 
@@ -110,6 +111,12 @@ export default {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
       });
     }
+    if (url.pathname === "/rumours") {
+      const stored = await readRumours(env as RumoursEnv);
+      return new Response(JSON.stringify({ rumours: stored?.rumours ?? [] }), {
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
+      });
+    }
     const route = upstreamPath(url.pathname, env);
     if (!route) return json({ error: "Not found" }, request, env, 404);
     try {
@@ -138,6 +145,10 @@ export default {
     // Twenty minutes behind its own gate, so this is a KV read on 19 ticks out of 20.
     ctx.waitUntil(updateArticles(env as ArticlesEnv).catch((error) => {
       console.error(JSON.stringify({ event: "articles_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // Half the league every half hour, and a KV read on every other tick.
+    ctx.waitUntil(updateRumours(env as RumoursEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "rumours_error", error: error instanceof Error ? error.message : String(error) }));
     }));
   },
 } satisfies ExportedHandler<Env>;

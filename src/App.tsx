@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, Globe, Medal, Search, X } from "lucide-react";
 import { demoData } from "./demoData";
@@ -6,7 +6,8 @@ import { loadLiveDashboard } from "./services/liveDashboard";
 import { gameweekHandsOverAt, provisionalAutosubSquad } from "./services/fplRules";
 import { translations } from "./i18n";
 import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, type Highlight, type PlayerOwnership } from "./services/ownership";
-import { squadFlag } from "./services/playerNews";
+import { flagOf } from "./services/playerNews";
+import { isStrong, loadRumours, strongestByPlayer, type Rumour } from "./services/rumours";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import TeamNews from "./TeamNews";
@@ -415,21 +416,35 @@ function SortHeader({ label, note, sortKey, active, direction, onSort }: { label
  */
 function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: Language }) {
   const t = translations(language);
-  const { flag, bench } = squadFlag(player);
+  const rumour = useContext(RumourContext).get(player.id);
+  const flag = flagOf(player);
   if (flag.level !== "none") {
     const label = player.news || (flag.chance !== null ? `${flag.chance} %` : t.flagOut);
     return <i className={`player-flag flag-${flag.level}`} title={label} aria-label={label}>
       {flag.level === "out" ? "✕" : flag.chance}
     </i>;
   }
-  // Ours, not FPL's, and marked apart from FPL's for that reason: hollow, and never the
-  // red or the yellow that mean FPL has said something.
-  if (bench) {
-    const label = t.benchWatchTitle.replace("{games}", String(bench.games));
-    return <i className="player-flag flag-bench" title={label} aria-label={label}>0</i>;
+  // Not FPL's, and marked apart from FPL's for that reason: a move is not an injury, and a
+  // reported one is not the same claim as a published percentage. Only the strong ones —
+  // `Low` is a newspaper having a guess, and a shirt is no place for one.
+  if (rumour && isStrong(rumour)) {
+    const label = t.rumourFlagTitle
+      .replace("{to}", rumour.toClub)
+      .replace("{strength}", t.rumourStrength[rumour.strength])
+      .replace("{source}", rumour.source);
+    return <i className="player-flag flag-rumour" title={label} aria-label={label}>⇄</i>;
   }
   return null;
 }
+
+/**
+ * The rumours, for the shirts.
+ *
+ * A context rather than a prop through the table, the manager block and the squad: this is
+ * one small map that only the innermost card reads, and threading it through four
+ * components that have no use for it would be four signatures worse for nothing.
+ */
+const RumourContext = createContext<Map<number, Rumour>>(new Map());
 
 type View = "table" | "prices" | "news";
 
@@ -623,6 +638,21 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("farmisarja-language", language);
   }, [language]);
+
+  /**
+   * Rumours, once. They are refreshed on the Worker every half hour and a page open all
+   * evening has nothing to gain from asking again — a move that breaks while you watch will
+   * be there on the next load, and the Uutiset page reads its own copy anyway.
+   */
+  const [rumours, setRumours] = useState<Map<number, Rumour>>(new Map());
+  useEffect(() => {
+    let active = true;
+    loadRumours()
+      .then((list) => { if (active && list) setRumours(strongestByPlayer(list)); })
+      // A rumour list that cannot be read is not worth breaking the table over.
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("farmisarja-starters-only", String(startersOnly));
@@ -849,7 +879,7 @@ export default function App() {
 
   // Names the sorted column for the compact phone card, which shows that figure and no
   // other. Absent at rest, so "no sort chosen" is a selector the CSS can test for.
-  return <div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-sorted={sort === "position" ? undefined : sort} data-screenshot={screenshotMode ? "true" : "false"}>
+  return <RumourContext.Provider value={rumours}><div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-sorted={sort === "position" ? undefined : sort} data-screenshot={screenshotMode ? "true" : "false"}>
     <BackgroundPattern />
     <header className="topbar">
       <BrandLogo />
@@ -1094,5 +1124,5 @@ export default function App() {
         <span>farmisarja-live</span>
       </a>
     </footer>
-  </div>;
+  </div></RumourContext.Provider>;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { benchWatch, flagOf, isNewsworthy, newsOrder } from "./playerNews";
+import { flagOf, isNewsworthy, newsOrder } from "./playerNews";
 import type { PlayerNews } from "../types";
 
 const news = (over: Partial<PlayerNews> = {}): PlayerNews => ({
@@ -19,19 +19,6 @@ describe("availability flags", () => {
     expect(flagOf({ status: "d", chance: 50 })).toEqual({ level: "major", chance: 50 });
     expect(flagOf({ status: "d", chance: 25 })).toEqual({ level: "major", chance: 25 });
     expect(flagOf({ status: "a", chance: null })).toEqual({ level: "none", chance: null });
-  });
-
-  it("raises the flag FPL does not, and only where it means something", () => {
-    // Fit by FPL, in the manager's eleven, no start in his club's games.
-    expect(benchWatch({ status: "a", starts: 0, teamGames: 1, starter: true })).toEqual({ starts: 0, games: 1 });
-    // A bench player not starting for his club is the ordinary state of a bench player.
-    expect(benchWatch({ status: "a", starts: 0, teamGames: 1, starter: false })).toBeNull();
-    // He has started; nothing to say.
-    expect(benchWatch({ status: "a", starts: 1, teamGames: 1, starter: true })).toBeNull();
-    // FPL already says something, and its word beats a count of starts.
-    expect(benchWatch({ status: "i", starts: 0, teamGames: 1, starter: true })).toBeNull();
-    // Nothing has been played yet, so nothing has been missed.
-    expect(benchWatch({ status: "a", starts: 0, teamGames: 0, starter: true })).toBeNull();
   });
 
   it("puts the worst news the league is most exposed to at the top", () => {

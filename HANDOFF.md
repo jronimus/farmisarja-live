@@ -57,6 +57,8 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/TeamNews.tsx` | The availability page at `#/uutiset` |
 | `src/services/playerNews.ts` | What FPL's status letters mean, and the flag FPL does not raise |
 | `worker/articles.ts` | Two RSS feeds, parsed and filtered, served as `/articles` |
+| `worker/rumours.ts` | FotMob's graded transfer rumours, matched onto FPL players |
+| `src/services/rumours.ts` | Reads that list and picks the strongest report per player |
 | `worker/fixtures/ffs-feed.xml` | A real Fantasy Football Scout feed, saved 26 Aug, for the parser tests |
 | `src/services/articles.ts` | Reads that list and orders the topic pills |
 | `src/PriceHistory.tsx` | The history tab: what prices have already done |
@@ -1084,13 +1086,39 @@ the club, third choice behind two fit keepers. **FPL's status only ever answers 
 play", never "will he"**, so a manager holding Martinez at Villa sees a clean shirt every
 week while the transfer talk runs and the team sheets come out without him.
 
-What is available to answer it is FPL's own `starts`, read against the number of games the
-player's club has actually finished. No start in any of them, while FPL says he is
-available, is `benchWatch` — and it is not dressed as a prediction, because it is not one.
-It is a count, printed as a count, in a hollow badge that is deliberately neither of FPL's
-two colours. It is only raised for a player in a manager's **own starting eleven**: a bench
-player who does not start for his club is the ordinary state of a bench player and not news.
-On 26 Aug it catches six players across this league, Martinez among them.
+**The first attempt at this was wrong and was removed the same day.** It counted starts —
+no start in any of his club's games, while FPL said he was available — and it fails twice
+over. A player can come off the bench every week and never start, which is how Rashford and
+Šeško were both flagged for a weekend in which they both played; and what a player did last
+Saturday says nothing about whether he is leaving. It was a number that could be computed
+rather than a signal worth having, which is the wrong reason to build anything.
+
+What answers it is somebody else's reporting. **FotMob's team payload carries an
+`allRumours` list**, and each entry has the two clubs, the reported fee, the outlet that ran
+it, a link to the report and a graded `probability` — `Imminent`, `High` or `Low`. That is a
+judgement with a name on it rather than an inference of ours dressed up as data. Matched
+onto FPL players it catches exactly the case that prompted it: Emiliano Martínez, Villa to
+Chelsea, `Low`, The Sun, and both of the squads here that are starting him.
+
+Three things were checked before choosing it. SofaScore's API answers 403 to anything
+outside its own site, football-data.org needs a key for club data and carries no rumours at
+all, and premierleague.com's own backend has no availability data. FotMob's league-level
+transfer endpoint returns completed moves with no `probability`, so the rumours have to come
+off the team payloads — 550 kB each — which is why the cron reads **half the league every
+half hour** rather than all of it at once: a full refresh hourly, about 5 MB a tick, gentle
+on somebody else's undocumented endpoint. The outlet is named on every row and the page
+links to the report rather than restating it.
+
+The matching is the fiddly part, because no two sites spell anybody the same way. FotMob
+says `Emiliano Martínez`; FPL files him as `Emiliano` / `Martínez Romero` with a web name of
+`Martinez`, and there is a second Martínez at United. So the club decides first — a rumour
+is always attached to one — and within the club the match is on shared name parts with the
+forename breaking ties. Nothing matches across clubs, and an unmatched rumour is dropped
+rather than guessed at.
+
+On the shirt it is the site's purple with a `⇄`, and only for `Imminent` or `High`: a `Low`
+is a newspaper having a guess, and a shirt has room for one mark. The list itself shows
+`Low` too, behind a toggle, because reading the grading is the point.
 
 ### The half FPL cannot tell you
 

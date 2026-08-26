@@ -1,7 +1,13 @@
-import type { PlayerFlag, PlayerNews, SquadPlayer } from "../types";
+import type { PlayerFlag, PlayerNews } from "../types";
 
 /**
- * Availability, as FPL states it and as it can be read past what FPL states.
+ * Availability, as FPL states it.
+ *
+ * What FPL does not state — whether a fit, unflagged player is actually going to feature —
+ * is not inferred here. It was, once, from his start count, and that was wrong twice over:
+ * a player can come off the bench every week without starting, and last Saturday says
+ * nothing about next Saturday. That question is answered by reported transfer rumours
+ * instead, in `services/rumours.ts`, where every line has a source on it.
  *
  * FPL publishes two things per player: a `status` letter and, for the doubtful, a
  * `chance_of_playing_next_round`. Its own site turns those into the coloured corner on a
@@ -34,33 +40,6 @@ export function flagOf(player: {
 }
 
 /**
- * The flag FPL does not raise.
- *
- * A player can be perfectly fit, unflagged, and not playing: out of favour, on the way out
- * of the club, or third choice behind two fit keepers. FPL's status only ever answers "can
- * he play", never "will he" — so a manager holding him sees a clean shirt every week until
- * the transfer goes through, which is exactly the case that costs a season.
- *
- * What is available to answer it is FPL's own `starts`, against the number of games his
- * club has actually played. No start in any of them, while FPL says he is available, is not
- * a prediction and is not dressed as one: it is a count, printed as a count. It is only
- * raised for a player in the manager's own starting eleven, because a bench player who does
- * not start for his club is the ordinary state of a bench player and not news.
- */
-export function benchWatch(player: {
-  status?: string;
-  starts?: number;
-  teamGames?: number;
-  starter?: boolean;
-}): { starts: number; games: number } | null {
-  if ((player.status ?? "a") !== "a") return null;
-  if (!player.starter) return null;
-  const games = player.teamGames ?? 0;
-  if (games < 1 || (player.starts ?? 0) > 0) return null;
-  return { starts: 0, games };
-}
-
-/**
  * The order the news page reads in: the worst news first, and within a level the players
  * the league is most exposed to.
  *
@@ -82,7 +61,4 @@ export function isNewsworthy(player: PlayerNews): boolean {
   return flagOf(player).level !== "none" || Boolean(player.news);
 }
 
-/** The squad-card version, which has the manager's own eleven to consider as well. */
-export function squadFlag(player: SquadPlayer): { flag: PlayerFlag; bench: { starts: number; games: number } | null } {
-  return { flag: flagOf(player), bench: benchWatch(player) };
-}
+

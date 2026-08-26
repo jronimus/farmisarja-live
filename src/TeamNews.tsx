@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Clock3, ExternalLink } from "lucide-react";
 import { translations } from "./i18n";
-import { benchWatch, flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
+import { flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
+import { isStrong, loadRumours, rumoursEndpoint, type Rumour } from "./services/rumours";
 import { articlesEndpoint, loadArticles, topicsPresent, type Article } from "./services/articles";
 import type { DashboardData, Language, PlayerNews } from "./types";
 
@@ -15,7 +16,7 @@ import type { DashboardData, Language, PlayerNews } from "./types";
  * actually acts on.
  */
 
-type Filter = "ours" | "all" | "bench" | "articles";
+type Filter = "ours" | "all" | "rumours" | "articles";
 
 /** Anyone the league is exposed to comes first; the rest of the game is behind a filter. */
 const PAGE = 40;
@@ -104,25 +105,111 @@ function Articles({ language }: { language: Language }) {
   </>;
 }
 
+export type RumourOwner = { name: string; club: string; position: string; owners: PlayerNews["owners"] };
+
+/**
+ * Who is reported to be leaving, and whose squad that is a problem for.
+ *
+ * Every line is somebody else's reporting: the two clubs, FotMob's own grading of how
+ * likely it is, the outlet that ran it and a link to the report. Nothing on this page is
+ * our inference — which is the point, because the thing this replaced was.
+ */
+function Rumours({ language, owners }: { language: Language; owners: Map<number, RumourOwner> }) {
+  const t = translations(language);
+  const [rumours, setRumours] = useState<Rumour[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [strongOnly, setStrongOnly] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    loadRumours()
+      .then((next) => { if (active) setRumours(next ?? []); })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, []);
+
+  if (!rumoursEndpoint || failed) return <section className="data-pending" role="status">
+    <Clock3 /><strong>{t.rumoursUnavailable}</strong>
+  </section>;
+  if (!rumours) return <section className="data-pending" role="status">
+    <Clock3 /><strong>{t.rumoursLoading}</strong>
+  </section>;
+
+  // Ours first, then the strongest, then the newest. A league squad's rumour is the only
+  // one on this page anybody has to act on.
+  const shown = rumours
+    .filter((rumour) => !strongOnly || isStrong(rumour))
+    .sort((a, b) => (owners.get(b.element)?.owners.length ?? 0) - (owners.get(a.element)?.owners.length ?? 0)
+      || (a.strength === b.strength ? 0 : a.strength === "imminent" ? -1 : b.strength === "imminent" ? 1 : a.strength === "high" ? -1 : 1)
+      || b.reportedAt.localeCompare(a.reportedAt));
+
+  return <>
+    <div className="topic-filters">
+      <button className={strongOnly ? "active" : ""} onClick={() => setStrongOnly(true)}>{t.rumoursOnlyStrong}</button>
+      <button className={strongOnly ? "" : "active"} onClick={() => setStrongOnly(false)}>{t.newsAll}</button>
+    </div>
+
+    <div className="news-list">
+      {shown.map((rumour) => {
+        const player = owners.get(rumour.element);
+        const held = player?.owners ?? [];
+        return <article className={`news-row rumour-${rumour.strength} ${held.length ? "is-held" : ""}`} key={rumour.id}>
+          <span className="news-player">
+            <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${player?.position === "GK" ? "optimized-gk" : "optimized"}/${(player?.club ?? rumour.fromClub).toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
+            <b>{player?.name ?? rumour.player}</b>
+            <small>{rumour.fromClub} {t.rumourTo.replace("{to}", rumour.toClub)}</small>
+          </span>
+
+          <span className="news-flag-cell">
+            <i className={`news-flag strength-${rumour.strength}`}>{t.rumourStrength[rumour.strength]}</i>
+          </span>
+
+          <span className="news-word">
+            <em>{rumour.staysInLeague ? t.rumourStaysInLeague : t.rumourLeavesLeague}</em>
+            <span className="news-meta">
+              <Since at={rumour.reportedAt} language={language} />
+              {rumour.sourceUrl
+                ? <a href={rumour.sourceUrl} target="_blank" rel="noopener noreferrer">{rumour.source} <ExternalLink /></a>
+                : <small>{t.rumourSourceWord}: {rumour.source}</small>}
+            </span>
+          </span>
+
+          <span className="news-owners">
+            {held.length
+              ? held.map((owner) => <b key={owner.managerId} className={owner.starter ? "starting" : ""}>
+                {owner.teamName}{owner.captain ? " (C)" : ""}
+              </b>)
+              : <em className="quiet">{t.newsNobodyHere}</em>}
+          </span>
+        </article>;
+      })}
+      {!shown.length && <div className="price-empty">{t.rumoursNone}</div>}
+    </div>
+
+    <p className="price-disclaimer">{t.rumoursNote}</p>
+  </>;
+}
+
 export default function TeamNews({ data, language }: { data: DashboardData; language: Language }) {
   const t = translations(language);
   const [filter, setFilter] = useState<Filter>("ours");
   const [shown, setShown] = useState(PAGE);
 
   const all = data.playerNews ?? [];
+  // The rumour list is about FPL elements, and the exposure it needs is the same exposure
+  // the flag rows carry — so it is read off the one list rather than fetched again.
+  const ownersByElement = useMemo(
+    () => new Map(all.map((player) => [player.id, { name: player.name, club: player.club, position: player.position, owners: player.owners }])),
+    [all],
+  );
 
   const rows = useMemo(() => {
-    const list = filter === "bench"
-      // Fit, unflagged, in somebody's eleven here, and yet not starting for his club. This
-      // is the list FPL cannot produce, because FPL only answers whether he *can* play.
-      ? all.filter((player) => player.owners.some((owner) => owner.starter)
-        && benchWatch({ status: player.status, starts: player.starts, teamGames: player.teamGames, starter: true }))
-      : all.filter(isNewsworthy).filter((player) => filter === "all" || player.owners.length > 0);
+    const list = all.filter(isNewsworthy).filter((player) => filter === "all" || player.owners.length > 0);
     return [...list].sort(newsOrder);
   }, [all, filter]);
 
-  // The article tab reads the Worker, not FPL, so an FPL outage is no reason to hide it.
-  if (!data.playerNews && filter !== "articles") {
+  // These two read the Worker, not FPL, so an FPL outage is no reason to hide them.
+  if (!data.playerNews && filter !== "articles" && filter !== "rumours") {
     return <section className="news-page">
       <div className="news-filters" role="group" aria-label={t.navNews}>
         <button className="active">{t.newsOurs}</button>
@@ -140,7 +227,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
 
   return <section className="news-page">
     <div className="news-filters" role="group" aria-label={t.navNews}>
-      {([["ours", `${t.newsOurs} (${ours})`], ["all", t.newsAll], ["bench", t.newsBench], ["articles", t.newsArticles]] as Array<[Filter, string]>)
+      {([["ours", `${t.newsOurs} (${ours})`], ["all", t.newsAll], ["rumours", t.newsRumours], ["articles", t.newsArticles]] as Array<[Filter, string]>)
         .map(([key, label]) => <button
           key={key}
           className={filter === key ? "active" : ""}
@@ -148,12 +235,13 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
         >{label}</button>)}
     </div>
 
-    {filter === "articles" ? <Articles language={language} /> : <>
+    {filter === "articles" ? <Articles language={language} />
+      : filter === "rumours" ? <Rumours language={language} owners={ownersByElement} />
+      : <>
 
     <div className="news-list">
       {visible.map((player) => {
         const flag = flagOf(player);
-        const bench = benchWatch({ status: player.status, starts: player.starts, teamGames: player.teamGames, starter: true });
         return <article className={`news-row level-${flag.level} ${player.owners.length ? "is-held" : ""}`} key={player.id}>
           <span className="news-player">
             <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${player.position === "GK" ? "optimized-gk" : "optimized"}/${player.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
@@ -166,9 +254,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
           <span className="news-word">
             {/* FPL's own sentence, verbatim. It is the most reliable thing on this page and
                 paraphrasing it would only add a second version to disagree with. */}
-            <em>{player.news || (bench
-              ? t.benchWatchTitle.replace("{games}", String(bench.games))
-              : t.newsNoWord)}</em>
+            <em>{player.news || t.newsNoWord}</em>
             <span className="news-meta">
               <Since at={player.newsAt} language={language} />
               {player.link && <a href={player.link} target="_blank" rel="noopener noreferrer">
@@ -189,14 +275,14 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
           </span>
         </article>;
       })}
-      {!visible.length && <div className="price-empty">{filter === "bench" ? t.newsNoBenchWatch : t.newsNothing}</div>}
+      {!visible.length && <div className="price-empty">{t.newsNothing}</div>}
     </div>
 
     {shown < rows.length && <div className="price-foot">
       <button className="history-more" onClick={() => setShown((value) => value + PAGE)}>{t.showMore}</button>
     </div>}
 
-    <p className="price-disclaimer">{filter === "bench" ? t.benchWatchNote : t.newsNote}</p>
+    <p className="price-disclaimer">{t.newsNote}</p>
     </>}
   </section>;
 }

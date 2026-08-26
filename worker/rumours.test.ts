@@ -1,0 +1,74 @@
+import { describe, expect, it } from "vitest";
+import { matchElement, mergeRumours, normalise, rumoursFromTeam, type Rumour } from "./rumours";
+
+const elements = [
+  // Two Martínezes, one at Villa and one at United, which is the case a surname alone
+  // cannot resolve and a club can.
+  { id: 1, web_name: "Martinez", first_name: "Emiliano", second_name: "Martínez Romero", team: 2 },
+  { id: 2, web_name: "Martinez", first_name: "Lisandro", second_name: "Martínez", team: 16 },
+  { id: 3, web_name: "Grealish", first_name: "Jack", second_name: "Grealish", team: 15 },
+  { id: 4, web_name: "Enzo", first_name: "Enzo", second_name: "Fernández", team: 6 },
+];
+const teamByShort = new Map([["AVL", 2], ["CHE", 6], ["MCI", 15], ["MUN", 16]]);
+
+const rumour = (over: Partial<Rumour> = {}): Rumour => ({
+  id: 1, element: 3, player: "Jack Grealish", fromClub: "MCI", toClub: "AC Milan",
+  staysInLeague: false, strength: "low", source: "The Sun",
+  reportedAt: "2026-08-25T08:00:00Z", ...over,
+});
+
+describe("transfer rumours", () => {
+  it("matches a name across two sites that spell nobody the same way", () => {
+    // FotMob's "Emiliano Martínez" against FPL's Emiliano / Martínez Romero.
+    expect(matchElement("Emiliano Martínez", 10252, elements, teamByShort)).toBe(1);
+    // The same surname at another club is the other man, and the club decides it.
+    expect(matchElement("Lisandro Martínez", 10260, elements, teamByShort)).toBe(2);
+    // FPL's web name is the whole name for some players.
+    expect(matchElement("Enzo Fernández", 8455, elements, teamByShort)).toBe(4);
+  });
+
+  it("refuses a match it cannot make rather than guessing", () => {
+    expect(matchElement("Someone Unknown", 8456, elements, teamByShort)).toBeNull();
+    // A club outside the Premier League has no FPL players to match against at all.
+    expect(matchElement("Jack Grealish", 999999, elements, teamByShort)).toBeNull();
+  });
+
+  it("keeps graded rumours about players leaving the league's own clubs", () => {
+    const payload = { transfers: { allRumours: [
+      { name: "Jack Grealish", fromClubId: 8456, fromClub: "Man City", toClub: "AC Milan", toClubId: 100,
+        probability: "Low", sourceName: "The Sun", sourceUrl: "https://x", transferDate: "2026-08-25T08:00:00Z", rumourId: 11 },
+      { name: "Omar Marmoush", fromClubId: 8456, fromClub: "Man City", toClub: "Tottenham", toClubId: 8586,
+        probability: "Imminent", sourceName: "The Athletic", transferDate: "2026-08-26T08:37:00Z", rumourId: 12 },
+      // Somebody moving *to* a Premier League club is not in the game yet.
+      { name: "Allan", fromClubId: 10283, fromClub: "Palmeiras", toClub: "Man City", toClubId: 8456,
+        probability: "High", sourceName: "ESPN", transferDate: "2026-08-25T06:51:00Z", rumourId: 13 },
+      // No grade, no line: an ungraded report is the thing this page exists not to print.
+      { name: "Jack Grealish", fromClubId: 8456, fromClub: "Man City", toClub: "Everton", toClubId: 8668,
+        sourceName: "footyinsider247", transferDate: "2026-08-19T08:00:00Z", rumourId: 14 },
+    ] } };
+    const out = rumoursFromTeam(payload, [...elements, { id: 5, web_name: "Marmoush", first_name: "Omar", second_name: "Marmoush", team: 15 }], teamByShort);
+    expect(out.map((entry) => entry.id)).toEqual([11, 12]);
+    expect(out[1]).toMatchObject({ strength: "imminent", staysInLeague: true, source: "The Athletic", fromClub: "MCI" });
+  });
+
+  it("keeps the clubs a half-league tick did not read", () => {
+    const now = Date.parse("2026-08-26T12:00:00Z");
+    const stored = [rumour({ id: 1, fromClub: "MCI" }), rumour({ id: 2, fromClub: "ARS" })];
+    // Only Arsenal was read this tick, and it now reports nothing.
+    const merged = mergeRumours(stored, [], ["ARS"], now);
+    expect(merged.map((entry) => entry.id)).toEqual([1]);
+    // A repeat of the same report is the same line, not a second one.
+    expect(mergeRumours(stored, [rumour({ id: 1, fromClub: "MCI", strength: "high" })], ["MCI"], now))
+      .toHaveLength(2);
+  });
+
+  it("lets a fortnight-old rumour age out", () => {
+    const now = Date.parse("2026-09-20T12:00:00Z");
+    expect(mergeRumours([rumour()], [], [], now)).toEqual([]);
+  });
+
+  it("normalises the accents the two sites disagree about", () => {
+    expect(normalise("Jérémy Doku")).toBe("jeremy doku");
+    expect(normalise("Nico González")).toBe("nico gonzalez");
+  });
+});
