@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Clock3, ExternalLink } from "lucide-react";
 import { translations } from "./i18n";
 import { benchWatch, flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
+import { articlesEndpoint, loadArticles, topicsPresent, type Article } from "./services/articles";
 import type { DashboardData, Language, PlayerNews } from "./types";
 
 /**
@@ -14,7 +15,7 @@ import type { DashboardData, Language, PlayerNews } from "./types";
  * actually acts on.
  */
 
-type Filter = "ours" | "all" | "bench";
+type Filter = "ours" | "all" | "bench" | "articles";
 
 /** Anyone the league is exposed to comes first; the rest of the game is behind a filter. */
 const PAGE = 40;
@@ -37,6 +38,72 @@ function Since({ at, language }: { at: string | null; language: Language }) {
   return <small>{t.newsDaysAgo.replace("{n}", String(Math.round(hours / 24)))}</small>;
 }
 
+/**
+ * What people are writing, as against what FPL has published.
+ *
+ * Headline, source, when, the lead sentence and a link out — never the article. Two of the
+ * publishers put their whole piece in the feed, and reprinting that would be taking it
+ * rather than pointing at it. No images either: neither feed carries one, and fetching
+ * their pages for an OG tag would be a dozen requests to hotlink somebody else's picture.
+ */
+function Articles({ language }: { language: Language }) {
+  const t = translations(language);
+  const [articles, setArticles] = useState<Article[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [topic, setTopic] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    loadArticles()
+      .then((next) => { if (active) setArticles(next ?? []); })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, []);
+
+  if (!articlesEndpoint || failed) return <section className="data-pending" role="status">
+    <Clock3 /><strong>{t.articlesUnavailable}</strong>
+  </section>;
+  if (!articles) return <section className="data-pending" role="status">
+    <Clock3 /><strong>{t.articlesLoading}</strong>
+  </section>;
+
+  const topics = topicsPresent(articles);
+  const shown = topic ? articles.filter((article) => article.topic === topic) : articles;
+
+  return <>
+    {topics.length > 1 && <div className="topic-filters" role="group" aria-label={t.articleTopics}>
+      <button className={topic === "" ? "active" : ""} onClick={() => setTopic("")}>{t.newsAll}</button>
+      {topics.map((entry) => <button key={entry} className={topic === entry ? "active" : ""} onClick={() => setTopic(entry)}>
+        {t.topics[entry as keyof typeof t.topics] ?? entry}
+      </button>)}
+    </div>}
+
+    <div className="article-list">
+      {shown.map((article) => <a
+        className="article-row"
+        key={article.id}
+        href={article.url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span className="article-head">
+          <b>{article.title}</b>
+          {article.topic && <i className={`article-topic topic-${article.topic}`}>{t.topics[article.topic as keyof typeof t.topics] ?? article.topic}</i>}
+        </span>
+        {article.excerpt && <em>{article.excerpt}</em>}
+        <span className="article-meta">
+          <b>{article.source}</b>
+          <Since at={article.published} language={language} />
+          <ExternalLink />
+        </span>
+      </a>)}
+      {!shown.length && <div className="price-empty">{t.articlesNone}</div>}
+    </div>
+
+    <p className="price-disclaimer">{t.articlesNote}</p>
+  </>;
+}
+
 export default function TeamNews({ data, language }: { data: DashboardData; language: Language }) {
   const t = translations(language);
   const [filter, setFilter] = useState<Filter>("ours");
@@ -54,10 +121,17 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     return [...list].sort(newsOrder);
   }, [all, filter]);
 
-  if (!data.playerNews) {
-    return <section className="data-pending" role="status">
-      <Clock3 />
-      <strong>{t.newsUnavailable}</strong>
+  // The article tab reads the Worker, not FPL, so an FPL outage is no reason to hide it.
+  if (!data.playerNews && filter !== "articles") {
+    return <section className="news-page">
+      <div className="news-filters" role="group" aria-label={t.navNews}>
+        <button className="active">{t.newsOurs}</button>
+        <button onClick={() => setFilter("articles")}>{t.newsArticles}</button>
+      </div>
+      <section className="data-pending" role="status">
+        <Clock3 />
+        <strong>{t.newsUnavailable}</strong>
+      </section>
     </section>;
   }
 
@@ -66,13 +140,15 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
 
   return <section className="news-page">
     <div className="news-filters" role="group" aria-label={t.navNews}>
-      {([["ours", `${t.newsOurs} (${ours})`], ["all", t.newsAll], ["bench", t.newsBench]] as Array<[Filter, string]>)
+      {([["ours", `${t.newsOurs} (${ours})`], ["all", t.newsAll], ["bench", t.newsBench], ["articles", t.newsArticles]] as Array<[Filter, string]>)
         .map(([key, label]) => <button
           key={key}
           className={filter === key ? "active" : ""}
           onClick={() => { setFilter(key); setShown(PAGE); }}
         >{label}</button>)}
     </div>
+
+    {filter === "articles" ? <Articles language={language} /> : <>
 
     <div className="news-list">
       {visible.map((player) => {
@@ -121,5 +197,6 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     </div>}
 
     <p className="price-disclaimer">{filter === "bench" ? t.benchWatchNote : t.newsNote}</p>
+    </>}
   </section>;
 }

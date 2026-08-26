@@ -56,6 +56,9 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/PriceChanges.tsx` | The price change page at `#/hinnat`, and its two tabs |
 | `src/TeamNews.tsx` | The availability page at `#/uutiset` |
 | `src/services/playerNews.ts` | What FPL's status letters mean, and the flag FPL does not raise |
+| `worker/articles.ts` | Two RSS feeds, parsed and filtered, served as `/articles` |
+| `worker/fixtures/ffs-feed.xml` | A real Fantasy Football Scout feed, saved 26 Aug, for the parser tests |
+| `src/services/articles.ts` | Reads that list and orders the topic pills |
 | `src/PriceHistory.tsx` | The history tab: what prices have already done |
 | `src/services/priceHistory.ts` | Reads the change log from the Worker and groups it by night |
 | `worker/priceHistory.ts` | Watches FPL's prices, writes down what moved, and serves `/price-history` |
@@ -1011,7 +1014,42 @@ width — `1` is 4.86px against `0` at 7.61px — so a running clock in the righ
 shoved `GW 1` and the links about by up to 16px every second. That was measured off the
 font rather than guessed at.
 
-### Availability, and the flag FPL does not raise
+#### The article feed
+
+The fourth pill on `#/uutiset`. RSS from a whitelist of two, not a news API over the whole
+internet: a search for "Fantasy Premier League" returns every tabloid that has noticed the
+phrase, and the free tiers of NewsAPI and GNews run 12–24 hours behind, which for a Friday
+deadline is worthless.
+
+**Eleven candidate feeds were tested on 26 Aug 2026 and two are alive.** Fantasy Football
+Scout's own `/feed/` — 12 items, 18 kB, several a day, fresh within the hour — and
+AllAboutFPL, at about one a week. The rest: `fantasyfootballfix.com` and `fplfocus.com`
+answer 404, `planetfpl.com` does not respond, premierleague.com and the Guardian publish no
+RSS at all, Reddit rate-limits a datacenter IP (429), and the tag feed every guide
+recommends, `/tag/fantasy-premier-league/feed/`, returns an HTML page with no items in it.
+The "30 FPL RSS sources" lists are aggregator marketing.
+
+**The junk filter is the publisher's own categories**, which is why this costs nothing:
+Scout tags every post itself — `Team News`, `Scout Picks`, `Chip Strategy`, `Set Piece
+Takers` — so the topic pills are real classification rather than keyword guessing. The
+lowercase entries in the same list are SEO tags, six a post, and are ignored. Anything
+unmapped keeps the article and shows no chip. On top of that: nothing older than seven days,
+at most five per source per day so one masthead cannot fill a page, and dedupe by link.
+
+Only the headline, the lead sentence and a link out are stored. WordPress ends every excerpt
+with "The post X appeared first on Y", which is a back-link rather than a summary and is
+stripped; AllAboutFPL puts its whole article in the feed — 900 kB of it — and reprinting
+that would be taking the piece rather than pointing at it. No images: neither feed carries
+`media:content` or an `enclosure`, and fetching each page for an OG tag would be a dozen
+requests to hotlink somebody else's picture.
+
+The parser is fifty lines of regex over well-formed WordPress XML rather than a dependency —
+Workers has no `DOMParser` — and it is tested against a real feed saved into
+`worker/fixtures/`, entities, CDATA, tabs and all. The cron refreshes behind a twenty-minute
+gate, so 19 ticks out of 20 cost one KV read; a tick where both feeds fail leaves what is
+stored alone rather than wiping the page.
+
+## Availability, and the flag FPL does not raise
 
 `#/uutiset` is the third destination. It answers one question — who is not playing, and
 whose squad is that a problem for — and the second half of it is the reason it exists.
@@ -1023,6 +1061,14 @@ and 45 of them also carry `scout_news_link`, a link to the club's own word on it
 against the live bootstrap on 26 Aug: `a` available (494), `i` injured (55), `u`
 unavailable (41 — where a player who has left the league ends up), `d` doubtful (21), `s`
 suspended (1). Chance is 0 for all of the first three and 75, 50 or 25 for a doubt.
+
+**The badge carries its own three colours and does not use the theme's.** `--yellow` is
+`#ffd34e` in the dark theme and `#a56800` in the light one, so a badge painted with it and
+given dark text was dark-on-dark the moment the page was switched to light — which is how
+this first shipped, and it was unreadable. A flag has to read the same in both themes and
+over any club's shirt, so it is `#e8102f`, `#ff7a18` and `#ffd21e` with fixed ink, a
+hairline to lift it off a white card and a shadow to lift it off a dark one, at 19px with
+11px type rather than the 15px and 8px it started at.
 
 FPL's own site paints a red or yellow corner on the shirt and puts the percentage in a
 hover tooltip only. That is the wrong way round: **the colour says there is something to

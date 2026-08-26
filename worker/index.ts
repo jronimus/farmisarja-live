@@ -2,6 +2,7 @@ import { captureCard, handleTelegramWebhook, runTelegramSchedule, type ShareCard
 import { advanceSample, computeCurve, type LiveRankEnv } from "./liveRank";
 import { readFeed, updateFeed, type EventsEnv } from "./events";
 import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } from "./priceHistory";
+import { readArticles, updateArticles, type ArticlesEnv } from "./articles";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
 
@@ -101,6 +102,14 @@ export default {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=600" },
       });
     }
+    if (url.pathname === "/articles") {
+      const stored = await readArticles(env as ArticlesEnv);
+      // The cron refreshes these every twenty minutes, so five is well inside the window
+      // and keeps a page left open on a phone off the KV read budget.
+      return new Response(JSON.stringify({ articles: stored?.articles ?? [] }), {
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
+      });
+    }
     const route = upstreamPath(url.pathname, env);
     if (!route) return json({ error: "Not found" }, request, env, 404);
     try {
@@ -125,6 +134,10 @@ export default {
     // near a change. Guarded on its own like the rest.
     ctx.waitUntil(updatePriceHistory(env as PriceHistoryEnv).catch((error) => {
       console.error(JSON.stringify({ event: "price_history_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // Twenty minutes behind its own gate, so this is a KV read on 19 ticks out of 20.
+    ctx.waitUntil(updateArticles(env as ArticlesEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "articles_error", error: error instanceof Error ? error.message : String(error) }));
     }));
   },
 } satisfies ExportedHandler<Env>;
