@@ -24,12 +24,38 @@ const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");
 
 export const rumoursEndpoint = configuredApi ? `${configuredApi.replace(/\/api$/, "")}/rumours` : null;
 
-export async function loadRumours(): Promise<Rumour[] | null> {
+/**
+ * Who a club cannot pick, in FotMob's own words — richer than FPL's own flags, which is why
+ * it is worth carrying beside them: expected returns as phrases ("Early September 2026",
+ * "Back in training", "Doubtful") and suspensions marked as suspensions.
+ */
+export interface Absence {
+  element: number | null;
+  name: string;
+  club: string;
+  reason: string;
+  expectedReturn: string;
+}
+
+/** Both halves arrive together, because the Worker reads them off the same payload. */
+export async function loadFotmob(): Promise<{ rumours: Rumour[]; absences: Absence[] } | null> {
   if (!rumoursEndpoint) return null;
   const response = await fetch(rumoursEndpoint);
   if (!response.ok) throw new Error(`Rumours request failed: ${response.status}`);
-  const body = await response.json() as { rumours?: Rumour[] };
-  return body.rumours ?? [];
+  const body = await response.json() as { rumours?: Rumour[]; absences?: Absence[] };
+  return { rumours: body.rumours ?? [], absences: body.absences ?? [] };
+}
+
+export async function loadRumours(): Promise<Rumour[] | null> {
+  const body = await loadFotmob();
+  return body ? body.rumours : null;
+}
+
+/** The absences a squad can act on, by element. Unmatched names are dropped here. */
+export function absencesByElement(absences: Absence[]): Map<number, Absence> {
+  const out = new Map<number, Absence>();
+  for (const absence of absences) if (absence.element !== null) out.set(absence.element, absence);
+  return out;
 }
 
 const RANK: Record<Rumour["strength"], number> = { imminent: 0, high: 1, low: 2 };

@@ -7,7 +7,8 @@ import { gameweekHandsOverAt, provisionalAutosubSquad } from "./services/fplRule
 import { translations } from "./i18n";
 import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, type Highlight, type PlayerOwnership } from "./services/ownership";
 import { flagOf } from "./services/playerNews";
-import { isStrong, loadRumours, strongestByPlayer, type Rumour } from "./services/rumours";
+import { absencesByElement, isStrong, loadFotmob, strongestByPlayer, type Absence, type Rumour } from "./services/rumours";
+import { loadLineups, watchFrom, type LineupWatch } from "./services/lineups";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import TeamNews from "./TeamNews";
@@ -416,13 +417,26 @@ function SortHeader({ label, note, sortKey, active, direction, onSort }: { label
  */
 function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: Language }) {
   const t = translations(language);
-  const rumour = useContext(RumourContext).get(player.id);
+  const marks = useContext(RumourContext);
+  const rumour = marks.rumours.get(player.id);
+  const absence = marks.absences.get(player.id);
   const flag = flagOf(player);
   if (flag.level !== "none") {
-    const label = player.news || (flag.chance !== null ? `${flag.chance} %` : t.flagOut);
+    // FPL's own word first, and FotMob's return date after it when there is one: FPL says
+    // "Knee injury" and stops, where FotMob says when he is expected back.
+    const label = [player.news || (flag.chance !== null ? `${flag.chance} %` : t.flagOut), absence?.expectedReturn]
+      .filter(Boolean).join(" · ");
     return <i className={`player-flag flag-${flag.level}`} title={label} aria-label={label}>
       {flag.level === "out" ? "✕" : flag.chance}
     </i>;
+  }
+  // FotMob knows he is out and FPL has not said so yet. It happens both ways round and this
+  // is the direction worth marking, since the shirt would otherwise be clean.
+  if (absence) {
+    const label = t.absenceTitle
+      .replace("{reason}", t.absenceReason[absence.reason] ?? absence.reason)
+      .replace("{return}", absence.expectedReturn || "—");
+    return <i className={`player-flag flag-${absence.reason === "suspension" ? "out" : "major"}`} title={label} aria-label={label}>!</i>;
   }
   // Not FPL's, and marked apart from FPL's for that reason: a move is not an injury, and a
   // reported one is not the same claim as a published percentage. Only the strong ones —
@@ -434,6 +448,16 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
       .replace("{source}", rumour.source);
     return <i className="player-flag flag-rumour" title={label} aria-label={label}>⇄</i>;
   }
+  /**
+   * His club's eleven has been predicted and he is not in it.
+   *
+   * The only version of this that means anything. It says nothing at all until FotMob
+   * publishes a prediction for that club's next match — an hour or two before kick-off —
+   * and a club with no prediction yet leaves its players unmarked rather than marked wrong.
+   */
+  if (marks.lineups.benched.has(player.id)) {
+    return <i className="player-flag flag-xi" title={t.notInPredictedXI} aria-label={t.notInPredictedXI}>XI</i>;
+  }
   return null;
 }
 
@@ -444,7 +468,16 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
  * one small map that only the innermost card reads, and threading it through four
  * components that have no use for it would be four signatures worse for nothing.
  */
-const RumourContext = createContext<Map<number, Rumour>>(new Map());
+interface ShirtMarks {
+  rumours: Map<number, Rumour>;
+  absences: Map<number, Absence>;
+  /** Only ever filled from a fixture FotMob has actually predicted; see services/lineups.ts. */
+  lineups: LineupWatch;
+}
+
+const RumourContext = createContext<ShirtMarks>({
+  rumours: new Map(), absences: new Map(), lineups: { starting: new Set(), benched: new Set(), unavailable: new Map() },
+});
 
 type View = "table" | "prices" | "news";
 
@@ -644,15 +677,38 @@ export default function App() {
    * evening has nothing to gain from asking again — a move that breaks while you watch will
    * be there on the next load, and the Uutiset page reads its own copy anyway.
    */
-  const [rumours, setRumours] = useState<Map<number, Rumour>>(new Map());
+  const [marks, setMarks] = useState<ShirtMarks>({
+    rumours: new Map(), absences: new Map(), lineups: { starting: new Set(), benched: new Set(), unavailable: new Map() },
+  });
+  const clubOf = useMemo(
+    () => new Map((data.playerNews ?? []).map((player) => [player.id, player.club])),
+    [data.playerNews],
+  );
   useEffect(() => {
     let active = true;
-    loadRumours()
-      .then((list) => { if (active && list) setRumours(strongestByPlayer(list)); })
-      // A rumour list that cannot be read is not worth breaking the table over.
+    Promise.all([loadFotmob(), loadLineups()])
+      .then(([fotmob, fixtures]) => {
+        if (!active) return;
+        const lineups = watchFrom(fixtures ?? [], clubOf);
+        /**
+         * Two absence lists, and the match one wins where they overlap.
+         *
+         * The club payload's list hangs off `lastLineupStats`, so it describes the side
+         * that played last; the match payload's describes the side about to play. The first
+         * covers the whole league all week and the second only the fixtures near kick-off,
+         * which is exactly when it is worth more — so the broad one is the floor and the
+         * near one is laid over it.
+         */
+        const absences = absencesByElement(fotmob?.absences ?? []);
+        for (const [element, player] of lineups.unavailable) {
+          absences.set(element, { element, name: player.name, club: player.club, reason: player.reason, expectedReturn: player.expectedReturn });
+        }
+        setMarks({ rumours: strongestByPlayer(fotmob?.rumours ?? []), absences, lineups });
+      })
+      // Marks that cannot be read are not worth breaking the table over.
       .catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [clubOf]);
 
   useEffect(() => {
     localStorage.setItem("farmisarja-starters-only", String(startersOnly));
@@ -879,7 +935,7 @@ export default function App() {
 
   // Names the sorted column for the compact phone card, which shows that figure and no
   // other. Absent at rest, so "no sort chosen" is a selector the CSS can test for.
-  return <RumourContext.Provider value={rumours}><div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-sorted={sort === "position" ? undefined : sort} data-screenshot={screenshotMode ? "true" : "false"}>
+  return <RumourContext.Provider value={marks}><div className="app-shell" data-mobile-details={mobileDetails ? "on" : "off"} data-sorted={sort === "position" ? undefined : sort} data-screenshot={screenshotMode ? "true" : "false"}>
     <BackgroundPattern />
     <header className="topbar">
       <BrandLogo />

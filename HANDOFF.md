@@ -57,7 +57,9 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/TeamNews.tsx` | The availability page at `#/uutiset` |
 | `src/services/playerNews.ts` | What FPL's status letters mean, and the flag FPL does not raise |
 | `worker/articles.ts` | Two RSS feeds, parsed and filtered, served as `/articles` |
-| `worker/rumours.ts` | FotMob's graded transfer rumours, matched onto FPL players |
+| `worker/fotmob.ts` | The club map and the FPL↔FotMob name matcher both FotMob readers need |
+| `worker/rumours.ts` | FotMob's graded transfer rumours and its club-wide absence lists |
+| `worker/lineups.ts` | Predicted elevens for the fixtures close enough to have one |
 | `src/services/rumours.ts` | Reads that list and picks the strongest report per player |
 | `worker/fixtures/ffs-feed.xml` | A real Fantasy Football Scout feed, saved 26 Aug, for the parser tests |
 | `src/services/articles.ts` | Reads that list and orders the topic pills |
@@ -1128,6 +1130,55 @@ second is not. That is the whole reason for the page rather than a link to FPL's
 118 flagged players is a fact, and "two of these seven are starting a 3 %-owned keeper who
 has not played a minute" is a problem. The default filter is this league's exposure; the
 whole game is one click away.
+
+### Predicted elevens, and the injured-and-suspended list
+
+Two more things FotMob publishes that FPL does not, and the first of them comes with a trap.
+
+**The window was measured, not assumed.** A day and a half was tried first, on the
+reasoning that a prediction appears an hour or two before kick-off, and it found nothing:
+FotMob already had a predicted eleven for Friday's Palace v Man City on the Wednesday
+afternoon, fifty-one hours out. It now asks about four days, and the dates come from FPL's
+own fixture list rather than by walking the calendar — FotMob's date listing is every match
+in the world that day, a third of a megabyte, so probing five days to find the three with
+football in them wastes most of a megabyte on empty Tuesdays.
+
+**A predicted eleven is only sometimes a prediction.** FotMob shows a starting eleven for
+every upcoming match, but for the ones further out it is simply the side that started last
+time. The payload says which is which in `content.lineup.lineupType`: `predicted` for the
+real thing, `lastStarting11` for the stand-in. Checked across a full round on 26 Aug 2026,
+the Friday night match and the two early Saturday kick-offs read `predicted` and the six
+later ones read `lastStarting11` — exactly what FotMob's own site shows. **A
+`lastStarting11` eleven is thrown away in the Worker and never reaches the page**, because a
+caveat printed under eleven names is not read, and a rotated player shown as an expected
+starter is worse than no eleven at all.
+
+That makes the mark it produces honest: `XI` in grey on a shirt means *his club's eleven has
+been predicted and he is not in it*. It says nothing at all until an hour or two before
+kick-off, and a club with no prediction yet leaves its players unmarked rather than marked
+wrong. It is the softest of the four shirt marks and the only one that can still be wrong by
+kick-off, which is why it is the only grey one.
+
+**The injured-and-suspended list comes from two places, and the nearer one wins.** The
+club payload carries `overview.lastLineupStats.unavailable` — cheap, because the rumour pass
+already fetches those ten payloads an hour, and it covers the whole league all week. The
+match payload carries the same shape per fixture. They are not the same list: the club one
+hangs off the last match played and the match one describes the side about to play. So the
+broad list is the floor and the per-match list is laid over it where a fixture is close
+enough to have one.
+
+Either way it is richer than FPL's own flags — expected returns as phrases (`Early September
+2026`, `Back in training`, `Doubtful`) and suspensions marked as suspensions — so a row on
+the news page now carries FPL's word for *what is wrong* and FotMob's for *when he is back*,
+each attributed, and a player FotMob has out while FPL still shows him clean gets a row and
+an amber `!` of his own.
+
+**Two heavy readers cannot share a tick.** A cron invocation has one budget for everything
+in it, and the two FotMob passes are the expensive ones — ten club payloads at half a
+megabyte for the rumours, a date listing and a handful of match pages for the elevens.
+Landing both on the same minute put the invocation over its limit and it died before writing
+anything, with no error to show for it: the line-up store simply sat empty. They now take
+alternate minutes, on top of their own gates.
 
 ## Selling prices, and why a rise is worth half, 26 Aug
 

@@ -1,3 +1,5 @@
+import { CLUBS, matchElement, type Element } from "./fotmob";
+
 /**
  * Transfer rumours, graded and sourced.
  *
@@ -35,6 +37,26 @@ export interface Rumour {
   reportedAt: string;
 }
 
+/**
+ * Who a club cannot pick, in FotMob's own words.
+ *
+ * This rides along on the team payload the rumours are read from, which is the whole reason
+ * it lives here rather than with the line-ups: the same ten payloads an hour already carry
+ * it, so the injury list costs nothing extra and covers the entire league all week. The
+ * match payload carries the same list, but only for a fixture close enough to kick-off to
+ * be worth asking about — and an injury is news on a Tuesday too.
+ */
+export interface Absence {
+  /** The FPL element when the name matched; null keeps an unmatched name readable. */
+  element: number | null;
+  name: string;
+  club: string;
+  /** FotMob's own word: `injury` or `suspension`. */
+  reason: string;
+  /** FotMob's own phrasing — "Early September 2026", "Back in training", "Doubtful". */
+  expectedReturn: string;
+}
+
 export interface RumoursEnv {
   TELEGRAM_STATE: KVNamespace;
 }
@@ -44,28 +66,17 @@ interface StoredRumours {
   /** Which half of the league goes next, so a tick reads ten clubs and not twenty. */
   half: number;
   rumours: Rumour[];
+  absences?: Absence[];
 }
 
 const RUMOURS_KEY = "rumours:list";
-
-/**
- * FotMob's club ids for the 2026-27 Premier League, against FPL's own short names.
- *
- * Read off FotMob's league table on 26 Aug 2026 rather than guessed. Promotion and
- * relegation move three of these every summer; an FPL club missing from the map is skipped
- * and logged rather than mismatched onto the wrong side.
- */
-const CLUBS: Record<number, string> = {
-  9825: "ARS", 10252: "AVL", 8678: "BOU", 9937: "BRE", 10204: "BHA",
-  8455: "CHE", 8669: "COV", 9826: "CRY", 8668: "EVE", 9879: "FUL",
-  8667: "HUL", 9902: "IPS", 8463: "LEE", 8650: "LIV", 8456: "MCI",
-  10260: "MUN", 10261: "NEW", 10203: "NFO", 8472: "SUN", 8586: "TOT",
-};
 
 /** Half an hour a half, so the whole league is an hour old at worst. */
 const CHECK_MS = 30 * 60_000;
 /** A rumour nobody has repeated in a fortnight has been overtaken by events. */
 const MAX_AGE_MS = 14 * 86_400_000;
+
+interface Bootstrap { elements: Element[]; teams: Array<{ id: number; short_name: string }> }
 
 interface FotMobRumour {
   name: string;
@@ -78,48 +89,6 @@ interface FotMobRumour {
   sourceUrl?: string;
   transferDate: string;
   rumourId: number;
-}
-
-interface Element { id: number; web_name: string; first_name: string; second_name: string; team: number }
-interface Bootstrap { elements: Element[]; teams: Array<{ id: number; short_name: string }> }
-
-/** Lower case, no accents, no punctuation — the only form two sites ever agree on. */
-export function normalise(name: string): string {
-  return name.normalize("NFD").replace(/[̀-ͯ]/g, "")
-    .toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
-}
-
-/**
- * Which FPL player a rumour is about.
- *
- * The two sites do not spell anybody the same way. FotMob says `Emiliano Martínez`, FPL
- * files him as `Emiliano` / `Martínez Romero` with a web name of `Martinez`, and there is a
- * second Martínez at another club. So the club comes first — a rumour is always attached to
- * one — and inside it the match is on shared name parts, with the forename breaking a tie.
- * Nothing matches across clubs, which is what keeps the two Martínezes apart.
- */
-export function matchElement(name: string, clubId: number, elements: Element[], teamByShort: Map<string, number>): number | null {
-  const short = CLUBS[clubId];
-  const team = short ? teamByShort.get(short) : undefined;
-  if (!team) return null;
-  const parts = new Set(normalise(name).split(" ").filter((part) => part.length >= 3));
-  if (!parts.size) return null;
-
-  let best: { id: number; score: number } | null = null;
-  for (const element of elements) {
-    if (element.team !== team) continue;
-    const own = new Set([
-      ...normalise(`${element.first_name} ${element.second_name}`).split(" "),
-      ...normalise(element.web_name).split(" "),
-    ].filter((part) => part.length >= 3));
-    let score = 0;
-    for (const part of parts) if (own.has(part)) score += 1;
-    if (!score) continue;
-    // A surname alone is one part; a forename and a surname together are two, and that is
-    // what separates the right Rodrigo from the other one at the same club.
-    if (!best || score > best.score) best = { id: element.id, score };
-  }
-  return best ? best.id : null;
 }
 
 const STRENGTH: Record<string, Rumour["strength"]> = { imminent: "imminent", high: "high", low: "low" };
@@ -164,6 +133,30 @@ export function rumoursFromTeam(
  * Merging by club rather than wholesale is what lets a tick read half the league: a club
  * that was not asked keeps what it last said instead of vanishing for half an hour.
  */
+/** The unavailable list off the same payload, matched onto FPL where it can be. */
+export function absencesFromTeam(
+  payload: { overview?: { lastLineupStats?: { id?: number; unavailable?: Array<{ name: string; unavailability?: { type?: string; expectedReturn?: string } }> } } },
+  clubId: number,
+  elements: Element[],
+  teamByShort: Map<string, number>,
+): Absence[] {
+  const club = CLUBS[clubId];
+  if (!club) return [];
+  return (payload.overview?.lastLineupStats?.unavailable ?? []).map((player) => ({
+    element: matchElement(player.name, clubId, elements, teamByShort),
+    name: player.name,
+    club,
+    reason: player.unavailability?.type ?? "injury",
+    expectedReturn: player.unavailability?.expectedReturn ?? "",
+  }));
+}
+
+/** The same club-wise merge the rumours get, for the same reason. */
+export function mergeAbsences(stored: Absence[], fresh: Absence[], clubsRead: string[]): Absence[] {
+  const read = new Set(clubsRead);
+  return [...stored.filter((absence) => !read.has(absence.club)), ...fresh];
+}
+
 export function mergeRumours(stored: Rumour[], fresh: Rumour[], clubsRead: string[], now: number): Rumour[] {
   const read = new Set(clubsRead);
   const kept = stored.filter((rumour) => !read.has(rumour.fromClub));
@@ -199,7 +192,11 @@ export async function updateRumours(env: RumoursEnv, now = Date.now()): Promise<
         cf: { cacheEverything: true, cacheTtl: 900 },
       });
       if (!response.ok) throw new Error(`FotMob ${clubId} ${response.status}`);
-      return rumoursFromTeam(await response.json(), bootstrap.elements, teamByShort);
+      const payload = await response.json() as Parameters<typeof rumoursFromTeam>[0] & Parameters<typeof absencesFromTeam>[0];
+      return {
+        rumours: rumoursFromTeam(payload, bootstrap.elements, teamByShort),
+        absences: absencesFromTeam(payload, clubId, bootstrap.elements, teamByShort),
+      };
     } catch (error) {
       console.error(JSON.stringify({ event: "rumour_fetch_error", club: clubId, error: error instanceof Error ? error.message : String(error) }));
       return null;
@@ -208,13 +205,15 @@ export async function updateRumours(env: RumoursEnv, now = Date.now()): Promise<
 
   // A club that failed is not a club with no rumours, so it keeps what it last said.
   const clubsRead = batch.filter((_, index) => results[index] !== null).map((clubId) => CLUBS[clubId]);
-  const fresh = results.flatMap((entry) => entry ?? []);
-  const rumours = mergeRumours(stored?.rumours ?? [], fresh, clubsRead, now);
+  const rumours = mergeRumours(stored?.rumours ?? [], results.flatMap((entry) => entry?.rumours ?? []), clubsRead, now);
+  const absences = mergeAbsences(stored?.absences ?? [], results.flatMap((entry) => entry?.absences ?? []), clubsRead);
 
   await env.TELEGRAM_STATE.put(RUMOURS_KEY, JSON.stringify({
     checkAfter: new Date(now + CHECK_MS).toISOString(),
     half: half + 1,
     rumours,
+    absences,
   } satisfies StoredRumours));
+  console.log(JSON.stringify({ event: "rumours_updated", rumours: rumours.length, absences: absences.length }));
   return { written: true, count: rumours.length };
 }

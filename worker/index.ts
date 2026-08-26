@@ -4,6 +4,7 @@ import { readFeed, updateFeed, type EventsEnv } from "./events";
 import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } from "./priceHistory";
 import { readArticles, updateArticles, type ArticlesEnv } from "./articles";
 import { readRumours, updateRumours, type RumoursEnv } from "./rumours";
+import { readLineups, updateLineups, type LineupsEnv } from "./lineups";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
 
@@ -113,8 +114,14 @@ export default {
     }
     if (url.pathname === "/rumours") {
       const stored = await readRumours(env as RumoursEnv);
-      return new Response(JSON.stringify({ rumours: stored?.rumours ?? [] }), {
+      return new Response(JSON.stringify({ rumours: stored?.rumours ?? [], absences: stored?.absences ?? [] }), {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
+      });
+    }
+    if (url.pathname === "/lineups") {
+      const stored = await readLineups(env as LineupsEnv);
+      return new Response(JSON.stringify({ fixtures: stored?.fixtures ?? [] }), {
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=180" },
       });
     }
     const route = upstreamPath(url.pathname, env);
@@ -126,7 +133,18 @@ export default {
       return json({ error: "FPL service temporarily unavailable" }, request, env, 502);
     }
   },
-  async scheduled(_controller, env, ctx): Promise<void> {
+  async scheduled(controller, env, ctx): Promise<void> {
+    /**
+     * The minute, used to keep the two heavy readers apart.
+     *
+     * A cron invocation has one budget for all of it, and the two FotMob passes are the
+     * expensive ones — ten team payloads at half a megabyte each for the rumours, a date
+     * listing and a handful of match pages for the line-ups. Landing both on the same tick
+     * put the invocation over its limit and it died before writing anything, silently,
+     * which is exactly how the line-up store sat empty with no error to show for it. They
+     * now take alternate minutes; each still has its own gate on top of that.
+     */
+    const minute = new Date(controller.scheduledTime).getUTCMinutes();
     ctx.waitUntil(runTelegramSchedule(env as TelegramEnv));
     // Independent of the Telegram switch: the feed is the site's, not the chat's.
     ctx.waitUntil(updateFeed(env as EventsEnv).catch((error) => {
@@ -147,8 +165,12 @@ export default {
       console.error(JSON.stringify({ event: "articles_error", error: error instanceof Error ? error.message : String(error) }));
     }));
     // Half the league every half hour, and a KV read on every other tick.
-    ctx.waitUntil(updateRumours(env as RumoursEnv).catch((error) => {
+    if (minute % 2 === 0) ctx.waitUntil(updateRumours(env as RumoursEnv).catch((error) => {
       console.error(JSON.stringify({ event: "rumours_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // The fixtures close to kick-off, every quarter of an hour, on the odd minutes.
+    if (minute % 2 === 1) ctx.waitUntil(updateLineups(env as LineupsEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "lineups_error", error: error instanceof Error ? error.message : String(error) }));
     }));
   },
 } satisfies ExportedHandler<Env>;

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Clock3, ExternalLink } from "lucide-react";
 import { translations } from "./i18n";
 import { flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
-import { isStrong, loadRumours, rumoursEndpoint, type Rumour } from "./services/rumours";
+import { absencesByElement, isStrong, loadFotmob, loadRumours, rumoursEndpoint, type Absence, type Rumour } from "./services/rumours";
+import { loadLineups } from "./services/lineups";
 import { articlesEndpoint, loadArticles, topicsPresent, type Article } from "./services/articles";
 import type { DashboardData, Language, PlayerNews } from "./types";
 
@@ -21,9 +22,11 @@ type Filter = "ours" | "all" | "rumours" | "articles";
 /** Anyone the league is exposed to comes first; the rest of the game is behind a filter. */
 const PAGE = 40;
 
-function Flag({ player }: { player: PlayerNews }) {
+function Flag({ player, absence }: { player: PlayerNews; absence?: Absence }) {
   const flag = flagOf(player);
-  if (flag.level === "none") return <i className="news-flag flag-bench">0</i>;
+  // FotMob has him out and FPL has not said so yet. It is not FPL's percentage, so it does
+  // not get FPL's colours: an exclamation in the amber that means "read this".
+  if (flag.level === "none") return <i className={`news-flag ${absence ? "flag-major" : "flag-bench"}`}>{absence ? "!" : "0"}</i>;
   return <i className={`news-flag flag-${flag.level}`}>
     {flag.level === "out" ? "✕" : `${flag.chance}`}
   </i>;
@@ -196,6 +199,36 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
   const [shown, setShown] = useState(PAGE);
 
   const all = data.playerNews ?? [];
+
+  /**
+   * FotMob's own unavailable list, beside FPL's flags.
+   *
+   * The two disagree in both directions and the disagreement is the useful part: FPL says
+   * "Knee injury" and stops, FotMob says when he is expected back and marks a suspension as
+   * one; and each of them lists players the other has not got round to. So a row carries
+   * whichever of the two has something to say, and a player only FotMob knows about gets a
+   * row of his own rather than being lost behind FPL's silence.
+   */
+  const [absences, setAbsences] = useState<Map<number, Absence>>(new Map());
+  useEffect(() => {
+    let active = true;
+    // The club-wide list, with the per-match one laid over it where a fixture is close
+    // enough to have one: the first is a week old at worst, the second is about the side
+    // that is actually about to play.
+    Promise.all([loadFotmob(), loadLineups()])
+      .then(([body, fixtures]) => {
+        if (!active || !body) return;
+        const merged = absencesByElement(body.absences);
+        for (const fixture of fixtures ?? []) {
+          for (const player of fixture.unavailable) {
+            if (player.element !== null) merged.set(player.element, player as Absence);
+          }
+        }
+        setAbsences(merged);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
   // The rumour list is about FPL elements, and the exposure it needs is the same exposure
   // the flag rows carry — so it is read off the one list rather than fetched again.
   const ownersByElement = useMemo(
@@ -204,9 +237,11 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
   );
 
   const rows = useMemo(() => {
-    const list = all.filter(isNewsworthy).filter((player) => filter === "all" || player.owners.length > 0);
+    const list = all
+      .filter((player) => isNewsworthy(player) || absences.has(player.id))
+      .filter((player) => filter === "all" || player.owners.length > 0);
     return [...list].sort(newsOrder);
-  }, [all, filter]);
+  }, [all, filter, absences]);
 
   // These two read the Worker, not FPL, so an FPL outage is no reason to hide them.
   if (!data.playerNews && filter !== "articles" && filter !== "rumours") {
@@ -249,13 +284,20 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
             <small>{player.club} · {player.position} · £{player.cost.toFixed(1)}m</small>
           </span>
 
-          <span className="news-flag-cell"><Flag player={player} /></span>
+          <span className="news-flag-cell"><Flag player={player} absence={absences.get(player.id)} /></span>
 
           <span className="news-word">
             {/* FPL's own sentence, verbatim. It is the most reliable thing on this page and
                 paraphrasing it would only add a second version to disagree with. */}
-            <em>{player.news || t.newsNoWord}</em>
+            <em>{player.news || (absences.get(player.id)
+              ? t.absenceTitle
+                .replace("{reason}", t.absenceReason[absences.get(player.id)!.reason] ?? absences.get(player.id)!.reason)
+                .replace("{return}", absences.get(player.id)!.expectedReturn || "—")
+              : t.newsNoWord)}</em>
             <span className="news-meta">
+              {/* FPL says what is wrong; FotMob says when he is back. Both, attributed. */}
+              {player.news && absences.get(player.id)?.expectedReturn
+                && <small className="news-return">FotMob: {absences.get(player.id)!.expectedReturn}</small>}
               <Since at={player.newsAt} language={language} />
               {player.link && <a href={player.link} target="_blank" rel="noopener noreferrer">
                 {t.newsClubWord} <ExternalLink />

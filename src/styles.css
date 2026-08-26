@@ -2692,6 +2692,10 @@ footer a { color:#c4c6d8; }
    colours: the site's own purple, with the two-way arrow that means a transfer everywhere
    else in football. It only ever appears for a report FotMob grades strong or imminent. */
 .player-flag.flag-rumour { background:#7b3fe4; color:#fff; font-size:12px; }
+/* Left out of a published prediction. Grey on purpose: it is not an injury, not a
+   suspension and not a move — it is a coach's expected team sheet, which is the softest of
+   the four marks and the only one that can be wrong by kick-off. */
+.player-flag.flag-xi { background:#3c4a43; color:#e8f0eb; font-size:9px; letter-spacing:.02em; }
 
 .news-page { display:flex; flex-direction:column; gap:10px; }
 .news-filters { display:flex; gap:3px; align-self:flex-start; padding:4px; border-radius:10px; background:var(--surface); }
@@ -2747,6 +2751,9 @@ footer a { color:#c4c6d8; }
 .news-word em { font-size:12px; font-style:normal; font-weight:700; line-height:1.35; }
 .news-meta { display:flex; align-items:center; gap:10px; }
 .news-meta small { color:var(--faint); font-size:9px; font-weight:800; }
+/* The return date, which is FotMob's contribution to a row FPL opened. Named, because a
+   figure from a second source with no source on it is worse than no figure. */
+.news-meta .news-return { color:var(--cyan); }
 .news-meta a { display:inline-flex; align-items:center; gap:4px; color:var(--cyan); font-size:9px; font-weight:800; text-decoration:none; }
 .news-meta a svg { width:10px; height:10px; }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { matchElement, mergeRumours, normalise, rumoursFromTeam, type Rumour } from "./rumours";
+import { absencesFromTeam, mergeAbsences, mergeRumours, rumoursFromTeam, type Rumour } from "./rumours";
+import { matchElement, normalise } from "./fotmob";
 
 const elements = [
   // Two Martínezes, one at Villa and one at United, which is the case a surname alone
@@ -70,5 +71,22 @@ describe("transfer rumours", () => {
   it("normalises the accents the two sites disagree about", () => {
     expect(normalise("Jérémy Doku")).toBe("jeremy doku");
     expect(normalise("Nico González")).toBe("nico gonzalez");
+  });
+
+  it("takes the unavailable list off the same payload the rumours came from", () => {
+    const payload = { overview: { lastLineupStats: { unavailable: [
+      { name: "Jack Grealish", unavailability: { type: "injury", expectedReturn: "Early September 2026" } },
+      { name: "Nobody Here", unavailability: { type: "suspension", expectedReturn: "Two matches" } },
+    ] } } };
+    const out = absencesFromTeam(payload, 8456, elements, teamByShort);
+    expect(out[0]).toMatchObject({ element: 3, club: "MCI", reason: "injury", expectedReturn: "Early September 2026" });
+    // An unmatched name is still worth printing, so it keeps its place with a null element.
+    expect(out[1]).toMatchObject({ element: null, name: "Nobody Here", reason: "suspension" });
+  });
+
+  it("keeps the absences of the clubs a tick did not read", () => {
+    const city = { element: 3, name: "Jack Grealish", club: "MCI", reason: "injury", expectedReturn: "" };
+    const gunners = { element: 9, name: "Someone", club: "ARS", reason: "injury", expectedReturn: "" };
+    expect(mergeAbsences([city, gunners], [], ["ARS"])).toEqual([city]);
   });
 });
