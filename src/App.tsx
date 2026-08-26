@@ -442,10 +442,10 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
   // reported one is not the same claim as a published percentage. Only the strong ones —
   // `Low` is a newspaper having a guess, and a shirt is no place for one.
   if (rumour && isStrong(rumour)) {
-    const label = t.rumourFlagTitle
-      .replace("{to}", rumour.toClub)
-      .replace("{strength}", t.rumourStrength[rumour.strength])
-      .replace("{source}", rumour.source);
+    // The destination and who reported it. Not the grading: `Imminent` against `High` is
+    // somebody's interpretation, and it is doing its work already by deciding whether this
+    // mark appears at all.
+    const label = t.rumourFlagTitle.replace("{to}", rumour.toClub).replace("{source}", rumour.source);
     return <i className="player-flag flag-rumour" title={label} aria-label={label}>⇄</i>;
   }
   /**

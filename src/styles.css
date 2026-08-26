@@ -2737,30 +2737,6 @@ footer a { color:#c4c6d8; }
 .news-flag.flag-major { background:#ff7a18; color:#2a1200; }
 .news-flag.flag-doubt { background:#ffd21e; color:#231b00; }
 .news-flag.flag-bench { background:transparent; border:1.5px solid var(--faint); color:var(--faint); }
-/* The grading is a word, not a number, so this badge is a word: FotMob says Imminent, High
-   or Low and the page says exactly that rather than inventing a percentage for it. */
-.news-flag[class*="strength-"] { min-width:0; padding:5px 8px; border-radius:6px; font-size:9px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
-.news-flag.strength-imminent { background:#7b3fe4; color:#fff; }
-.news-flag.strength-high { background:color-mix(in srgb,#7b3fe4 26%,transparent); color:var(--purple); }
-.news-flag.strength-low { background:var(--raised); color:var(--soft); }
-/* The grading column has to fit a word here, where the flag list only ever holds two
-   characters. 104px is the widest of the three words plus its padding — measured, because
-   the first attempt cut "kaupat lähellä" off inside its own pill. */
-.news-row[class*="rumour-"] { grid-template-columns:minmax(150px,1.1fr) 104px minmax(190px,1.6fr) minmax(190px,1.2fr); }
-
-/* The sortable head, which is the price table's head wearing the news row's grid. */
-.news-head {
-  min-height:38px;
-  padding-block:0;
-  border-top:0;
-  background:var(--raised);
-}
-.news-head > span { display:flex; align-items:center; gap:10px; color:color-mix(in srgb,var(--soft) 62%,var(--text)); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
-.news-head .price-sort { text-transform:uppercase; }
-
-.news-filters-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
-.news-filters-row .period-select { height:34px; }
-.news-count { color:var(--page-ink); font-size:11px; font-weight:700; }
 
 .news-word { display:grid; row-gap:3px; min-width:0; }
 .news-word em { font-size:12px; font-style:normal; font-weight:700; line-height:1.35; }
@@ -2769,6 +2745,17 @@ footer a { color:#c4c6d8; }
 /* The return date, which is FotMob's contribution to a row FPL opened. Named, because a
    figure from a second source with no source on it is worse than no figure. */
 .news-meta .news-return { color:var(--cyan); }
+
+/* The reported move, under whatever FPL and FotMob have already said about him. It is the
+   softest line on the row — nobody has said he cannot play, only that he might be leaving —
+   so it is set quieter than the sentence above it and carries every outlet that ran it. */
+.news-move { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
+.news-move em { color:var(--purple); font-size:11px; font-style:normal; font-weight:800; }
+.news-sources { display:flex; flex-wrap:wrap; align-items:center; gap:4px 9px; }
+.news-sources a { display:inline-flex; align-items:center; gap:3px; color:var(--cyan); font-size:9px; font-weight:800; text-decoration:none; }
+.news-sources a svg { width:9px; height:9px; }
+.news-sources small { color:var(--faint); font-size:9px; font-weight:800; }
+.news-flag.flag-move { background:#7b3fe4; color:#fff; font-size:13px; }
 .news-meta a { display:inline-flex; align-items:center; gap:4px; color:var(--cyan); font-size:9px; font-weight:800; text-decoration:none; }
 .news-meta a svg { width:10px; height:10px; }
 
@@ -2801,10 +2788,7 @@ footer a { color:#c4c6d8; }
   }
   .news-word,
   .news-owners { grid-column:1 / -1; }
-  .news-row[class*="rumour-"] { grid-template-columns:minmax(0,1fr) auto; }
-  /* A four-column head over two stacked columns says nothing, and the select and the
-     sort buttons would be fighting for one line. The list keeps its order; the head goes. */
-  .news-head { display:none; }
+
   .news-player b { font-size:12px; }
   .news-word em { font-size:11px; }
 }

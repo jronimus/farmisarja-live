@@ -1118,22 +1118,26 @@ is always attached to one — and within the club the match is on shared name pa
 forename breaking ties. Nothing matches across clubs, and an unmatched rumour is dropped
 rather than guessed at.
 
-On the shirt it is the site's purple with a `⇄`, and only for `Imminent` or `High`: a `Low`
-is a newspaper having a guess, and a shirt has room for one mark.
+**A rumour is not an FPL fact, and it had a page of its own for one day too long.** It began
+as a sortable table of its own — who is moving where, how strongly it is reported, and
+whether he would still be in the Premier League afterwards. That last column was the tell:
+staying in the league is no promise that anybody is playing on Saturday, which is the only
+question this page exists to answer. A move matters here for exactly one reason — **a player
+being negotiated over may not be in the side** — and that is the same thing the injury rows
+above it are saying.
 
-The list itself shows every grade and is sorted rather than filtered. It began with a
-strong-only toggle, which turned out to be a sort wearing a filter's clothes: **sorting by
-strength puts the strong ones first and costs nothing to look past**, so the toggle went and
-the head gained five sortable columns — player A–Z, strength, whether he would still be in
-the league afterwards, when it was reported, and how many squads here hold him. Every column
-falls back to the same second key, the newest report, so rows never shuffle at random within
-a tie. The team filter is a select of this league's own squads, which is the question a
-reader actually has. The head is hidden on a phone, where four columns are stacked into two
-and a row of sort buttons would be fighting the select for the same line.
+So the table is gone and the reports are folded into the list: a player nobody has flagged
+but somebody has linked with a move gets a `⇄` row reading *Siirtohuhu — ei välttämättä
+pelaamassa*, and a player who already has a flag gets the move as an extra line under it.
+They rank below FPL's own doubts and above the players with nothing said about them.
 
-The Finnish for `Imminent` is *lähellä* and not *kaupat lähellä*, because the grading column
-is the narrowest on the row and the longer phrase was cut off inside its own pill. The
-column is 104px, which is the widest of the three words plus its padding, measured.
+**Every outlet is named and every report is linked.** One player collects several — Martínez
+has Chelsea from The Sun and Juventus from Football Italia, Grealish had five in a day — so
+the destinations are listed together and each source keeps its own link. **The grading is
+not printed at all.** `Imminent` against `High` is somebody's interpretation, and two named
+reports tell a reader more than one adjective does. It still does its work out of sight: it
+decides whether a shirt is marked, since a `Low` is a newspaper having a guess and a shirt
+has room for one mark.
 
 ### The half FPL cannot tell you
 

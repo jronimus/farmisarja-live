@@ -61,6 +61,52 @@ export function absencesByElement(absences: Absence[]): Map<number, Absence> {
 const RANK: Record<Rumour["strength"], number> = { imminent: 0, high: 1, low: 2 };
 
 /**
+ * Everything reported about one player's possible move, gathered into a line.
+ *
+ * A rumour is not a fact about FPL. The fact is that a player being negotiated over may not
+ * be in the side on Saturday, which is why this ends up in the same list as the injuries
+ * rather than in a table of its own — and why the destination is context rather than a
+ * claim. "He would still be in the Premier League" said nothing worth saying: staying in
+ * the league is no promise that anybody is playing this week.
+ *
+ * Every report is kept and every source is linked. One player collects several — Grealish
+ * had five in a day, to four different clubs — and the number of outlets saying it, and
+ * which outlets they are, is the reader's own way of judging it. Which is also why the
+ * grading is not printed: `Imminent` against `High` is somebody's interpretation, and two
+ * named reports say more than one adjective does.
+ */
+export interface Move {
+  element: number;
+  fromClub: string;
+  /** Every destination reported, strongest report first. */
+  destinations: string[];
+  sources: Array<{ name: string; url?: string; at: string }>;
+  /** Kept for ordering and for deciding whether a shirt is marked at all, never printed. */
+  strongest: Rumour["strength"];
+  latest: string;
+}
+
+export function movesByElement(rumours: Rumour[]): Map<number, Move> {
+  const byElement = new Map<number, Rumour[]>();
+  for (const rumour of rumours) byElement.set(rumour.element, [...(byElement.get(rumour.element) ?? []), rumour]);
+
+  const moves = new Map<number, Move>();
+  for (const [element, reports] of byElement) {
+    const ordered = [...reports].sort((a, b) => RANK[a.strength] - RANK[b.strength] || b.reportedAt.localeCompare(a.reportedAt));
+    moves.set(element, {
+      element,
+      fromClub: ordered[0].fromClub,
+      destinations: [...new Set(ordered.map((report) => report.toClub))],
+      // One outlet reporting the same move twice is one source, not two.
+      sources: [...new Map(ordered.map((report) => [report.source, { name: report.source, url: report.sourceUrl, at: report.reportedAt }])).values()],
+      strongest: ordered[0].strength,
+      latest: ordered.map((report) => report.reportedAt).sort().at(-1) as string,
+    });
+  }
+  return moves;
+}
+
+/**
  * The strongest live report per player.
  *
  * One player collects several: Grealish had five on one day, four of them `Low` and to four
