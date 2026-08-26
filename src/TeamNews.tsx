@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, ExternalLink } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, ExternalLink } from "lucide-react";
 import { translations } from "./i18n";
 import { flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
 import { absencesByElement, isStrong, loadFotmob, loadRumours, rumoursEndpoint, type Absence, type Rumour } from "./services/rumours";
@@ -117,11 +117,23 @@ export type RumourOwner = { name: string; club: string; position: string; owners
  * likely it is, the outlet that ran it and a link to the report. Nothing on this page is
  * our inference — which is the point, because the thing this replaced was.
  */
-function Rumours({ language, owners }: { language: Language; owners: Map<number, RumourOwner> }) {
+type RumourSort = "strength" | "player" | "league" | "reported" | "owners";
+
+const STRENGTH_RANK: Record<Rumour["strength"], number> = { imminent: 2, high: 1, low: 0 };
+
+function Rumours({ language, owners, managers }: {
+  language: Language;
+  owners: Map<number, RumourOwner>;
+  managers: Array<{ id: number; teamName: string }>;
+}) {
   const t = translations(language);
   const [rumours, setRumours] = useState<Rumour[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [strongOnly, setStrongOnly] = useState(true);
+  const [team, setTeam] = useState("");
+  // The strongest first, because that is the order the old "strong only" button was really
+  // asking for — and as a sort it costs nothing to look past it at the rest.
+  const [sort, setSort] = useState<RumourSort>("strength");
+  const [descending, setDescending] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -138,28 +150,50 @@ function Rumours({ language, owners }: { language: Language; owners: Map<number,
     <Clock3 /><strong>{t.rumoursLoading}</strong>
   </section>;
 
-  // Ours first, then the strongest, then the newest. A league squad's rumour is the only
-  // one on this page anybody has to act on.
+  const heldBy = (rumour: Rumour) => owners.get(rumour.element)?.owners ?? [];
+  const nameOf = (rumour: Rumour) => owners.get(rumour.element)?.name ?? rumour.player;
+
   const shown = rumours
-    .filter((rumour) => !strongOnly || isStrong(rumour))
-    .sort((a, b) => (owners.get(b.element)?.owners.length ?? 0) - (owners.get(a.element)?.owners.length ?? 0)
-      || (a.strength === b.strength ? 0 : a.strength === "imminent" ? -1 : b.strength === "imminent" ? 1 : a.strength === "high" ? -1 : 1)
-      || b.reportedAt.localeCompare(a.reportedAt));
+    .filter((rumour) => !team || heldBy(rumour).some((owner) => String(owner.managerId) === team))
+    .sort((a, b) => {
+      const by = sort === "player" ? nameOf(a).localeCompare(nameOf(b))
+        : sort === "league" ? Number(a.staysInLeague) - Number(b.staysInLeague)
+        : sort === "reported" ? a.reportedAt.localeCompare(b.reportedAt)
+        : sort === "owners" ? heldBy(a).length - heldBy(b).length
+        : STRENGTH_RANK[a.strength] - STRENGTH_RANK[b.strength];
+      // Every column falls back to the same second key, so rows never shuffle at random
+      // within a tie: the newest report of the same weight is the one worth reading.
+      return (by || a.reportedAt.localeCompare(b.reportedAt)) * (descending ? -1 : 1);
+    });
+
+  const header = (label: string, key: RumourSort) => <button
+    className={`price-sort ${sort === key ? "active" : ""}`}
+    onClick={() => { if (sort === key) setDescending((value) => !value); else { setSort(key); setDescending(true); } }}
+  >{label}{sort === key && (descending ? <ArrowDown /> : <ArrowUp />)}</button>;
 
   return <>
-    <div className="topic-filters">
-      <button className={strongOnly ? "active" : ""} onClick={() => setStrongOnly(true)}>{t.rumoursOnlyStrong}</button>
-      <button className={strongOnly ? "" : "active"} onClick={() => setStrongOnly(false)}>{t.newsAll}</button>
+    <div className="news-filters-row">
+      <select className="period-select" value={team} onChange={(event) => setTeam(event.target.value)} aria-label={t.allTeams}>
+        <option value="">{t.allTeams}</option>
+        {managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.teamName}</option>)}
+      </select>
+      <span className="news-count">{shown.length} {t.rumoursShown}</span>
     </div>
 
     <div className="news-list">
+      <div className="news-row news-head rumour-head">
+        <span>{header(t.player, "player")}</span>
+        <span>{header(t.rumourStrengthWord, "strength")}</span>
+        <span>{header(t.rumourLeagueWord, "league")} {header(t.rumourReportedWord, "reported")}</span>
+        <span>{header(t.leagueOwners, "owners")}</span>
+      </div>
       {shown.map((rumour) => {
         const player = owners.get(rumour.element);
-        const held = player?.owners ?? [];
+        const held = heldBy(rumour);
         return <article className={`news-row rumour-${rumour.strength} ${held.length ? "is-held" : ""}`} key={rumour.id}>
           <span className="news-player">
             <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${player?.position === "GK" ? "optimized-gk" : "optimized"}/${(player?.club ?? rumour.fromClub).toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
-            <b>{player?.name ?? rumour.player}</b>
+            <b>{nameOf(rumour)}</b>
             <small>{rumour.fromClub} {t.rumourTo.replace("{to}", rumour.toClub)}</small>
           </span>
 
@@ -271,7 +305,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     </div>
 
     {filter === "articles" ? <Articles language={language} />
-      : filter === "rumours" ? <Rumours language={language} owners={ownersByElement} />
+      : filter === "rumours" ? <Rumours language={language} owners={ownersByElement} managers={data.managers} />
       : <>
 
     <div className="news-list">

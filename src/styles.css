@@ -2744,8 +2744,23 @@ footer a { color:#c4c6d8; }
 .news-flag.strength-high { background:color-mix(in srgb,#7b3fe4 26%,transparent); color:var(--purple); }
 .news-flag.strength-low { background:var(--raised); color:var(--soft); }
 /* The grading column has to fit a word here, where the flag list only ever holds two
-   characters. */
-.news-row[class*="rumour-"] { grid-template-columns:minmax(150px,1.1fr) 92px minmax(190px,1.6fr) minmax(190px,1.2fr); }
+   characters. 104px is the widest of the three words plus its padding — measured, because
+   the first attempt cut "kaupat lähellä" off inside its own pill. */
+.news-row[class*="rumour-"] { grid-template-columns:minmax(150px,1.1fr) 104px minmax(190px,1.6fr) minmax(190px,1.2fr); }
+
+/* The sortable head, which is the price table's head wearing the news row's grid. */
+.news-head {
+  min-height:38px;
+  padding-block:0;
+  border-top:0;
+  background:var(--raised);
+}
+.news-head > span { display:flex; align-items:center; gap:10px; color:color-mix(in srgb,var(--soft) 62%,var(--text)); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.news-head .price-sort { text-transform:uppercase; }
+
+.news-filters-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.news-filters-row .period-select { height:34px; }
+.news-count { color:var(--page-ink); font-size:11px; font-weight:700; }
 
 .news-word { display:grid; row-gap:3px; min-width:0; }
 .news-word em { font-size:12px; font-style:normal; font-weight:700; line-height:1.35; }
@@ -2787,6 +2802,9 @@ footer a { color:#c4c6d8; }
   .news-word,
   .news-owners { grid-column:1 / -1; }
   .news-row[class*="rumour-"] { grid-template-columns:minmax(0,1fr) auto; }
+  /* A four-column head over two stacked columns says nothing, and the select and the
+     sort buttons would be fighting for one line. The list keeps its order; the head goes. */
+  .news-head { display:none; }
   .news-player b { font-size:12px; }
   .news-word em { font-size:11px; }
 }

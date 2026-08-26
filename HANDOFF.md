@@ -1119,8 +1119,21 @@ forename breaking ties. Nothing matches across clubs, and an unmatched rumour is
 rather than guessed at.
 
 On the shirt it is the site's purple with a `⇄`, and only for `Imminent` or `High`: a `Low`
-is a newspaper having a guess, and a shirt has room for one mark. The list itself shows
-`Low` too, behind a toggle, because reading the grading is the point.
+is a newspaper having a guess, and a shirt has room for one mark.
+
+The list itself shows every grade and is sorted rather than filtered. It began with a
+strong-only toggle, which turned out to be a sort wearing a filter's clothes: **sorting by
+strength puts the strong ones first and costs nothing to look past**, so the toggle went and
+the head gained five sortable columns — player A–Z, strength, whether he would still be in
+the league afterwards, when it was reported, and how many squads here hold him. Every column
+falls back to the same second key, the newest report, so rows never shuffle at random within
+a tie. The team filter is a select of this league's own squads, which is the question a
+reader actually has. The head is hidden on a phone, where four columns are stacked into two
+and a row of sort buttons would be fighting the select for the same line.
+
+The Finnish for `Imminent` is *lähellä* and not *kaupat lähellä*, because the grading column
+is the narrowest on the row and the longer phrase was cut off inside its own pill. The
+column is 104px, which is the widest of the three words plus its padding, measured.
 
 ### The half FPL cannot tell you
 
