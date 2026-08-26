@@ -1141,9 +1141,12 @@ has room for one mark.
 
 ### The half FPL cannot tell you
 
-Every row carries which of these seven squads hold the player, and a squad **starting** him
-is painted apart from one with him on the bench — the first is points this weekend and the
-second is not. That is the whole reason for the page rather than a link to FPL's own list:
+Every row carries which of these seven squads hold the player. Not whether he is in their
+eleven: that was painted apart at first and it was noise, because whose squads he is in is
+the question this column answers, and a benched player is held exactly as much as a
+starting one. The armband stayed, since a doubtful captain is the one case where the
+gameweek and the ownership are the same question. That is the whole reason for the page
+rather than a link to FPL's own list:
 118 flagged players is a fact, and "two of these seven are starting a 3 %-owned keeper who
 has not played a minute" is a problem. The default filter is this league's exposure; the
 whole game is one click away.

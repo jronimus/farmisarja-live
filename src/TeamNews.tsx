@@ -264,10 +264,13 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
           </span>
 
           <span className="news-owners">
-            {/* The half of this FPL cannot tell you. A squad starting him is a different
-                problem from a squad with him on the bench, so the two are not painted alike. */}
+            {/* The half of this FPL cannot tell you: whose squads he is in. Not whether he
+                is in their eleven — that is a fact about one gameweek, and this column is
+                about who holds him, where a benched player is held exactly as much as a
+                starting one. The armband stays, because a doubtful captain is the one case
+                where the gameweek and the ownership are the same question. */}
             {player.owners.length
-              ? player.owners.map((owner) => <b key={owner.managerId} className={owner.starter ? "starting" : ""}>
+              ? player.owners.map((owner) => <b key={owner.managerId}>
                 {owner.teamName}{owner.captain ? " (C)" : ""}
               </b>)
               : <em className="quiet">{t.newsNobodyHere}</em>}

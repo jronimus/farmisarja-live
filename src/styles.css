@@ -2769,9 +2769,6 @@ footer a { color:#c4c6d8; }
   font-weight:800;
   white-space:nowrap;
 }
-/* In somebody's eleven is a different problem from on somebody's bench, and the page is
-   about the difference: only the first is points this weekend. */
-.news-owners b.starting { background:var(--pick); color:#141a05; }
 .news-owners .quiet { color:var(--faint); font-size:11px; font-style:normal; }
 .news-owners small { flex:1 1 100%; color:var(--faint); font-size:9px; font-weight:800; }
 
