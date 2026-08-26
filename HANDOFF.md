@@ -53,7 +53,10 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/services/awards.ts` | Award rules, thresholds, rarity, selection |
 | `src/services/ownership.ts` | League ownership and effective ownership, for the player highlight |
 | `src/services/priceChanges.ts` | FPL's published price-change numbers, and the two figures derived from them |
-| `src/PriceChanges.tsx` | The price change page at `#/hinnat` |
+| `src/PriceChanges.tsx` | The price change page at `#/hinnat`, and its two tabs |
+| `src/PriceHistory.tsx` | The history tab: what prices have already done |
+| `src/services/priceHistory.ts` | Reads the change log from the Worker and groups it by night |
+| `worker/priceHistory.ts` | Watches FPL's prices, writes down what moved, and serves `/price-history` |
 | `src/Ticker.tsx` | The live event ticker under the header |
 | `src/services/liveFeed.ts` | Reads the event log from the Worker |
 | `worker/events.ts` | Derives the events by diffing snapshots, and serves `/events` |
@@ -1005,6 +1008,99 @@ everything that ticks is set in `tabular-nums`. Inter's proportional figures are
 width — `1` is 4.86px against `0` at 7.61px — so a running clock in the right-hand group
 shoved `GW 1` and the links about by up to 16px every second. That was measured off the
 font rather than guessed at.
+
+### Tonight's projection as its own column, 26 Aug
+
+The prediction split in two. **Ennuste tänään** is the figure — where the player's rate has
+him standing when tonight's change is decided — and **Milloin** is the sentence that figure
+produced. They were one column, and the sentence alone hid what it was read off: *Nousee
+tänään* says nothing about whether he arrives at 104 % or 160 %, and that difference is
+most of what a reader wants from the column.
+
+The figure is `projectedAt(row, nextPriceDeadline(market, now), now)`, exported from
+`services/priceChanges.ts` because the table now prints the same number it already sorted
+by. It is read once per render for the whole table, so every row answers the same question
+about the same moment, and it is not drawn at all for a locked player or when FPL's list of
+deadlines has run out — there is then no tonight to project to. Checked against LiveFPL on
+the same rows: 116.2 against 115.75, 105.9 against 105.69, 104.9 against 104.51, 97.7
+against 97.62. Same numbers, arrived at independently.
+
+Past the line it is struck with `--pick`, the league's own highlighter — the same band the
+picked captain's name gets, text on a stroke rather than in a pill, so a column of them does
+not read as a column of buttons. It is deliberately not green or red: the sentence beside it
+already says which way, and the two colours mean direction everywhere else on the page. The
+figure crossing 100 does not mean *up*, it means *this has stopped being a projection*.
+
+On a phone this column takes the per-hour column's place. It is the same rate read at the
+moment it settles, which is the question a phone is being asked; the four columns that
+survive are now who, how far along, where tonight leaves him, and what he costs.
+
+### The price change history, 26 Aug
+
+The price page has two tabs. **Ennuste** is everything above: where prices are going.
+**Historia** is what they have already done, and it is the site's own record rather than
+FPL's, because FPL does not keep one.
+
+That is the whole design constraint. `now_cost` and `cost_change_start` are totals: after
+02:00 a player simply costs a tenth more than he did, with nothing anywhere saying when he
+moved or from what. `element-summary` carries a `value` per gameweek, which is a price on a
+Saturday and not a change on a Tuesday, and it costs one request per player to read. So the
+log is built the way every price history on the internet is built, LiveFPL's included — by
+diffing successive snapshots and stamping the time itself. **It has no past before the night
+the Worker started watching**, there is nothing to backfill it from, and the page says so
+under the table rather than letting a quiet fortnight read as a fortnight in which nothing
+happened.
+
+`worker/priceHistory.ts` keeps one KV value: a snapshot of every `now_cost`, the log itself,
+and `checkAfter` — the moment it is next worth fetching anything. Prices move once a day at
+a time FPL publishes, so this does not poll the way the event feed does: on all but a few
+ticks a day it returns after one KV read and no fetch at all.
+
+Two details are what keep it inside the free plan's thousand writes:
+
+- **The window is measured from the deadlines that have passed, not the ones ahead.** FPL
+  drops a spent deadline from `price_change_deadlines`, so by the time the prices actually
+  move, tonight's entry is already gone from the list — a window measured off the next
+  entry would open at the wrong end of the day and never see a change.
+- **Inside the window the gate is the deadline itself, not the clock.** A clock reading
+  would differ every minute, so every quiet tick of a two-hour window would write a new
+  `checkAfter` to say nothing had happened: 120 writes a night. Held at the deadline that
+  opened the window, a night in which nothing moved writes nothing at all.
+
+A change's id is `element:date:newPrice`, so a replayed tick cannot log the same move twice;
+a player missing from the snapshot is seeded in silence, because a price the log has never
+seen cannot be said to have moved. The log keeps 31 days.
+
+At the page end the two tabs are deliberately the same table read twice — the same shirt
+column, the same owners, the same filter row above both, with only the middle columns
+swapped. The filters live in `PriceChanges` and are handed down as one `matches` predicate
+so that switching tabs keeps the selection instead of quietly widening it back out.
+*Lukitut* is dropped on the history tab: locked describes a price that cannot move yet,
+which has nothing to say about one that already has.
+
+Nights are grouped by the night they belong to, not by the date on the stamp. `nightOf`
+winds the moment back twelve hours before reading the date off it, so anything in the small
+hours belongs to the evening before — which is what every manager and LiveFPL's own page
+call it, and it is the same reckoning `daysUntilChangeDay` uses for a deadline, read from
+the other side. The most recent night is therefore labelled *Viime yönä* rather than
+*Eilen*. Within a night, risers before fallers and ownership descending: every change is
+exactly a tenth, so ownership is the only thing that separates them.
+
+**The night of 25 Aug is seeded in code** (`SEEDED_CHANGES` in `worker/priceHistory.ts`).
+It was the season's first price change and the only one before any of this existed:
+M.Sangaré and De Cuyper +0.1, Gyökeres and Martinelli −0.1, read off LiveFPL and checked
+against FPL — all four have a `cost_change_start` of exactly ±1, which is only true if
+these moves are the whole of their season. It is merged at read time rather than written to
+KV, so it cannot be lost with the value or duplicated by it; a watched line with the same id
+wins. The stamp is FPL's window rather than a minute anybody recorded and the ownership is
+today's, and nothing else will ever be seeded — there is no source outside the log for any
+night after it.
+
+FPL's published deadline is 23:00Z and the prices themselves land somewhere around
+00:30–01:30Z, an hour or more later, which is why the window is four hours rather than the
+two it started as. It also closes early: the night's change happens once, so the tick that
+sees it sets the gate straight to the next deadline instead of fetching every minute until
+the window times out.
 
 ## Share cards
 

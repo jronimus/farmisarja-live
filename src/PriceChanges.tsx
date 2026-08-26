@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Clock3, Lock, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, History, LineChart, Lock, Search } from "lucide-react";
 import { translations } from "./i18n";
-import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor, outlookRank } from "./services/priceChanges";
+import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor, outlookRank, projectedAt } from "./services/priceChanges";
 import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
+import PriceHistory from "./PriceHistory";
 import type { DashboardData, Language, PriceRow } from "./types";
 
-type SortKey = "progress" | "outlook" | "perHour" | "ownership" | "cost" | "name";
+type SortKey = "progress" | "tonight" | "outlook" | "perHour" | "ownership" | "cost" | "name";
 type Direction = "all" | "risers" | "fallers" | "locked";
+/** What the page is about: where prices are going, or where they have been. */
+type Tab = "market" | "history";
 
 const PAGE_SIZES = [10, 15, 25, 50, 100];
 const PAGE_SIZE_KEY = "farmisarja-price-page-size";
@@ -33,6 +36,26 @@ function Countdown({ deadline, language }: { deadline: string | null; language: 
   </div>;
 }
 
+/**
+ * The two readings of the price page.
+ *
+ * A strip above the filters rather than another button among them: the filters narrow what
+ * is shown, and this changes what the page is about. The countdown, the search and the
+ * three selects stay put across the switch, which is the reason the tabs are here and not
+ * inside the filter row where they would look like a fifth filter.
+ */
+function Tabs({ tab, setTab, language }: { tab: Tab; setTab: (value: Tab) => void; language: Language }) {
+  const t = translations(language);
+  return <div className="price-tabs" role="tablist">
+    <button role="tab" aria-selected={tab === "market"} className={tab === "market" ? "active" : ""} onClick={() => setTab("market")}>
+      <LineChart /> {t.tabMarket}
+    </button>
+    <button role="tab" aria-selected={tab === "history"} className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>
+      <History /> {t.tabHistory}
+    </button>
+  </div>;
+}
+
 function Owners({ owners }: { owners: PlayerOwner[] }) {
   if (!owners.length) return <span className="price-owners empty">—</span>;
   return <span className="price-owners">
@@ -43,6 +66,7 @@ function Owners({ owners }: { owners: PlayerOwner[] }) {
 
 export default function PriceChanges({ data, language, autosubs }: { data: DashboardData; language: Language; autosubs: boolean }) {
   const t = translations(language);
+  const [tab, setTab] = useState<Tab>("market");
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
   const [club, setClub] = useState("");
@@ -60,6 +84,10 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
 
   useEffect(() => { localStorage.setItem(PAGE_SIZE_KEY, String(pageSize)); }, [pageSize]);
 
+  // Locked is dropped from the filter row on the history tab, so a selection left on it
+  // would be a filter nothing can satisfy and no control to undo it with.
+  useEffect(() => { if (tab === "history" && direction === "locked") setDirection("all"); }, [tab, direction]);
+
   const owners = useMemo(() => ownersByPlayer(data.managers, autosubs), [data.managers, autosubs]);
   const market = data.prices;
   // One reading per render. The sort and the rows have to agree about what time it is, and
@@ -71,13 +99,38 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     [market],
   );
 
-  const rows = useMemo(() => {
+  /**
+   * Who the page is showing, before either tab has said anything about prices. Both tabs
+   * ask the same four questions of a player — name, team, position, club — and they are
+   * asked in one place so that switching tabs keeps the selection rather than quietly
+   * widening it back out.
+   */
+  const matches = useMemo(() => {
     const term = search.trim().toLowerCase();
-    const filtered = (market?.players ?? []).filter((row) => {
+    return (row: { id: number; name: string; position: string; club: string }) => {
       if (term && !row.name.toLowerCase().includes(term)) return false;
       if (position && row.position !== position) return false;
       if (club && row.club !== club) return false;
       if (manager && !(owners.get(row.id) ?? []).some((owner) => String(owner.managerId) === manager)) return false;
+      return true;
+    };
+  }, [search, position, club, manager, owners]);
+
+  /**
+   * Tonight's change, and where each rate lands at it. One reading for the whole table, so
+   * every row on screen is answering the same question about the same moment — and none at
+   * all once FPL's list of deadlines has run out, because then there is no tonight to
+   * project to.
+   */
+  const nextDeadline = nextPriceDeadline(market, now);
+  const tonight = nextDeadline ? {
+    clock: new Intl.DateTimeFormat(language === "fi" ? "fi-FI" : "en-GB", { hour: "2-digit", minute: "2-digit" }).format(new Date(nextDeadline)),
+    at: (row: PriceRow) => projectedAt(row, nextDeadline, now),
+  } : null;
+
+  const rows = useMemo(() => {
+    const filtered = (market?.players ?? []).filter((row) => {
+      if (!matches(row)) return false;
       if (direction === "risers" && row.progress <= 0) return false;
       if (direction === "fallers" && row.progress >= 0) return false;
       if (direction === "locked" && !row.lockedUntil) return false;
@@ -91,6 +144,9 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
       // signed for the same reason — rising soonest at one end, falling soonest at the
       // other, rather than both of them together at the top.
       if (sort === "progress") return row.progress;
+      // Signed, like the two columns either side of it: the ones landing furthest over the
+      // line at one end, the ones landing furthest under it at the other.
+      if (sort === "tonight") return nextDeadline ? projectedAt(row, nextDeadline, now) : row.progress;
       if (sort === "outlook") return market ? outlookRank(row, market, now) : 0;
       if (sort === "perHour") return row.perHour;
       if (sort === "ownership") return row.ownership;
@@ -99,7 +155,7 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     return [...filtered].sort((a, b) => (sort === "name"
       ? a.name.localeCompare(b.name)
       : value(a) - value(b)) * (descending ? -1 : 1));
-  }, [market, owners, search, position, club, manager, direction, sort, descending, now]);
+  }, [market, matches, direction, sort, descending, now, nextDeadline]);
 
   // Sorting belongs in here too. A re-order means page 4 holds different players than the
   // page 4 you were looking at, and the prediction sort moves every row at once.
@@ -125,15 +181,23 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     return t.outlookInDays.replace("{n}", String(days));
   };
 
-  if (!market || !market.players.length) {
-    return <section className="data-pending" role="status">
-      <Clock3 />
-      <strong>{t.pricesUnavailable}</strong>
+  // The log is the site's own and does not depend on FPL answering: a night FPL is down is
+  // exactly a night somebody wants to look up what happened yesterday. So the pending
+  // notice belongs to the market tab rather than to the page.
+  const marketPending = !market || !market.players.length;
+  if (marketPending && tab === "market") {
+    return <section className="price-page">
+      <div className="price-filters"><Tabs tab={tab} setTab={setTab} language={language} /></div>
+      <section className="data-pending" role="status">
+        <Clock3 />
+        <strong>{t.pricesUnavailable}</strong>
+      </section>
     </section>;
   }
 
   return <section className="price-page">
     <div className="price-filters">
+      <Tabs tab={tab} setTab={setTab} language={language} />
       <Countdown deadline={nextPriceDeadline(market, Date.now())} language={language} />
       <label className="price-search">
         <Search />
@@ -152,11 +216,17 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         {clubs.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
       </select>
       <div className="price-direction" role="group" aria-label={t.risers}>
-        {([["all", t.allPlayersFilter], ["risers", t.risers], ["fallers", t.fallers], ["locked", t.lockedOnly]] as Array<[Direction, string]>).map(([key, label]) =>
+        {(([["all", t.allPlayersFilter], ["risers", t.risers], ["fallers", t.fallers], ["locked", t.lockedOnly]] as Array<[Direction, string]>)
+          // Locked describes a price that cannot move yet, which is a fact about the future
+          // and has nothing to say about a change that has already happened.
+          .filter(([key]) => tab === "market" || key !== "locked")).map(([key, label]) =>
           <button key={key} className={direction === key ? "active" : ""} onClick={() => setDirection(key)}>{label}</button>)}
       </div>
     </div>
 
+    {/* Two readings of one table: the prediction, or what actually happened. The filter row
+        above belongs to both, which is why it sits outside this. */}
+    {tab === "history" ? <PriceHistory language={language} owners={owners} matches={matches} direction={direction} /> : market ? <>
     <div className="price-table">
       {/* Classed to match the cells below, so the phone can drop a column from both the
           head and the rows with one rule each and keep the two grids in step. */}
@@ -164,7 +234,8 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         <span className="head-player">{header(t.player, "name")}</span>
         <span className="head-owners">{t.leagueOwners}</span>
         <span className="head-progress">{header(t.priceProgress, "progress")}</span>
-        <span className="head-outlook">{header(t.priceOutlook, "outlook")}</span>
+        <span className="head-tonight">{header(t.priceTonight, "tonight")}</span>
+        <span className="head-outlook">{header(t.priceWhen, "outlook")}</span>
         <span className="head-rate">{header(t.perHour, "perHour")}</span>
         <span className="head-ownership">{header(t.ownership, "ownership")}</span>
         <span className="head-cost">{header(t.price, "cost")}</span>
@@ -187,6 +258,19 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
           <span className="price-progress" data-label={t.priceProgress}>
             <b className={rising ? "up" : "down"}>{row.progress > 0 ? "+" : ""}{percent(row.progress)}</b>
             <i><u className={rising ? "up" : "down"} style={{ width: `${Math.min(100, Math.abs(row.progress))}%` }} /></i>
+          </span>
+          {/* Where this rate has him standing when tonight's change is decided, which is the
+              only moment the meter is ever read. The column beside it says which night that
+              lands on; this is the figure that sentence was read off, and it is struck with
+              the league's own highlighter once it passes the line, because at that point it
+              has stopped being a projection and become a price change. */}
+          <span className="price-tonight" data-label={t.priceTonight}>
+            {tonight && !row.lockedUntil
+              ? <b
+                className={`at-change ${Math.abs(tonight.at(row)) >= 100 ? "hits" : ""}`}
+                title={`${t.priceAtChange} ${t.atClock} ${tonight.clock}`}
+              >{tonight.at(row) > 0 ? "+" : ""}{percent(tonight.at(row))}</b>
+              : <b className="quiet">—</b>}
           </span>
           <span className="price-outlook" data-label={t.priceOutlook}>
             {row.lockedUntil
@@ -243,5 +327,6 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     {/* Under the table rather than over it: it qualifies what has been read, and a caveat
         placed before the thing it qualifies is read as a warning about the page. */}
     <p className="price-disclaimer">{t.priceDisclaimer}</p>
+    </> : null}
   </section>;
 }

@@ -2309,7 +2309,7 @@ footer a { color:#c4c6d8; }
 .price-head,
 .price-row {
   display:grid;
-  grid-template-columns:minmax(140px,1.2fr) minmax(210px,2fr) 132px 150px 96px 106px 96px;
+  grid-template-columns:minmax(116px,1.1fr) minmax(140px,1.7fr) 112px 92px 136px 84px 96px 84px;
   align-items:center;
   gap:0 10px;
   padding:0 16px;
@@ -2329,7 +2329,12 @@ footer a { color:#c4c6d8; }
   text-transform:inherit;
   cursor:pointer;
 }
-.price-sort svg { width:11px; }
+/* The label and its arrow are one line. A flex item is free to wrap its own text, so
+   `Edistyminen ↓` broke in two at 1280 even with five pixels to spare. */
+.price-sort { white-space:nowrap; }
+/* Height as well as width: an unsized lucide icon keeps its 24px box and makes the one
+   sorted header two-thirds taller than the seven beside it. */
+.price-sort svg { width:11px; height:11px; }
 .price-sort.active { color:var(--text); }
 
 .price-row { min-height:56px; border-top:1px solid color-mix(in srgb,var(--faint) 22%,transparent); }
@@ -2369,6 +2374,21 @@ footer a { color:#c4c6d8; }
 /* Two lines when there is a caveat: the night on top, how sure of it under. Same grid and
    same 2px rhythm as the rate, ownership and cost cells beside it. */
 .price-outlook { display:grid; row-gap:2px; align-content:center; }
+/* The projection at tonight's change, in the column before the sentence it produced. Tabular figures
+   because the column is a stack of them and a proportional `1` shifts every row's decimal
+   point. It is deliberately not green or red: the sentence under it already says which way,
+   and a third colour on the same number would be saying it twice. */
+/* The league's own highlighter, the same stroke the picked captain's name gets — text on a
+   band rather than in a pill, so a column of them does not read as a column of buttons. */
+.price-tonight .at-change.hits {
+  align-self:start;
+  width:max-content;
+  max-width:100%;
+  color:#141a05;
+  background:linear-gradient(to bottom,transparent 0 8%,var(--pick) 8% 96%,transparent 96%);
+}
+.price-tonight .at-change { font-size:13px; font-weight:900; font-variant-numeric:tabular-nums; }
+.price-tonight .quiet { color:var(--faint); font-weight:800; }
 .price-outlook em { font-size:11px; font-style:normal; font-weight:800; }
 .price-outlook small { color:var(--faint); font-size:9px; font-weight:700; }
 .price-outlook .up { color:var(--green); }
@@ -2428,6 +2448,119 @@ footer a { color:#c4c6d8; }
   line-height:1.5;
 }
 
+/* --------------------------------------------------------------------------
+   The price change log
+   --------------------------------------------------------------------------
+   The same table as the market above it, with the middle columns swapped: what
+   a price did instead of what it might do. The day heading is a row of the same
+   grid rather than a card of its own, so the shirt column runs straight down
+   the whole list and the eye never has to find it again after a date.
+   -------------------------------------------------------------------------- */
+/* One more control in the filter row rather than a row of its own: a strip that changes
+   what the page is about does not earn 40px of height and a line to itself when it fits
+   beside the clock. Same 38px as the search box and the selects, so the row reads level. */
+.price-tabs { display:flex; flex:0 0 auto; gap:3px; padding:4px; height:38px; border-radius:10px; background:var(--surface); }
+.price-tabs button {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:0 13px;
+  border:0;
+  border-radius:7px;
+  background:none;
+  color:var(--soft);
+  font:800 12px "Inter",sans-serif;
+  cursor:pointer;
+}
+.price-tabs button svg { width:14px; }
+.price-tabs button.active { background:var(--accent); color:#fff; }
+
+.price-history { display:flex; flex-direction:column; gap:10px; }
+.history-head,
+.history-row {
+  display:grid;
+  grid-template-columns:minmax(140px,1.2fr) minmax(210px,2fr) 168px 106px 106px;
+  align-items:center;
+  gap:0 10px;
+  padding:0 16px;
+}
+.history-head { min-height:42px; background:var(--raised); }
+.history-head > span { color:color-mix(in srgb,var(--soft) 62%,var(--text)); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+@media (min-width:801px) {
+  .history-head { position:sticky; top:0; z-index:2; }
+  /* Above the rows it labels, under nothing: the date bar scrolls up beneath it. */
+  .history-day { position:sticky; top:42px; z-index:1; }
+}
+.history-row { min-height:52px; border-top:1px solid color-mix(in srgb,var(--faint) 22%,transparent); }
+.history-row.is-held { background:color-mix(in srgb,var(--pick) 6%,transparent); }
+
+.history-day {
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  padding:9px 16px;
+  border-top:1px solid color-mix(in srgb,var(--faint) 22%,transparent);
+  background:color-mix(in srgb,var(--raised) 70%,var(--surface));
+}
+.history-group:first-child .history-day { border-top:0; }
+.history-day b { font-size:12px; font-weight:900; letter-spacing:.02em; }
+.history-day small { color:var(--faint); font-size:10px; font-weight:700; }
+.history-tally { display:flex; gap:9px; margin-left:auto; font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
+.history-tally i { font-style:normal; }
+.history-tally .up { color:var(--green); }
+.history-tally .down { color:var(--red); }
+
+/* The two prices and the arrow between them read as one sentence, so they sit on one
+   line and only the new price is set heavy: the old one is context for it. */
+.history-move { display:flex; align-items:center; gap:7px; }
+.history-move em { color:var(--faint); font-style:normal; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.history-move svg { width:13px; flex:none; }
+.history-move b { font-size:13px; font-weight:900; font-variant-numeric:tabular-nums; }
+.history-move .up { color:var(--green); }
+.history-move .down { color:var(--red); }
+.history-season b { font-size:12px; font-weight:900; font-variant-numeric:tabular-nums; }
+.history-season .up { color:var(--green); }
+.history-season .down { color:var(--red); }
+
+.history-more {
+  padding:8px 15px;
+  border:0;
+  border-radius:8px;
+  background:var(--raised);
+  color:var(--text);
+  font:800 11px "Inter",sans-serif;
+  cursor:pointer;
+}
+
+@media (max-width:800px) {
+  /* The clock and the search share a line, and these two take the width the clock's own
+     "klo 02.00" gives up on a phone rather than starting a third row. */
+  /* 38px, not the selects' 34: on a phone this shares its line with the clock, and two
+     controls of different heights beside each other read as a mistake. */
+  .price-tabs { height:38px; padding:3px; }
+  .price-tabs button { justify-content:center; padding:0 9px; font-size:11px; }
+  .price-tabs button svg { width:12px; }
+  /* Owners and ownership go, the same two the market table gives up, and for the same
+     reason: the move itself is the column this page exists for. */
+  .history-head,
+  .history-row {
+    grid-template-columns:minmax(0,1fr) 128px 60px;
+    gap:0 6px;
+    padding:0 10px;
+  }
+  .history-head { min-height:34px; }
+  .history-head > span { font-size:8px; }
+  .price-history .price-owners-cell,
+  .price-history .head-owners,
+  .price-history .price-ownership,
+  .price-history .head-ownership { display:none; }
+  .history-row { min-height:46px; }
+  .history-day { padding:7px 10px; }
+  .history-move em,
+  .history-move b { font-size:11px; }
+  .history-season b { font-size:11px; }
+}
+
 @media (max-width:800px) {
   /* Three rows rather than five: the clock shares its line with the search, and the three
      selects share the next one. They wrap to two lines of their own only below ~360px,
@@ -2441,13 +2574,15 @@ footer a { color:#c4c6d8; }
   .price-direction button { flex:1 1 0; padding:6px 4px; font-size:11px; }
 
   /* One line per player, not a card. Four columns survive the cut — who, how far along,
-     how fast, and what he costs — and each of the four is a sortable header, which the
-     card layout had no room to offer at all. Owners, the outlook sentence and ownership
-     are the ones a phone gives up; they are all still on the desktop table. */
+     where tonight's change leaves him, and what he costs — and each of the four is a
+     sortable header, which the card layout had no room to offer at all. Tonight's figure
+     takes the per-hour column's place here: it is the same rate, read at the moment it is
+     settled, which is the question a phone is being asked. Owners, the sentence, the rate
+     and ownership are the ones a phone gives up; all four are still on the desktop table. */
   .price-head { display:grid; }
   .price-head,
   .price-row {
-    grid-template-columns:minmax(0,1fr) 70px 52px 52px;
+    grid-template-columns:minmax(0,1fr) 66px 62px 52px;
     gap:0 6px;
     padding:0 10px;
     align-items:center;
@@ -2458,6 +2593,7 @@ footer a { color:#c4c6d8; }
   .price-sort svg { width:9px; }
   .price-owners-cell,.head-owners,
   .price-outlook,.head-outlook,
+  .price-rate,.head-rate,
   .price-ownership,.head-ownership { display:none; }
   .price-row { min-height:46px; }
   .price-player { grid-template-columns:22px auto; column-gap:6px; }
@@ -2466,11 +2602,10 @@ footer a { color:#c4c6d8; }
   .price-player b { font-size:11px; }
   .price-player small { font-size:8px; }
   .price-progress b { font-size:11px; }
-  .price-rate b,
+  .price-tonight .at-change { font-size:11px; }
   .price-cost b { font-size:11px; }
-  /* The hours-to-change and the season delta are the detail that does not fit a 52px
-     column; the figures they qualify stay. */
-  .price-rate small { display:none; }
+  /* The season delta is the detail that does not fit a 52px column; the figure it
+     qualifies stays. */
   .price-cost small { font-size:8px; }
   .price-foot { font-size:10px; }
 }

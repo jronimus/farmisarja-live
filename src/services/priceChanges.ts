@@ -75,8 +75,13 @@ export type Outlook = {
  */
 export const BORDERLINE_POINTS = 5;
 
-/** Progress this rate lands on at a given moment, which is what a change is decided on. */
-function projectedAt(row: Pick<PriceRow, "progress" | "perHour">, deadline: string, now: number): number {
+/**
+ * Progress this rate lands on at a given moment, which is what a change is decided on.
+ *
+ * Exported because the table prints it as well as sorting by it: the outlook sentence says
+ * which night, and this is the number that sentence was read off.
+ */
+export function projectedAt(row: Pick<PriceRow, "progress" | "perHour">, deadline: string, now: number): number {
   return row.progress + row.perHour * ((Date.parse(deadline) - now) / 3_600_000);
 }
 
