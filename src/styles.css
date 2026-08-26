@@ -2314,6 +2314,13 @@ footer a { color:#c4c6d8; }
   gap:0 10px;
   padding:0 16px;
 }
+@media (min-width:801px) {
+  /* Same total as the row above it, moved between two columns. */
+  .price-table.has-selling .price-head,
+  .price-table.has-selling .price-row {
+    grid-template-columns:minmax(116px,1.1fr) minmax(112px,1.4fr) 112px 92px 136px 84px 96px 112px;
+  }
+}
 .price-head { min-height:42px; background:var(--raised); }
 .price-head > span { color:color-mix(in srgb,var(--soft) 62%,var(--text)); font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
 .price-sort {
@@ -2418,6 +2425,20 @@ footer a { color:#c4c6d8; }
 .price-rate .down,
 .price-ownership .down,
 .price-cost .down { color:var(--red); }
+
+/* The selected squad's selling price, under the price it is derived from. Only ever one
+   line, because only one squad is selected. Struck with the league's highlighter when the
+   coming change reaches it — the same mark, and the same meaning, as the projection that
+   has passed 100: this one is going to happen to you. */
+.price-cost .selling { color:var(--soft); font-weight:800; white-space:nowrap; }
+.price-cost .selling i { font-style:normal; }
+.price-cost .selling.hits {
+  align-self:start;
+  width:max-content;
+  max-width:100%;
+  color:#141a05;
+  background:linear-gradient(to bottom,transparent 0 6%,var(--pick) 6% 98%,transparent 98%);
+}
 
 .price-empty { padding:26px 16px; color:var(--soft); text-align:center; font-size:13px; }
 
@@ -2607,6 +2628,11 @@ footer a { color:#c4c6d8; }
   /* The season delta is the detail that does not fit a 52px column; the figure it
      qualifies stays. */
   .price-cost small { font-size:8px; }
+  /* The figure alone: at 68px the word in front of it is the first thing to go, and the
+     column it sits under already says what price this is a version of. */
+  .price-cost .selling i { display:none; }
+  .price-table.has-selling .price-head,
+  .price-table.has-selling .price-row { grid-template-columns:minmax(0,1fr) 62px 58px 68px; }
   .price-foot { font-size:10px; }
 }
 

@@ -38,7 +38,11 @@ interface Pick { element: number; position: number; multiplier: number; is_capta
 interface EventHistory { event: number; points: number; total_points: number; overall_rank: number; value: number; event_transfers: number; event_transfers_cost: number; points_on_bench: number; }
 interface PicksResponse { active_chip: string | null; entry_history: EventHistory; picks: Pick[]; }
 interface HistoryResponse { current: EventHistory[]; chips: Array<{ name: string; event: number }>; }
-interface Transfer { element_in: number; element_out: number; event: number; time: string; }
+interface Transfer {
+  element_in: number; element_out: number; event: number; time: string;
+  /** What was paid and what was received, in tenths. Only the buy side is kept here. */
+  element_in_cost?: number; element_out_cost?: number;
+}
 
 const chipName = (name: string | null | undefined) => ({ wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "TC" }[name ?? ""]);
 const positionName = (type: number): SquadPlayer["position"] => (["GK", "DEF", "MID", "FWD"] as const)[type - 1] ?? "MID";
@@ -149,6 +153,28 @@ async function managerRow(
 
   const elements = new Map(bootstrap.elements.map((element) => [element.id, element]));
   const teams = new Map(bootstrap.teams.map((team) => [team.id, team]));
+
+  /**
+   * What this squad paid for each of its players, in tenths — the number FPL's selling
+   * price is worked out from, and the one number about a squad that FPL does not publish.
+   *
+   * It is reconstructed rather than read. `/entry/{id}/event/{gw}/picks/` carries no
+   * purchase price at all; only the manager's own authenticated `my-team` endpoint does.
+   * But the transfer log carries `element_in_cost` for every player bought since the
+   * season began, and anyone still in the squad who was never bought was in the original
+   * fifteen, whose price then is today's minus everything it has moved since.
+   *
+   * Transfers are walked oldest first, so a player bought, sold and bought again is worth
+   * what he cost the last time. Free hit gameweeks are skipped: that squad is handed back
+   * at the deadline, so what was paid during it was never paid at all.
+   */
+  const freeHitEvents = new Set(history.chips.filter((chip) => chip.name === "freehit").map((chip) => chip.event));
+  const paidFor = new Map<number, number>();
+  for (const transfer of [...transfers].sort((a, b) => a.time.localeCompare(b.time))) {
+    if (freeHitEvents.has(transfer.event) || transfer.element_in_cost === undefined) continue;
+    paidFor.set(transfer.element_in, transfer.element_in_cost);
+    paidFor.delete(transfer.element_out);
+  }
   const eventFixtures = fixtures.filter((fixture) => fixture.event === event.id);
   const squad: SquadPlayer[] = picks.picks.map((pick) => {
     const element = elements.get(pick.element)!;
@@ -173,6 +199,7 @@ async function managerRow(
       bonus: 0,
       minutes: live?.stats.minutes ?? 0,
       cost: element.now_cost / 10,
+      purchasePrice: (paidFor.get(element.id) ?? (element.now_cost - element.cost_change_start)) / 10,
       ownership: Number(element.selected_by_percent) || 0,
       difficulty: firstFixture ? (isHome ? firstFixture.team_h_difficulty : firstFixture.team_a_difficulty) : undefined,
       kickoff: firstFixture?.kickoff_time,

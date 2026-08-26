@@ -14,6 +14,12 @@ export interface SquadPlayer {
   bonus: number;
   minutes: number;
   cost: number;
+  /**
+   * What this squad paid for him, which is not what he costs: FPL keeps it to the manager's
+   * own team page, so it is reconstructed from the transfer log and the season's start
+   * prices. It is the only figure a selling price can be worked out from.
+   */
+  purchasePrice?: number;
   ownership: number;
   /** FPL's own 1–5 fixture difficulty, from the player's side of the tie. */
   difficulty?: number;

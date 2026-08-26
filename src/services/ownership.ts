@@ -147,6 +147,8 @@ export interface PlayerOwner {
   managerName: string;
   captain: boolean;
   benched: boolean;
+  /** What this squad paid for him, in millions. Absent on demo data. */
+  purchasePrice?: number;
 }
 
 /**
@@ -164,6 +166,7 @@ export function ownersByPlayer(managers: ManagerRow[], autosubs: boolean): Map<n
         managerName: manager.managerName,
         captain: Boolean(player.captain),
         benched: pickMultiplier(player, manager.chip) === 0,
+        purchasePrice: player.purchasePrice,
       });
       byPlayer.set(player.id, owners);
     }

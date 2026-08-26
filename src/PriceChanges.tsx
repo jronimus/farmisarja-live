@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Clock3, History, LineChart, Lock, Search } from "lu
 import { translations } from "./i18n";
 import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor, outlookRank, projectedAt } from "./services/priceChanges";
 import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
+import { sellingPrice, sellingPriceMoves } from "./services/fplRules";
 import PriceHistory from "./PriceHistory";
 import type { DashboardData, Language, PriceRow } from "./types";
 
@@ -227,7 +228,10 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     {/* Two readings of one table: the prediction, or what actually happened. The filter row
         above belongs to both, which is why it sits outside this. */}
     {tab === "history" ? <PriceHistory language={language} owners={owners} matches={matches} direction={direction} /> : market ? <>
-    <div className="price-table">
+    {/* `has-selling` widens the price column and narrows the owners column by the same
+        amount: the selling line only exists with a squad selected, and with one selected
+        the owners column is the least of the eight — you already know whose squad it is. */}
+    <div className={`price-table ${manager ? "has-selling" : ""}`}>
       {/* Classed to match the cells below, so the phone can drop a column from both the
           head and the rows with one rule each and keep the two grids in step. */}
       <div className="price-head">
@@ -248,6 +252,27 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         const hours = hoursToChange(row.progress, row.perHour);
         const rising = row.progress >= 0;
         const held = owners.get(row.id) ?? [];
+        /**
+         * What this change would do to the selected squad's selling price.
+         *
+         * Only with a squad selected: a selling price belongs to one manager and one
+         * purchase, and printing seven of them in a column would be printing a different
+         * number for every owner of the same player. The direction is the one the page is
+         * already predicting — a named night, or the hedge — because a change that is not
+         * coming cannot move anything.
+         */
+        const mine = manager ? held.find((owner) => String(owner.managerId) === manager) : undefined;
+        const coming = outlook?.direction ?? maybe ?? null;
+        const selling = mine?.purchasePrice === undefined ? null : (() => {
+          const paid = Math.round(mine.purchasePrice! * 10);
+          const price = Math.round(row.cost * 10);
+          return {
+            now: sellingPrice(paid, price) / 10,
+            next: coming ? sellingPrice(paid, price + (coming === "rise" ? 1 : -1)) / 10 : null,
+            moves: Boolean(coming) && sellingPriceMoves(paid, price, coming as "rise" | "fall"),
+            paid: mine.purchasePrice!,
+          };
+        })();
         return <div className={`price-row ${held.length ? "is-held" : ""}`} key={row.id}>
           <span className="price-player" data-label={t.player}>
             <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${row.position === "GK" ? "optimized-gk" : "optimized"}/${row.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
@@ -304,6 +329,17 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
           <span className="price-cost" data-label={t.price}>
             <b>£{row.cost.toFixed(1)}m</b>
             {row.costChangeStart !== 0 && <small className={row.costChangeStart > 0 ? "up" : "down"}>{row.costChangeStart > 0 ? "+" : "−"}£{Math.abs(row.costChangeStart).toFixed(1)}m</small>}
+            {/* FPL never shows a squad which of its players are one change away from a
+                different selling price, because it never shows the halving at all: it
+                prints the number and not the parity behind it. This is that parity, marked
+                with the same highlighter the page uses for everything else that has
+                stopped being a projection. */}
+            {selling && <small
+              className={`selling ${selling.moves ? "hits" : ""}`}
+              title={selling.moves
+                ? t.sellingMoves.replace("{team}", mine!.teamName).replace("{paid}", `£${selling.paid.toFixed(1)}m`).replace("{sell}", `£${selling.now.toFixed(1)}m`).replace("{next}", `£${(selling.next ?? selling.now).toFixed(1)}m`)
+                : t.sellingHolds.replace("{team}", mine!.teamName).replace("{paid}", `£${selling.paid.toFixed(1)}m`).replace("{sell}", `£${selling.now.toFixed(1)}m`)}
+            ><i>{t.sellingLabel} </i>£{selling.now.toFixed(1)}m{selling.moves && (coming === "rise" ? " ▲" : " ▼")}</small>}
           </span>
         </div>;
       })}

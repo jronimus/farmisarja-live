@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HANDOVER_HOURS, gameweekConfirmedAt, gameweekHandsOverAt, nextGameweekFreeTransfers, provisionalAutosubSquad, usedChipsForHalf } from "./fplRules";
+import { HANDOVER_HOURS, gameweekConfirmedAt, gameweekHandsOverAt, nextGameweekFreeTransfers, provisionalAutosubSquad, sellingPrice, sellingPriceMoves, usedChipsForHalf } from "./fplRules";
 import type { SquadPlayer } from "../types";
 
 const player = (id: number, position: SquadPlayer["position"], squadPosition: number, starter: boolean, state: SquadPlayer["state"] = "upcoming", minutes = 0): SquadPlayer => ({
@@ -68,5 +68,34 @@ describe("handing the header over to the next gameweek", () => {
     expect(gameweekHandsOverAt(kickoff) - gameweekConfirmedAt(kickoff)).toBe(HANDOVER_HOURS * 3_600_000);
     // 21:00 London on the day of the confirmation, which is 23:00 in Finland.
     expect(new Date(gameweekHandsOverAt(kickoff)).toISOString()).toBe("2026-08-25T20:00:00.000Z");
+  });
+});
+
+describe("selling price", () => {
+  it("shares a rise and does not share a fall", () => {
+    // Half the profit, rounded down: 0.3 up is 0.1 banked, 0.4 up is 0.2.
+    expect(sellingPrice(50, 53)).toBe(51);
+    expect(sellingPrice(50, 54)).toBe(52);
+    // At or under what you paid, the price is the price.
+    expect(sellingPrice(50, 50)).toBe(50);
+    expect(sellingPrice(50, 47)).toBe(47);
+  });
+
+  it("knows a rise only pays every second time", () => {
+    // Nothing banked yet at 0.1 up, so the second rise is the one that pays.
+    expect(sellingPriceMoves(50, 50, "rise")).toBe(false);
+    expect(sellingPriceMoves(50, 51, "rise")).toBe(true);
+    expect(sellingPriceMoves(50, 52, "rise")).toBe(false);
+    // Below what you paid there is no profit to halve: every rise comes straight back.
+    expect(sellingPriceMoves(50, 48, "rise")).toBe(true);
+  });
+
+  it("knows a fall out of unbanked profit costs nothing", () => {
+    // 0.5 up and 0.4 up both bank 0.2, so this fall does not reach the selling price.
+    expect(sellingPriceMoves(50, 55, "fall")).toBe(false);
+    expect(sellingPriceMoves(50, 54, "fall")).toBe(true);
+    // At or below what you paid, every fall is the squad's own.
+    expect(sellingPriceMoves(50, 50, "fall")).toBe(true);
+    expect(sellingPriceMoves(50, 48, "fall")).toBe(true);
   });
 });

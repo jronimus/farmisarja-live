@@ -146,3 +146,39 @@ export function gameweekConfirmedAt(lastKickoff: string): number {
 export function gameweekHandsOverAt(lastKickoff: string): number {
   return gameweekConfirmedAt(lastKickoff) + HANDOVER_HOURS * 3_600_000;
 }
+
+
+/**
+ * What a squad gets back for a player, in tenths of a million.
+ *
+ * FPL's rule: a rise is shared and a fall is not. Above the price you paid you keep half
+ * the profit, rounded down to the nearest 0.1; at or below it you sell for what he is worth
+ * now and take the whole loss. Everything the page says about selling prices comes out of
+ * these two lines.
+ *
+ * Tenths and not millions, because the rounding is the rule. `(5.5 - 5.0) / 2` in floating
+ * point is 0.25000000000000006, and the whole question is which side of a tenth that lands
+ * on — integers cannot get it wrong.
+ */
+export function sellingPrice(purchase: number, price: number): number {
+  if (price <= purchase) return price;
+  return purchase + Math.floor((price - purchase) / 2);
+}
+
+/**
+ * Whether a change would move what this squad gets back for him.
+ *
+ * Half of a rise is kept, so a rise only lifts the selling price every second time: at
+ * 0.1 above what you paid you have banked nothing, at 0.2 you have banked 0.1. Falls are
+ * not shared, but the same halving means a fall out of unbanked profit costs nothing
+ * either — 0.5 above your price down to 0.4 both round to 0.2 banked. So the answer is not
+ * "up costs nothing, down costs everything": it alternates, and which half of the
+ * alternation a player is on is not something a squad can see anywhere in FPL.
+ *
+ * Both sides are computed rather than reasoned about, because the parity argument is easy
+ * to get right on paper and easy to get wrong in code.
+ */
+export function sellingPriceMoves(purchase: number, price: number, direction: "rise" | "fall"): boolean {
+  const after = sellingPrice(purchase, price + (direction === "rise" ? 1 : -1));
+  return after !== sellingPrice(purchase, price);
+}

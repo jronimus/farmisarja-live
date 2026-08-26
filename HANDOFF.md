@@ -1009,6 +1009,37 @@ width — `1` is 4.86px against `0` at 7.61px — so a running clock in the righ
 shoved `GW 1` and the links about by up to 16px every second. That was measured off the
 font rather than guessed at.
 
+### Selling prices, and why a rise is worth half, 26 Aug
+
+Select a squad in the team filter and every row it holds gains a **Myynti** line under the
+price, struck with the highlighter when the change the page is predicting would actually
+move it.
+
+The rule is FPL's and it is not symmetric. Above what you paid you keep **half the profit,
+rounded down to the nearest 0.1**; at or below it you sell for what he is worth now and take
+the whole loss. `sellingPrice` in `services/fplRules.ts` is those two lines. The consequence
+is the thing worth marking: a rise only lifts your selling price **every second time** — at
+0.1 up you have banked nothing, at 0.2 you have banked 0.1 — and by the same halving, a fall
+out of unbanked profit costs nothing either, since 0.5 up and 0.4 up both bank 0.2. So it is
+not "rises are shared, falls are not": it alternates, and which half of the alternation a
+player is on is not visible anywhere in FPL, which prints the selling price without the
+parity behind it. `sellingPriceMoves` computes both sides rather than reasoning about the
+parity, because that argument is easy to get right on paper and easy to get wrong in code.
+
+**The purchase price is reconstructed, not read.** The public
+`/entry/{id}/event/{gw}/picks/` carries no purchase price at all — only the manager's own
+authenticated `my-team` endpoint does. But `/entry/{id}/transfers/` carries
+`element_in_cost` for every player bought this season, and anyone still in a squad who was
+never bought was in the original fifteen, whose price then is today's minus
+`cost_change_start`. Transfers are walked oldest first so a player bought, sold and bought
+again is worth what he cost last time, and free hit gameweeks are skipped: that squad is
+handed back at the deadline, so what was paid during it was never paid.
+
+The line only appears with a squad selected, because a selling price belongs to one manager
+and one purchase — seven owners of the same player have seven different ones. `has-selling`
+on the table then moves 28px from the owners column to the price column, which is the
+column you need least once you have already picked whose squad this is.
+
 ### Tonight's projection as its own column, 26 Aug
 
 The prediction split in two. **Ennuste tänään** is the figure — where the player's rate has
