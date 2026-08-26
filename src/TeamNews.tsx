@@ -41,6 +41,26 @@ function Flag({ player, absence, move, deal }: { player: PlayerNews; absence?: A
   </i>;
 }
 
+/**
+ * When an article was published, to the minute.
+ *
+ * The relative form is right for the availability rows below — a doubt is either fresh or
+ * stale and "4 pv sitten" says which. It is wrong here. What a reader wants to know about a
+ * piece on team news is whether it was written before or after the team news he has already
+ * read, and "1 h sitten" hides exactly that. So this list gets a clock.
+ *
+ * The day is dropped once it is today's, because the date on every line would only be the
+ * same date repeated. Anything older keeps it, since a feed can run a week back.
+ */
+function Published({ at, language }: { at: string | null; language: Language }) {
+  if (!at) return null;
+  const locale = language === "fi" ? "fi-FI" : "en-GB";
+  const date = new Date(at);
+  const clock = date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  const today = new Date().toDateString() === date.toDateString();
+  return <small>{today ? clock : `${date.toLocaleDateString(locale, { day: "numeric", month: "short" })} ${clock}`}</small>;
+}
+
 /** When FPL wrote it down, which is how you tell a fresh doubt from a fortnight-old one. */
 function Since({ at, language }: { at: string | null; language: Language }) {
   const t = translations(language);
@@ -106,7 +126,7 @@ function Articles({ language }: { language: Language }) {
         {article.excerpt && <em>{article.excerpt}</em>}
         <span className="article-meta">
           <b>{article.source}</b>
-          <Since at={article.published} language={language} />
+          <Published at={article.published} language={language} />
           <ExternalLink />
         </span>
       </a>)}

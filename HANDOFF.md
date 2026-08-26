@@ -7,27 +7,22 @@ before making changes.
 
 ## Next up — start here in a new conversation
 
-Two jobs left of the seven agreed on 26 Aug 2026, in the order they are worth doing. Of the
-five that are done: the squad rating strip was removed outright — see *OpenFPL, and why the
-mark was removed* — and with it the note about how its grade letter should have been set; the
-player count above the statistics table is fixed — see *The count nobody could read*; the
-transfer news is now fast — see *The wire, and who was actually slow*; and both publishers'
-English now reads in Finnish — see *Somebody else's English*.
+One job left of the seven agreed on 26 Aug 2026. Of the six that are done: the squad rating
+strip was removed outright — see *OpenFPL, and why the mark was removed* — and with it the
+note about how its grade letter should have been set; the player count above the statistics
+table is fixed — see *The count nobody could read*; the transfer news is now fast — see *The
+wire, and who was actually slow*; both publishers' English now reads in Finnish — see
+*Somebody else's English*; and the articles list carries a clock rather than "1 h sitten",
+because what a reader wants of a piece on team news is whether it was written before or after
+the team news he has already read. The availability rows keep the relative form, where fresh
+against stale is the whole question.
 
 **Before touching any of it:** the Worker is deployed and current, the front end is *not* —
 `main` has been pushed up to `3f631b9`, and everything after that (the statistics page, the
 sources page, the two integrations, the accessibility pass) is committed locally but has
 never been shipped. Run the validation in *Start here* before the first commit.
 
-### 1. Articles: a date and a time, not "1 h sitten"
-
-`Since` on the articles list should print the publication date and clock time. Relative time
-is fine for a live feed where "3 min ago" is the point; for an article it hides what a
-reader wants, which is whether this was written before or after the team news he already
-read. Keep the relative form on the availability rows if it still reads well there — decide
-per list rather than globally.
-
-### 2. Statistics: FPL's own figures per gameweek
+### 1. Statistics: FPL's own figures per gameweek
 
 Today the FPL columns are season totals and only the match statistics follow the gameweek
 picker, which is stated in the picker but is still a seam down the middle of the table.
