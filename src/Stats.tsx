@@ -242,7 +242,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
         onClick={() => setOnlyFavourites((value) => !value)}
         aria-pressed={onlyFavourites}
       ><Star /> {t.statsFavourites} ({favourites.length})</button>
-      <span className="news-count">{rows.length} {t.playersShown}</span>
+      <span className="news-count"><b>{rows.length}</b> {t.playersShown}</span>
     </div>
 
     {/* One explanation panel rather than a tooltip on every head: `title` never opens on a

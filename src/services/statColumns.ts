@@ -86,7 +86,7 @@ export const STAT_COLUMNS: StatColumn[] = [
   {
     key: "totalPoints", source: "fpl",
     label: { fi: "Pisteet", en: "Points" },
-    help: { fi: "FPL-pisteet koko kaudelta.", en: "FPL points for the whole season." },
+    help: { fi: "FPL:n omat pisteet — se luku, josta koko peli lasketaan.", en: "FPL's own points, which is what the whole game is scored on." },
     value: fpl((s) => s.totalPoints),
   },
   {
@@ -102,15 +102,32 @@ export const STAT_COLUMNS: StatColumn[] = [
     value: fpl((s) => s.form),
   },
   {
-    key: "pointsPerGame", source: "fpl", seasonOnly: true, decimals: 1,
+    key: "pointsPerGame", source: "fpl", decimals: 1,
     label: { fi: "Pisteet / ottelu", en: "Points / game" },
     help: { fi: "Keskimääräiset pisteet per ottelu, joissa on ollut mukana.", en: "Average points per match he has featured in." },
-    value: fpl((s) => s.pointsPerGame),
+    /**
+     * FPL's own figure for the season, worked out here for a gameweek window.
+     *
+     * An average cannot be differenced, which is why the snapshot does not carry one — but
+     * this one does not have to be. Both halves of it are in the window already: the points
+     * come from the differenced totals and the matches from the match statistics, which
+     * follow the same picker. So it is a division rather than a figure FPL has to publish.
+     *
+     * The season keeps FPL's own number rather than this division, because that is the
+     * number on FPL's own site and the two definitions of "a match he featured in" need not
+     * agree to the last decimal.
+     */
+    value: (row) => {
+      const own = row.fpl?.pointsPerGame;
+      if (own !== undefined && Number.isFinite(own)) return own;
+      const matches = row.match?.appearances ?? 0;
+      return row.fpl && matches > 0 ? row.fpl.totalPoints / matches : null;
+    },
   },
   {
     key: "fplMinutes", source: "fpl",
     label: { fi: "Minuutit", en: "Minutes" },
-    help: { fi: "Pelatut minuutit koko kaudella.", en: "Minutes played this season." },
+    help: { fi: "Pelatut minuutit FPL:n kirjaamana.", en: "Minutes played, as FPL records them." },
     value: fpl((s) => s.minutes),
   },
   {
@@ -122,13 +139,13 @@ export const STAT_COLUMNS: StatColumn[] = [
   {
     key: "fplGoals", source: "fpl",
     label: { fi: "Maalit", en: "Goals" },
-    help: { fi: "Tehdyt maalit koko kaudella.", en: "Goals scored this season." },
+    help: { fi: "Tehdyt maalit FPL:n kirjaamana.", en: "Goals scored, as FPL records them." },
     value: fpl((s) => s.goals),
   },
   {
     key: "fplAssists", source: "fpl",
     label: { fi: "Syötöt", en: "Assists" },
-    help: { fi: "Maalisyötöt koko kaudella.", en: "Assists this season." },
+    help: { fi: "Maalisyötöt FPL:n kirjaamana.", en: "Assists, as FPL records them." },
     value: fpl((s) => s.assists),
   },
   {
@@ -182,13 +199,13 @@ export const STAT_COLUMNS: StatColumn[] = [
   {
     key: "fplXg", source: "fpl", decimals: 2,
     label: { fi: "xG (FPL)", en: "xG (FPL)" },
-    help: { fi: "Maaliodottama koko kaudelta FPL:n omana lukuna.", en: "Expected goals for the season, as FPL publishes it." },
+    help: { fi: "Maaliodottama FPL:n omana lukuna.", en: "Expected goals, as FPL publishes it." },
     value: fpl((s) => s.expectedGoals),
   },
   {
     key: "fplXa", source: "fpl", decimals: 2,
     label: { fi: "xA (FPL)", en: "xA (FPL)" },
-    help: { fi: "Syöttöodottama koko kaudelta FPL:n omana lukuna.", en: "Expected assists for the season, as FPL publishes it." },
+    help: { fi: "Syöttöodottama FPL:n omana lukuna.", en: "Expected assists, as FPL publishes it." },
     value: fpl((s) => s.expectedAssists),
   },
   {
@@ -246,10 +263,21 @@ export const STAT_COLUMNS: StatColumn[] = [
     value: fpl((s) => s.dreamteamCount),
   },
   {
-    key: "valueSeason", source: "fpl", seasonOnly: true, decimals: 1,
+    key: "valueSeason", source: "fpl", decimals: 1,
     label: { fi: "Pisteet / £", en: "Points / £" },
     help: { fi: "Pisteitä miljoonaa kohden — halpa pelaaja voi voittaa tässä kalliin.", en: "Points per million — where a cheap player can beat an expensive one." },
-    value: fpl((s) => s.valueSeason),
+    /**
+     * The same division, against today's price rather than against matches.
+     *
+     * FPL's own `value_season` is the season's points over the current cost, so the window
+     * version is the window's points over the same cost. The price is deliberately today's
+     * in both: what he cost in September is not what a reader is deciding about.
+     */
+    value: (row) => {
+      const own = row.fpl?.valueSeason;
+      if (own !== undefined && Number.isFinite(own)) return own;
+      return row.fpl && row.player.cost > 0 ? row.fpl.totalPoints / row.player.cost : null;
+    },
   },
   {
     key: "penaltiesOrder", source: "fpl",
@@ -311,8 +339,8 @@ export const STAT_COLUMNS: StatColumn[] = [
     key: "difference", source: "match", decimals: 2, signed: true,
     label: { fi: "Yli / ali", en: "Over / under" },
     help: {
-      fi: "Toteutuneet maalit ja syötöt miinus odottama. Plussalla oleva on viimeistellyt paikkansa yli odotusten, miinuksella oleva alle. Ei tuomio kummallekaan — se erottaa hyvän vireen hyvästä tuurista.",
-      en: "Actual goals and assists minus what the chances were worth. Above zero he has finished better than his chances deserved, below it worse. Neither is a verdict — it separates a run of form from a run of luck.",
+      fi: "Toteutuneet maalit ja syötöt miinus odottama. Plussalla oleva on viimeistellyt paikkansa yli odotusten, miinuksella oleva alle.",
+      en: "Actual goals and assists minus what the chances were worth. Above zero he has finished better than his chances deserved, below it worse.",
     },
     value: match((i) => i.goals + i.assists - threat(i)),
   },

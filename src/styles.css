@@ -2710,8 +2710,10 @@ footer a { color:#c4c6d8; }
    exact opposite of what the mark means. */
 
 .news-page { display:flex; flex-direction:column; gap:10px; }
-.news-filters { display:flex; gap:3px; align-self:flex-start; padding:4px; border-radius:10px; background:var(--surface); }
-.news-filters button {
+/* Which of the page's two things is showing. A destination, so it gets the segmented
+   control: one of them is always on, and picking the other replaces what is below. */
+.news-sections { display:flex; gap:3px; align-self:flex-start; padding:4px; border-radius:10px; background:var(--surface); }
+.news-sections button {
   padding:8px 14px;
   border:0;
   border-radius:7px;
@@ -2720,7 +2722,23 @@ footer a { color:#c4c6d8; }
   font:800 12px "Inter",sans-serif;
   cursor:pointer;
 }
-.news-filters button.active { background:var(--accent); color:#fff; }
+.news-sections button.active { background:var(--accent); color:#fff; }
+
+/* Whose players, which only narrows the list under it. Quieter than the sections above on
+   purpose: the two rows used to be one row of three, where a scope and a destination sat
+   side by side as if they were alternatives to each other. They are not, and the difference
+   has to be visible or the split has bought nothing. */
+.news-filters { display:flex; flex-wrap:wrap; gap:4px; align-self:flex-start; }
+.news-filters button {
+  padding:5px 11px;
+  border:0;
+  border-radius:99px;
+  background:var(--surface);
+  color:var(--soft);
+  font:800 11px "Inter",sans-serif;
+  cursor:pointer;
+}
+.news-filters button.active { background:var(--raised); color:var(--text); }
 
 .news-list { border-radius:14px; background:var(--surface); overflow:hidden; }
 .news-row {
@@ -3828,7 +3846,28 @@ input:focus-visible,
    count composited to near-black on near-black and measured 1.02:1. The audit passed it
    because the count's nearest solid-background ancestor is the pale table, so it was
    measured against a surface it does not sit on. */
-.news-count { color:var(--page-ink); }
+/* How many rows the filters have left, set as a caption rather than as a sentence. It sits
+   on the page's own ground beside the filter pills, so it takes `--page-ink` — see
+   *The count nobody could read*. The figure carries the display face the scores use and the
+   word beside it steps back into the same small caps as a column head: the number is the
+   answer and "pelaajaa" is only its unit. */
+.news-count {
+  display:inline-flex;
+  align-items:baseline;
+  gap:6px;
+  color:var(--page-ink);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.news-count b {
+  font:400 18px/1 "Archivo Black",sans-serif;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0;
+  text-transform:none;
+}
 
 /* An unstyled link inherits the browser's 1990s blue, which read 1.88:1 here. Every link
    inside a footnote is now the same cyan the rest of the site uses for a link out, and it
@@ -3902,27 +3941,25 @@ input:focus-visible,
 
 /* The sentence a tapped mark opens. Over the card rather than inside it: the cards are
    43px wide at eight to a row, and a sentence has to be readable somewhere. */
+/* Fixed rather than absolute, and inked from the skin rather than from a fixed near-black.
+   It sat inside `.player-visual`, which clips its contents so a shirt cannot spill out of a
+   card, and the sentence was cut off on two sides — a black rectangle with a syllable in it.
+   The badge hands it a viewport position instead, so nothing clips it. */
 .player-flag-note {
-  position:absolute;
-  top:20px;
-  right:-4px;
-  z-index:12;
+  position:fixed;
+  z-index:40;
   width:max-content;
-  max-width:170px;
-  padding:7px 9px;
-  border-radius:9px;
-  background:#0b1611;
-  box-shadow:0 10px 28px rgba(0,0,0,.5);
-  color:#e6efea;
-  font-size:10px;
+  max-width:190px;
+  padding:8px 10px;
+  border-radius:10px;
+  background:var(--menu);
+  box-shadow:0 12px 28px rgba(0,0,0,.28),inset 0 0 0 1px color-mix(in srgb,var(--faint) 26%,transparent);
+  color:var(--text);
+  font-size:11px;
   font-weight:700;
-  line-height:1.35;
+  line-height:1.4;
   text-align:left;
   white-space:normal;
-}
-
-@media (max-width:800px) {
-  .player-flag-note { max-width:150px; font-size:9px; }
 }
 
 /* --------------------------------------------------------------------------

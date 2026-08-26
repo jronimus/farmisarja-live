@@ -428,7 +428,15 @@ function SortHeader({ label, note, sortKey, active, direction, onSort }: { label
  */
 function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: Language }) {
   const t = translations(language);
-  const [open, setOpen] = useState(false);
+  /**
+   * Where the note goes, rather than whether it is open.
+   *
+   * It used to be positioned inside the shirt's own box, and that box clips its contents —
+   * it has to, or a shirt would spill out of the card. So the sentence was cut off on two
+   * sides and read as a black rectangle with a syllable in it. Anchoring it from the badge's
+   * own rectangle and fixing it to the viewport puts it outside everything that clips.
+   */
+  const [note, setNote] = useState<{ left: number; top: number } | null>(null);
   const marks = useContext(RumourContext);
   const rumour = marks.rumours.get(player.id);
   const absence = marks.absences.get(player.id);
@@ -439,10 +447,24 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
       className={`player-flag flag-${kind}`}
       title={label}
       aria-label={label}
-      aria-expanded={open}
-      onClick={(event) => { event.stopPropagation(); setOpen((value) => !value); }}
+      aria-expanded={Boolean(note)}
+      onClick={(event) => {
+        event.stopPropagation();
+        const box = event.currentTarget.getBoundingClientRect();
+        // Centred under the badge, then clamped: these cards run to the edge of a phone.
+        setNote((open) => open ? null : {
+          left: Math.max(8, Math.min(box.left + box.width / 2 - 95, innerWidth - 198)),
+          top: box.bottom + 6,
+        });
+      }}
     >{face}</button>
-    {open && <span className="player-flag-note" role="status">{label}</span>}
+    {/* Into the shell rather than into `body`: every colour token on this site is defined on
+        `.app-shell`, so a note parented to the document inherits none of them and paints
+        itself transparent. */}
+    {note && createPortal(
+      <span className="player-flag-note" role="status" style={{ left: note.left, top: note.top }}>{label}</span>,
+      document.querySelector(".app-shell") ?? document.body,
+    )}
   </>;
 
   if (flag.level !== "none") {

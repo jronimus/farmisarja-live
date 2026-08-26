@@ -749,6 +749,34 @@ The season aggregate needs no cache and no key, because it is not assembled here
 FPL's own bootstrap *is* the season total and the page already holds it, so the 38 reads
 never happen.
 
+### The two averages that did not need a snapshot
+
+`points_per_game` and `value_season` were marked as having no per-gameweek answer, on the
+reasoning that an average cannot be differenced. True, and beside the point: **neither has to
+be differenced, because both halves are already in the window.** Points come from the
+differenced totals, matches from the match statistics that follow the same picker, and the
+price is today's in either case. So both are a division rather than a figure FPL has to
+publish, and both now follow the picker.
+
+The season keeps FPL's own numbers rather than the division, because those are the numbers on
+FPL's own site and the two definitions of "a match he featured in" need not agree to the last
+decimal. The code reads it as: FPL's figure if there is one, the division if there is not.
+
+Only two columns are left marked: **form**, which is FPL's own 30-day average and belongs to
+no set of gameweeks, and **GW points**, which is always the current gameweek by definition.
+
+### A tooltip in a box that clips
+
+Two notes had the same bug in different places. The column-head hints live in a horizontal
+scroller and the squad card's flag note lives in `.player-visual`, which sets
+`overflow: hidden` so a shirt cannot spill out of its card. Anything positioned inside either
+is cut off — the flag note read as a black rectangle with one syllable of Finnish in it.
+
+Both are now `position: fixed`, anchored from the element's own `getBoundingClientRect()` and
+clamped to the viewport. The flag note is also portalled — **into `.app-shell`, not into
+`body`**: every colour token on this site is defined on `.app-shell`, so a note parented to
+the document inherits none of them and paints itself transparent.
+
 ### The phone, where none of the figures were on screen
 
 The name column is sticky, and it was sized by its own content — "De Cuyper · BHA · DEF ·

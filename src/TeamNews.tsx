@@ -18,7 +18,16 @@ import type { DashboardData, Language, PlayerNews } from "./types";
  * actually acts on.
  */
 
-type Filter = "ours" | "all" | "articles";
+/**
+ * Two axes, and they were flattened into one row of three.
+ *
+ * *Farmisarja · Kaikki · Artikkelit* put a scope and a section side by side as if they were
+ * alternatives to each other, and they are not: "our league" narrows the availability list,
+ * while "articles" replaces it with something else entirely. So the page is two sections
+ * now, and the scope lives inside the one it belongs to.
+ */
+type Section = "availability" | "articles";
+type Scope = "ours" | "all";
 
 /** Anyone the league is exposed to comes first; the rest of the game is behind a filter. */
 const PAGE = 40;
@@ -148,7 +157,8 @@ export type RumourOwner = { name: string; club: string; position: string; owners
  */
 export default function TeamNews({ data, language }: { data: DashboardData; language: Language }) {
   const t = translations(language);
-  const [filter, setFilter] = useState<Filter>("ours");
+  const [section, setSection] = useState<Section>("availability");
+  const [scope, setScope] = useState<Scope>("ours");
   const [shown, setShown] = useState(PAGE);
 
   const all = data.playerNews ?? [];
@@ -212,7 +222,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
   const rows = useMemo(() => {
     const list = all
       .filter((player) => isNewsworthy(player) || absences.has(player.id) || moves.has(player.id) || deals.has(player.id))
-      .filter((player) => filter === "all" || player.owners.length > 0);
+      .filter((player) => scope === "all" || player.owners.length > 0);
     // A reported move ranks under FPL's own doubts and over the players with nothing said
     // about them: it is a reason he might not play, not a statement that he cannot.
     // A completed move ranks with FPL's own doubts rather than under them: it is not a
@@ -221,14 +231,14 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
       const rank = (player: PlayerNews) => isNewsworthy(player) || absences.has(player.id) || deals.has(player.id) ? 0 : 1;
       return rank(a) - rank(b) || newsOrder(a, b);
     });
-  }, [all, filter, absences, moves, deals]);
+  }, [all, scope, absences, moves, deals]);
 
   // These two read the Worker, not FPL, so an FPL outage is no reason to hide them.
-  if (!data.playerNews && filter !== "articles") {
+  if (!data.playerNews && section !== "articles") {
     return <section className="news-page">
-      <div className="news-filters" role="group" aria-label={t.navNews}>
-        <button className="active">{t.newsOurs}</button>
-        <button onClick={() => setFilter("articles")}>{t.newsArticles}</button>
+      <div className="news-sections" role="group" aria-label={t.navNews}>
+        <button className="active">{t.newsAvailability}</button>
+        <button onClick={() => setSection("articles")}>{t.newsArticles}</button>
       </div>
       <section className="data-pending" role="status">
         <Clock3 />
@@ -250,17 +260,30 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
   const visible = rows.slice(0, shown);
 
   return <section className="news-page">
-    <div className="news-filters" role="group" aria-label={t.navNews}>
-      {([["ours", `${t.newsOurs} (${ours})`], ["all", t.newsAll], ["articles", t.newsArticles]] as Array<[Filter, string]>)
+    {/* What the page is showing. Two things, because there are two. */}
+    <div className="news-sections" role="group" aria-label={t.navNews}>
+      {([["availability", t.newsAvailability], ["articles", t.newsArticles]] as Array<[Section, string]>)
         .map(([key, label]) => <button
           key={key}
-          className={filter === key ? "active" : ""}
-          onClick={() => { setFilter(key); setShown(PAGE); }}
+          className={section === key ? "active" : ""}
+          onClick={() => { setSection(key); setShown(PAGE); }}
         >{label}</button>)}
     </div>
 
-    {filter === "articles" ? <Articles language={language} />
+    {section === "articles" ? <Articles language={language} />
       : <>
+
+    {/* Whose players, which only narrows the list above and never replaces it — so it is set
+        as a filter beside the count rather than as a third destination. */}
+    <div className="news-filters" role="group" aria-label={t.newsAvailability}>
+      {([["ours", `${t.newsOurs} (${ours})`], ["all", t.newsAll]] as Array<[Scope, string]>)
+        .map(([key, label]) => <button
+          key={key}
+          className={scope === key ? "active" : ""}
+          aria-pressed={scope === key}
+          onClick={() => { setScope(key); setShown(PAGE); }}
+        >{label}</button>)}
+    </div>
 
     <div className="news-list">
       {visible.map((player) => {
