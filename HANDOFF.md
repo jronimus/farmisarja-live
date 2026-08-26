@@ -749,6 +749,18 @@ The season aggregate needs no cache and no key, because it is not assembled here
 FPL's own bootstrap *is* the season total and the page already holds it, so the 38 reads
 never happen.
 
+### What the picker says about it
+
+The column picker's FPL group used to be headed *FPL — koko kausi*, which was true when it
+was written and is the first thing a reader looks at. It is now just *FPL:n omat luvut*, and
+the four columns that genuinely cannot follow the picker carry a **vain koko kausi** tag on
+the chip itself with one line under the group explaining it. An empty cell a reader has to
+discover for himself is not a label.
+
+The set-piece queues are **not** among them. Where a player stands in his club's penalty
+queue is a fact about now, not a figure for a period, so a window carries it through
+unchanged — blanking it would be answering a question the column does not ask.
+
 ### What cannot be differenced is left empty
 
 `form` is an average over the last four fixtures and `points_per_game` over all of them: the

@@ -3048,6 +3048,22 @@ footer a { color:#c4c6d8; }
   cursor:pointer;
 }
 .picker-options button.active { background:var(--accent); color:#fff; }
+/* The four columns that have no per-gameweek answer, marked on the chip itself rather than
+   left for the reader to discover as an empty cell. Quieter than the label it follows: it is
+   a qualifier on the column, not a second column. */
+.picker-season-only {
+  margin-left:5px;
+  padding:1px 5px;
+  border-radius:99px;
+  background:color-mix(in srgb,var(--text) 12%,transparent);
+  font-size:9px;
+  font-style:normal;
+  font-weight:800;
+  letter-spacing:.02em;
+  opacity:.85;
+  text-transform:uppercase;
+}
+.picker-options button.active .picker-season-only { background:rgba(255,255,255,.22); }
 .picker-reset { margin-top:4px; padding:8px 14px; border:0; border-radius:9px; background:var(--raised); color:var(--text); font:800 11px "Inter",sans-serif; cursor:pointer; }
 
 @media (max-width:800px) {

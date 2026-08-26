@@ -43,15 +43,34 @@ const NAMES: Record<string, keyof PlayerStat> = {
 /**
  * The rest of `PlayerStat`, which has no per-gameweek answer.
  *
- * `NaN` rather than zero, because zero is a figure and this is the absence of one — the
- * table prints "—" for anything that is not a finite number, and a missing figure sorts last
- * rather than to the bottom of the scale.
+ * All averages, plus FPL's own single-week figure — and the difference of two averages is a
+ * number that means nothing. `NaN` rather than zero, because zero is a figure and this is
+ * the absence of one: the table prints "—" for anything that is not a finite number, and a
+ * missing figure sorts last rather than to the bottom of the scale. The columns are marked
+ * `seasonOnly` in `statColumns.ts` so the picker can say which ones these are.
  */
 const NO_ANSWER = {
   eventPoints: NaN, form: NaN, pointsPerGame: NaN, valueSeason: NaN,
   transfersInEvent: NaN, transfersOutEvent: NaN,
-  penaltiesOrder: null, cornersOrder: null, freekicksOrder: null,
 } satisfies Partial<PlayerStat>;
+
+/**
+ * The set-piece queues are not a figure for a period, so a window does not empty them.
+ *
+ * Where a player stands in his club's penalty queue is a fact about now. Blanking it inside
+ * a gameweek window would be answering a question nobody asked — "who took the penalties in
+ * GW3" is not what the column says, and the answer to what it does say is the same in every
+ * window.
+ */
+export function carryCurrentState(windowed: PlayerStat, season: PlayerStat | undefined): PlayerStat {
+  if (!season) return windowed;
+  return {
+    ...windowed,
+    penaltiesOrder: season.penaltiesOrder,
+    cornersOrder: season.cornersOrder,
+    freekicksOrder: season.freekicksOrder,
+  };
+}
 
 export interface FplWindow {
   /** By element id, with the same shape the season figures have. */

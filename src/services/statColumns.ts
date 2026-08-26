@@ -30,6 +30,14 @@ export interface StatColumn {
   decimals?: number;
   /** Printed with a sign, and coloured by it. */
   signed?: boolean;
+  /**
+   * No per-gameweek answer exists, so this column is empty in a gameweek window.
+   *
+   * All four are averages or FPL's own single-week figure, and neither survives being
+   * differenced: the difference of two averages is a number that means nothing. The page
+   * says so on the column rather than quietly showing a season figure inside a window.
+   */
+  seasonOnly?: boolean;
 }
 
 export interface StatRow {
@@ -82,19 +90,19 @@ export const STAT_COLUMNS: StatColumn[] = [
     value: fpl((s) => s.totalPoints),
   },
   {
-    key: "eventPoints", source: "fpl",
+    key: "eventPoints", source: "fpl", seasonOnly: true,
     label: { fi: "GW-pisteet", en: "GW points" },
     help: { fi: "Kuluvan kierroksen FPL-pisteet.", en: "FPL points in the current gameweek." },
     value: fpl((s) => s.eventPoints),
   },
   {
-    key: "form", source: "fpl", decimals: 1,
+    key: "form", source: "fpl", seasonOnly: true, decimals: 1,
     label: { fi: "Muoto", en: "Form" },
     help: { fi: "FPL:n oma vire: keskimääräiset pisteet viimeisiltä 30 päivältä.", en: "FPL's own form: average points over the last 30 days." },
     value: fpl((s) => s.form),
   },
   {
-    key: "pointsPerGame", source: "fpl", decimals: 1,
+    key: "pointsPerGame", source: "fpl", seasonOnly: true, decimals: 1,
     label: { fi: "Pisteet / ottelu", en: "Points / game" },
     help: { fi: "Keskimääräiset pisteet per ottelu, joissa on ollut mukana.", en: "Average points per match he has featured in." },
     value: fpl((s) => s.pointsPerGame),
@@ -238,7 +246,7 @@ export const STAT_COLUMNS: StatColumn[] = [
     value: fpl((s) => s.dreamteamCount),
   },
   {
-    key: "valueSeason", source: "fpl", decimals: 1,
+    key: "valueSeason", source: "fpl", seasonOnly: true, decimals: 1,
     label: { fi: "Pisteet / £", en: "Points / £" },
     help: { fi: "Pisteitä miljoonaa kohden — halpa pelaaja voi voittaa tässä kalliin.", en: "Points per million — where a cheap player can beat an expensive one." },
     value: fpl((s) => s.valueSeason),

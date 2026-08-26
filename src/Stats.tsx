@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Clock3, Info, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { translations } from "./i18n";
 import { insightsEndpoint, loadInsights, type PlayerInsight } from "./services/insights";
-import { loadFplWindow, type FplWindow } from "./services/fplHistory";
+import { carryCurrentState, loadFplWindow, type FplWindow } from "./services/fplHistory";
 import { COLUMNS_BY_KEY, DEFAULT_COLUMNS, STAT_COLUMNS, help, label, type StatColumn, type StatRow } from "./services/statColumns";
 import { ownersByPlayer } from "./services/ownership";
 import type { DashboardData, Language, PlayerStat } from "./types";
@@ -108,6 +108,19 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
     [columns],
   );
 
+  /**
+   * One player's FPL figures for the picked gameweeks.
+   *
+   * A window with a gameweek missing from it is not a smaller window, it is the wrong
+   * answer: summing the two weeks that were written down and labelling them three would be
+   * worse than an empty column. So one missing week empties the FPL half of every row.
+   */
+  const windowed = useMemo(() => (id: number) => {
+    if (!fplWindow || fplWindow.unavailable.length) return undefined;
+    const week = fplWindow.players.get(id);
+    return week ? carryCurrentState(week, fplStats.get(id)) : undefined;
+  }, [fplWindow, fplStats]);
+
   const rows = useMemo(() => {
     const term = search.trim().toLowerCase();
     const favourite = new Set(favourites);
@@ -116,7 +129,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       // A window with a gameweek missing from it is not a smaller window, it is the wrong
       // answer: summing the two weeks that were written down and labelling them three would
       // be worse than an empty column. So one missing week empties the FPL half of the row.
-      fpl: fplWindow ? (fplWindow.unavailable.length ? undefined : fplWindow.players.get(player.id)) : fplStats.get(player.id),
+      fpl: fplWindow ? windowed(player.id) : fplStats.get(player.id),
       match: insights?.get(player.id),
     }));
 
@@ -153,7 +166,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       if (right === null) return -1;
       return (left - right) * (descending ? -1 : 1);
     });
-  }, [data.prices, fplStats, fplWindow, insights, owners, search, position, manager, onlyFavourites, favourites, sort, descending]);
+  }, [data.prices, fplStats, windowed, fplWindow, insights, owners, search, position, manager, onlyFavourites, favourites, sort, descending]);
 
   useEffect(() => { setShown(PAGE_STEP); }, [search, position, manager, onlyFavourites, picked, sort, descending]);
 
@@ -299,9 +312,11 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
             aria-pressed={columns.includes(column.key)}
             onClick={() => setColumns((list) => toggle(list, column.key))}
             title={help(column, language)}
-          >{label(column, language)}</button>)}
+          >{label(column, language)}{column.seasonOnly && <i className="picker-season-only">{t.statsSeasonOnly}</i>}</button>)}
         </div>
       </div>)}
+      {/* Said once, under the group it applies to, rather than repeated on four buttons. */}
+      <p className="picker-note">{t.statsSeasonOnlyNote}</p>
       <button className="picker-reset" onClick={() => setColumns(DEFAULT_COLUMNS)}>{t.statsColumnsReset}</button>
     </Panel>}
 
