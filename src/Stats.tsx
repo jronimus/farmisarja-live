@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Clock3, Info, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { translations } from "./i18n";
 import { insightsEndpoint, loadInsights, type PlayerInsight } from "./services/insights";
+import { loadFplWindow, type FplWindow } from "./services/fplHistory";
 import { COLUMNS_BY_KEY, DEFAULT_COLUMNS, STAT_COLUMNS, help, label, type StatColumn, type StatRow } from "./services/statColumns";
 import { ownersByPlayer } from "./services/ownership";
 import type { DashboardData, Language, PlayerStat } from "./types";
@@ -52,6 +53,14 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
   const t = translations(language);
   const [insights, setInsights] = useState<Map<number, PlayerInsight> | null>(null);
   const [gameweeks, setGameweeks] = useState<number[]>([]);
+  /**
+   * FPL's own figures for the picked gameweeks, when any are picked.
+   *
+   * Null while the season is showing, because the season *is* what FPL publishes and it is
+   * already on the page — assembling it out of snapshots would be 38 KV reads to arrive back
+   * at the number the bootstrap handed over for nothing.
+   */
+  const [fplWindow, setFplWindow] = useState<FplWindow | null>(null);
   const [failed, setFailed] = useState(false);
 
   const [picked, setPicked] = useState<number[]>([]);
@@ -78,6 +87,17 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
     return () => { active = false; };
   }, [picked]);
 
+  useEffect(() => {
+    let active = true;
+    if (!picked.length) { setFplWindow(null); return () => { active = false; }; }
+    loadFplWindow(picked)
+      // A window that cannot be read leaves the season totals in place rather than emptying
+      // the FPL half of the table: half a table is worse than a labelled one.
+      .then((body) => { if (active) setFplWindow(body); })
+      .catch(() => { if (active) setFplWindow(null); });
+    return () => { active = false; };
+  }, [picked]);
+
   const owners = useMemo(() => ownersByPlayer(data.managers, autosubs), [data.managers, autosubs]);
   const fplStats = useMemo(
     () => new Map((data.playerStats ?? []).map((stat: PlayerStat) => [stat.id, stat])),
@@ -93,7 +113,10 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
     const favourite = new Set(favourites);
     const joined: StatRow[] = (data.prices?.players ?? []).map((player) => ({
       player,
-      fpl: fplStats.get(player.id),
+      // A window with a gameweek missing from it is not a smaller window, it is the wrong
+      // answer: summing the two weeks that were written down and labelling them three would
+      // be worse than an empty column. So one missing week empties the FPL half of the row.
+      fpl: fplWindow ? (fplWindow.unavailable.length ? undefined : fplWindow.players.get(player.id)) : fplStats.get(player.id),
       match: insights?.get(player.id),
     }));
 
@@ -120,14 +143,17 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       if (sort === "name") return a.player.name.localeCompare(b.player.name) * (descending ? -1 : 1);
       // A missing figure sorts last whichever way the column points: an empty cell is not a
       // small number, and floating those to the top would bury the answer.
-      const left = column?.value(a) ?? null;
-      const right = column?.value(b) ?? null;
+      // Not-a-number counts as missing too: a column with no per-gameweek answer is empty
+      // in a gameweek window, and an empty cell is not a small number.
+      const value = (row: StatRow) => { const figure = column?.value(row); return figure !== null && figure !== undefined && Number.isFinite(figure) ? figure : null; };
+      const left = value(a);
+      const right = value(b);
       if (left === null && right === null) return 0;
       if (left === null) return 1;
       if (right === null) return -1;
       return (left - right) * (descending ? -1 : 1);
     });
-  }, [data.prices, fplStats, insights, owners, search, position, manager, onlyFavourites, favourites, sort, descending]);
+  }, [data.prices, fplStats, fplWindow, insights, owners, search, position, manager, onlyFavourites, favourites, sort, descending]);
 
   useEffect(() => { setShown(PAGE_STEP); }, [search, position, manager, onlyFavourites, picked, sort, descending]);
 
@@ -279,6 +305,8 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       <button className="picker-reset" onClick={() => setColumns(DEFAULT_COLUMNS)}>{t.statsColumnsReset}</button>
     </Panel>}
 
+    {fplWindow && fplWindow.unavailable.length > 0
+      && <p className="price-disclaimer">{t.statsFplWindowMissing.replace("{weeks}", fplWindow.unavailable.map((week) => `GW ${week}`).join(", "))}</p>}
     <p className="price-disclaimer">{t.statsNote} <a href="#/lahteet">{t.navSources}</a></p>
   </section>;
 }

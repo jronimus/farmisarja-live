@@ -7,44 +7,19 @@ before making changes.
 
 ## Next up — start here in a new conversation
 
-One job left of the seven agreed on 26 Aug 2026. Of the six that are done: the squad rating
-strip was removed outright — see *OpenFPL, and why the mark was removed* — and with it the
-note about how its grade letter should have been set; the player count above the statistics
-table is fixed — see *The count nobody could read*; the transfer news is now fast — see *The
-wire, and who was actually slow*; both publishers' English now reads in Finnish — see
-*Somebody else's English*; and the articles list carries a clock rather than "1 h sitten",
-because what a reader wants of a piece on team news is whether it was written before or after
-the team news he has already read. The availability rows keep the relative form, where fresh
-against stale is the whole question.
+All seven jobs agreed on 26 Aug 2026 are done. Where each of them ended up is written down
+where the subject lives rather than here: *OpenFPL, and why the mark was removed*, *The count
+nobody could read*, *The wire, and who was actually slow*, *Somebody else's English*, the
+clock on the articles list, and *A gameweek of FPL's own figures*.
 
-**Before touching any of it:** the Worker is deployed and current, the front end is *not* —
-`main` has been pushed up to `3f631b9`, and everything after that (the statistics page, the
-sources page, the two integrations, the accessibility pass) is committed locally but has
-never been shipped. Run the validation in *Start here* before the first commit.
-
-### 1. Statistics: FPL's own figures per gameweek
-
-Today the FPL columns are season totals and only the match statistics follow the gameweek
-picker, which is stated in the picker but is still a seam down the middle of the table.
-
-The way to close it: **snapshot FPL's season totals once per gameweek and difference
-successive snapshots**, exactly as `worker/priceHistory.ts` already does for prices. A
-gameweek's figures are then the snapshot after it minus the snapshot before it.
-
-Be realistic about the cost, and measure before building:
-
-- 612 players × the ~35 numeric fields worth keeping is roughly **150–200 kB of JSON per
-  gameweek**, and 38 gameweeks is 6–8 MB. **A single KV value is capped at 25 MB**, so one
-  value for the season is close enough to the ceiling to be a bad idea by May.
-- Store **one KV key per gameweek** (`fplstats:gw:12`), written once when the gameweek is
-  confirmed and never again — a finished gameweek's totals do not change. That is 38 writes
-  a season against a daily limit of a thousand, and reads are only of the weeks asked for.
-- The endpoint then sums the requested weeks the way `/insights` already does. Note the
-  reads add up: asking for the whole season is 38 KV reads, so cache the season aggregate
-  in its own key rather than recomputing it per request.
-- Snapshots can only start now. GW1 cannot be recovered this way, but its per-gameweek
-  figures are the season totals as they stood after GW1 — take the first snapshot
-  immediately and label anything earlier as unavailable rather than guessing.
+**Before touching anything:** none of it is shipped. `main` was pushed up to `3f631b9`, and
+everything after that — the statistics page, the sources page, the two integrations, the
+accessibility pass, and the six changes above — is committed locally and has never been
+deployed. The Worker in particular now has three things the live one does not: `/rumours`
+carrying `deals`, `/fpl-stats`, and the two new cron entries. Run the validation in *Start
+here* before the first commit, and note that the FPL snapshot for GW1 can only be taken
+while GW1 is still the settled gameweek — **after GW2 kicks off on 28 Aug the chance is
+gone**, and GW1 becomes permanently unavailable in the statistics window.
 
 ## Start here
 
@@ -114,6 +89,8 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `worker/lineups.ts` | Predicted elevens for the fixtures close enough to have one |
 | `src/services/rumours.ts` | Reads that list and picks the strongest report per player |
 | `worker/insights.ts` | FPL Core Insights' CSVs, read into per-player season totals |
+| `worker/fplHistory.ts` | Where FPL's season totals stood each gameweek, and the differences between them |
+| `src/services/fplHistory.ts` | Reads a gameweek window of FPL's own figures |
 | `src/Stats.tsx` | The statistics page at `#/tilastot` |
 | `src/Sources.tsx` | Where every figure comes from, at `#/lahteet` |
 | `worker/fixtures/ffs-feed.xml` | A real Fantasy Football Scout feed, saved 26 Aug, for the parser tests |
@@ -745,6 +722,56 @@ Nothing shows on the page until the sample completes, and for GW1 nothing will s
 then: FPL reprocessed it at 12:40, so every row's rank is already exact and the estimate
 stands down. **The first time this is seen for real is GW2's opening kick-off**, when FPL's
 own figure freezes and ours does not.
+
+## A gameweek of FPL's own figures, 26 Aug
+
+FPL publishes one window and one only, the season to date, so the statistics table had a seam
+down the middle: the match statistics followed the reader's gameweek picker and the FPL
+columns beside them did not. The picker said so, which is not the same as it not being a
+seam.
+
+It is closed the way `priceHistory.ts` closes the same gap for prices. `worker/fplHistory.ts`
+writes down where the season totals stood at the end of each gameweek, and a gameweek's own
+figures are one snapshot less the one before.
+
+### The cost, measured
+
+614 players × the 28 cumulative fields is **326 kB of JSON** written one object per player,
+and 12 MB over a season. Written as a field list once and a row of numbers per player it is
+**43 kB**, and 1.7 MB over a season — the field names were seven eighths of the file. Either
+shape is inside the 25 MB cap on a single KV value, which the earlier estimate of 150–200 kB
+a gameweek had been the argument against; the argument for **one key per gameweek** survives
+anyway. A finished gameweek's totals never change, so its key is written once and never
+again — 38 writes a season against a daily limit of a thousand — and a reader asking for two
+gameweeks should not be made to read the other thirty-six.
+
+The season aggregate needs no cache and no key, because it is not assembled here at all.
+FPL's own bootstrap *is* the season total and the page already holds it, so the 38 reads
+never happen.
+
+### What cannot be differenced is left empty
+
+`form` is an average over the last four fixtures and `points_per_game` over all of them: the
+difference of two averages is a number that means nothing. Those columns read "—" in a
+gameweek window rather than carrying a season figure into it, which is the honest answer —
+FPL does not publish a per-gameweek form. `event_points` is left out for the opposite reason:
+it is FPL's own per-gameweek figure and already exact.
+
+Two rules keep it from being quietly wrong:
+
+- A gameweek is answerable only against **the week immediately before it**. Differencing GW3
+  against GW1 would return two gameweeks and call them one, so a gap makes the week
+  unavailable instead.
+- **One missing week empties the FPL half of the whole window.** Summing the two weeks that
+  were written down and labelling them three is worse than an empty column, and the page says
+  which weeks are missing and why.
+
+### GW1 was recoverable, and only just
+
+A gameweek that ended before any of this ran cannot be recovered — its own line is the
+difference between two totals nobody wrote down. The exception is the first snapshot: taken
+while GW1 was finished and checked and GW2 had not kicked off, the season totals *were* GW1's
+own figures. That window closes at the GW2 deadline on 28 Aug.
 
 ## Readability, and the one thing behind most of it
 

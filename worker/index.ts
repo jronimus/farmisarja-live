@@ -6,6 +6,7 @@ import { readArticles, updateArticles, type ArticlesEnv } from "./articles";
 import { readRumours, updateRumours, type RumoursEnv } from "./rumours";
 import { readLineups, updateLineups, type LineupsEnv } from "./lineups";
 import { readDeals, updateTransfers, type TransfersEnv } from "./transfers";
+import { figuresFor, readCursor, updateFplHistory, type FplHistoryEnv } from "./fplHistory";
 import { readInsights, seasonTotals, updateInsights, type InsightsEnv } from "./insights";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
@@ -159,6 +160,20 @@ export default {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=180" },
       });
     }
+    if (url.pathname === "/fpl-stats") {
+      // `?gw=` takes a list, the same way `/insights` does, and for the same reason: a
+      // reader picks any set of gameweeks. With no list this answers only which gameweeks
+      // can be asked for — the season is FPL's own bootstrap and does not come from here.
+      const wanted = (url.searchParams.get("gw") ?? "")
+        .split(",").map(Number).filter((week) => Number.isInteger(week) && week > 0);
+      const cursor = await readCursor(env as FplHistoryEnv);
+      const figures = wanted.length
+        ? await figuresFor(env as FplHistoryEnv, wanted)
+        : { fields: [], players: [], unavailable: [] };
+      return new Response(JSON.stringify({ gameweeks: cursor?.taken ?? [], ...figures }), {
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=600" },
+      });
+    }
     const route = upstreamPath(url.pathname, env);
     if (!route) return json({ error: "Not found" }, request, env, 404);
     try {
@@ -211,6 +226,12 @@ export default {
     // The fixtures close to kick-off, every quarter of an hour, on the odd minutes.
     if (minute % 2 === 1) ctx.waitUntil(updateLineups(env as LineupsEnv).catch((error) => {
       console.error(JSON.stringify({ event: "lineups_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // Where FPL's own season totals stand, written down once a gameweek. It is the only
+    // way to have a per-gameweek FPL figure at all: the game publishes no window but the
+    // season, so a week of it is one snapshot less the one before.
+    if (minute % 5 === 3) ctx.waitUntil(updateFplHistory(env as FplHistoryEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "fpl_history_error", error: error instanceof Error ? error.message : String(error) }));
     }));
     // The dataset rebuilds three times a day; reading it hourly, on a minute of its own,
     // is already more often than it can change.

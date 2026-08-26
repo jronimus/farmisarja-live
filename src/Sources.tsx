@@ -34,7 +34,7 @@ export default function Sources({ language }: { language: Language }) {
       url: "https://fantasy.premierleague.com/api/bootstrap-static/",
       what: "Pelin virallinen rajapinta. Pisteet, hinnat, omistusprosentit, kokoonpanot, siirrot, otteluohjelma ja liigataulukot — kaikki mitä FPL itse julkaisee.",
       where: "Taulukko, Hinnat, ja jokaisen muun sivun pelaajatiedot.",
-      caveat: "FPL kertoo vain voiko pelaaja pelata, ei sitä pelaako hän. Siksi sivustolla on muitakin lähteitä.",
+      caveat: "FPL kertoo vain voiko pelaaja pelata, ei sitä pelaako hän. Siksi sivustolla on muitakin lähteitä. Se julkaisee myös vain koko kauden summat, joten kierroskohtaiset luvut lasketaan täällä: summat otetaan talteen jokaisen kierroksen jälkeen ja peräkkäiset talteenotot vähennetään toisistaan.",
     },
     {
       name: "FotMob",
@@ -63,7 +63,7 @@ export default function Sources({ language }: { language: Language }) {
       url: "https://fantasy.premierleague.com/api/bootstrap-static/",
       what: "The game's own official API. Points, prices, ownership, squads, transfers, fixtures and league tables — everything FPL itself publishes.",
       where: "The table, the price page, and the player data on every other page.",
-      caveat: "FPL only ever says whether a player can play, never whether he will. That is why the other sources are here.",
+      caveat: "FPL only ever says whether a player can play, never whether he will. That is why the other sources are here. It also publishes season totals and no other window, so a gameweek's own figures are worked out here: the totals are written down after each gameweek and successive snapshots differenced.",
     },
     {
       name: "FotMob",

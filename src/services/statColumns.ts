@@ -5,10 +5,11 @@ import { defensiveActions, per90, threat, type PlayerInsight } from "./insights"
  * Every figure the statistics table can show, and where each of them comes from.
  *
  * There are two sources and they answer different questions, so the catalogue says which is
- * which and the table labels it. **FPL's own figures are always season totals** — the game
- * publishes no other window — while the match statistics follow whatever gameweeks the
- * reader has picked. Mixing the two silently would produce a row where "goals" and "goals"
- * disagreed, so they are grouped apart and the group is on the screen.
+ * which and the table labels it. Both now follow the reader's gameweek picker: FPL publishes
+ * no window but the season, so a gameweek of it is one snapshot of the totals less the one
+ * before — see `services/fplHistory.ts`. What cannot be differenced is left empty rather than
+ * invented: `form` is an average over the last four fixtures, and a difference of two
+ * averages is a number that means nothing.
  *
  * A reader chooses which columns to show and the choice is kept, so the table is his rather
  * than ours. That is also why there are fifty of them: the cost of an unwanted column is now
