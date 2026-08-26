@@ -2861,67 +2861,6 @@ footer a { color:#c4c6d8; }
 
 
 
-/* The squad rating, between the manager's row and his pitch. Somebody else's model marking
-   his team sheet, so it is set as a quotation rather than as one of our own figures: the
-   mark, what it is based on, its own sentences, and a link to whose opinion it is. */
-.squad-rating {
-  display:flex;
-  flex-wrap:wrap;
-  align-items:flex-start;
-  gap:10px 22px;
-  padding:12px 22px;
-  background:linear-gradient(180deg,#12211a,#0e1b15);
-  border-top:1px solid rgba(255,255,255,.06);
-}
-/* A label over each figure. The mark and the projection are two different things and both
-   are numbers; without a word above them the strip reads as a scoreline. */
-.rating-mark,
-.rating-projection { display:flex; flex-direction:column; gap:2px; }
-.rating-mark > small,
-.rating-projection > small {
-  color:#8ba69b;
-  font-size:9px;
-  font-weight:900;
-  letter-spacing:.05em;
-  text-transform:uppercase;
-}
-.rating-mark > b { display:flex; align-items:baseline; gap:4px; font-weight:400; }
-.rating-mark strong { font:400 22px/1 "Archivo Black",sans-serif; font-variant-numeric:tabular-nums; }
-.rating-mark em { font-size:11px; font-style:normal; font-weight:800; opacity:.75; }
-.rating-mark i { font:900 11px "Inter",sans-serif; font-style:normal; letter-spacing:.04em; }
-.rating-mark.tone-high strong,.rating-mark.tone-high i,.rating-mark.tone-high em { color:#42e394; }
-.rating-mark.tone-good strong,.rating-mark.tone-good i,.rating-mark.tone-good em { color:#c8e86a; }
-.rating-mark.tone-fair strong,.rating-mark.tone-fair i,.rating-mark.tone-fair em { color:#ffd21e; }
-.rating-mark.tone-low strong,.rating-mark.tone-low i,.rating-mark.tone-low em { color:#ff8ba0; }
-.rating-projection > b { color:#e6efea; font-size:15px; font-weight:900; font-variant-numeric:tabular-nums; }
-.rating-projection > em { color:#8ba69b; font-size:10px; font-style:normal; font-weight:700; }
-
-.rating-notes { display:flex; flex-direction:column; gap:3px; flex:1 1 280px; min-width:0; }
-.rating-notes em { font-size:10px; font-style:normal; font-weight:700; line-height:1.4; }
-.rating-notes .good { color:#a8c2b5; }
-.rating-notes .risk { color:#ffb0bf; }
-/* The note that says whose language the sentences above are written in. */
-.rating-notes .rating-language { color:#8ba69b; font-size:9px; font-weight:700; }
-.rating-credit {
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
-  min-height:24px;
-  color:#6fdccd;
-  font-size:9px;
-  font-weight:900;
-  letter-spacing:.04em;
-  text-decoration:none;
-  text-transform:uppercase;
-}
-.rating-credit:hover { color:#9df0e4; }
-
-@media (max-width:800px) {
-  .squad-rating { gap:8px 14px; padding:10px 12px; }
-  .rating-mark strong { font-size:19px; }
-  .rating-notes { flex-basis:100%; }
-}
-
 /* --------------------------------------------------------------------------
    The statistics table
    --------------------------------------------------------------------------
@@ -3830,14 +3769,15 @@ input:focus-visible,
    WCAG 2.2 — which on a phone is the difference between a control and a dare.
    ========================================================================== */
 
-/* 1.02:1. `--page-ink` is an ink colour for a light panel, and this count sits on the
-   page's own dark ground; it was invisible rather than merely dim. */
-/* Text that sits on the page's own ground rather than on a panel.
-   `--page-ink` is dark and `--soft` is dim, and each of them fails in the skin the other
-   was written for: the count measured 1.02:1 on the dark boards and 3.02:1 on the pale
-   ones. Mixing toward `--text` cannot fail either way, because `--text` is by definition
-   the ink that skin reads with. */
-.news-count { color:color-mix(in srgb,var(--text) 82%,transparent); }
+/* Text that sits on the page's own ground rather than on a panel, which is what
+   `--page-ink` is for — the price page's foot and its footnote already use it.
+   `--text` was reached for instead, on the reasoning that it is by definition the ink the
+   skin reads with. It is the ink the skin's *panels* read with: the applied skin sets
+   `--text:#17192b` for its pale surfaces while the page ground stays dark green, so the
+   count composited to near-black on near-black and measured 1.02:1. The audit passed it
+   because the count's nearest solid-background ancestor is the pale table, so it was
+   measured against a surface it does not sit on. */
+.news-count { color:var(--page-ink); }
 
 /* An unstyled link inherits the browser's 1990s blue, which read 1.88:1 here. Every link
    inside a footnote is now the same cyan the rest of the site uses for a link out, and it

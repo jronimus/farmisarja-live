@@ -5,7 +5,6 @@ import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } fro
 import { readArticles, updateArticles, type ArticlesEnv } from "./articles";
 import { readRumours, updateRumours, type RumoursEnv } from "./rumours";
 import { readLineups, updateLineups, type LineupsEnv } from "./lineups";
-import { readScout, updateScout, type ScoutEnv } from "./scout";
 import { readInsights, seasonTotals, updateInsights, type InsightsEnv } from "./insights";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
@@ -137,12 +136,6 @@ export default {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=180" },
       });
     }
-    if (url.pathname === "/scout") {
-      const stored = await readScout(env as ScoutEnv);
-      return new Response(JSON.stringify({ gameweek: stored?.gameweek ?? 0, ratings: stored?.ratings ?? [], credits: stored?.credits }), {
-        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
-      });
-    }
     if (url.pathname === "/insights") {
       const stored = await readInsights(env as InsightsEnv);
       // Summed here rather than in the browser: the store is per gameweek so a finished one
@@ -209,10 +202,6 @@ export default {
     // The fixtures close to kick-off, every quarter of an hour, on the odd minutes.
     if (minute % 2 === 1) ctx.waitUntil(updateLineups(env as LineupsEnv).catch((error) => {
       console.error(JSON.stringify({ event: "lineups_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // Seven small requests to somebody else's model, half-hourly, on their own minute.
-    if (minute % 5 === 3) ctx.waitUntil(updateScout(env as ScoutEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "scout_error", error: error instanceof Error ? error.message : String(error) }));
     }));
     // The dataset rebuilds three times a day; reading it hourly, on a minute of its own,
     // is already more often than it can change.

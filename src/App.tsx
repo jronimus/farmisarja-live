@@ -9,7 +9,6 @@ import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, ty
 import { flagOf } from "./services/playerNews";
 import { absencesByElement, isStrong, loadFotmob, strongestByPlayer, type Absence, type Rumour } from "./services/rumours";
 import { loadLineups, watchFrom, type LineupWatch } from "./services/lineups";
-import { gradeTone, loadScout, type SquadRating } from "./services/scout";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import TeamNews from "./TeamNews";
@@ -519,68 +518,6 @@ function viewFromHash(): View {
   return "table";
 }
 
-/**
- * OpenFPL's mark for this squad, over the squad it is about.
- *
- * An outside model scores the eleven for the gameweek that is still open — out of a
- * hundred, with the points it projects for this side against the points it projects for
- * its own, and its own sentences about what is strong and what is risky. It belongs here
- * rather than on a page of its own: it is a fact about this manager, and every other fact
- * about him — captain, chips, transfers, value — is already in this row.
- *
- * It is somebody else's opinion, and the line under it says so and links to the project.
- */
-function SquadRatingStrip({ rating, squad, language }: { rating: SquadRating; squad: SquadPlayer[]; language: Language }) {
-  const t = translations(language);
-  const marks = useContext(RumourContext);
-  /**
-   * The players in this eleven that we know something about and OpenFPL does not.
-   *
-   * Its availability score reads FPL's own flag and nothing else, so a squad whose keeper
-   * is being negotiated over — fit, unflagged, and reported all week as leaving — scores a
-   * clean ten and the model writes "all 11 starters are currently marked available". That
-   * sentence sat one panel above our own page saying the opposite about the same player.
-   *
-   * So the sentence is dropped when we can see it is wrong, and the players it was wrong
-   * about are named instead. The rest of the mark is left exactly as it came: this is one
-   * claim we can check, not a licence to rewrite somebody else's model.
-   */
-  const doubts = squad
-    .filter((player) => player.starter)
-    .filter((player) => marks.absences.has(player.id) || marks.rumours.has(player.id) || marks.lineups.benched.has(player.id))
-    .map((player) => player.name);
-  const strengths = doubts.length
-    ? rating.strengths.filter((line) => !/available|saatavill/i.test(line))
-    : rating.strengths;
-  return <div className="squad-rating">
-    {/* Words before figures. "63 C · 38.0" is a scoreline out of a spreadsheet: the reader
-        has to be told what is being marked and what the number beside it is before either
-        means anything, and the label costs one line. */}
-    <span className={`rating-mark tone-${gradeTone(rating.rating)}`}>
-      <small>{t.ratingHeading}</small>
-      <b><strong>{rating.rating}</strong><em>/100</em><i>{rating.grade}</i></b>
-    </span>
-    <span className="rating-projection">
-      <small>{t.ratingProjection}</small>
-      <b>{rating.projected.toFixed(1)} {t.ratingPointsWord}</b>
-      <em>{t.ratingVersusAi.replace("{ai}", rating.aiProjected.toFixed(1))}</em>
-    </span>
-    <span className="rating-notes">
-      {strengths.map((line) => <em key={line} className="good">{line}</em>)}
-      {rating.risks.map((line) => <em key={line} className="risk">{line}</em>)}
-      {doubts.length > 0 && <em className="risk">
-        {t.ratingAvailabilityDoubt.replace("{players}", doubts.join(", "))}
-      </em>}
-      {/* The model writes its own sentences and it writes them in English. Translating
-          somebody else's reasoning would be putting words in his mouth, so they are left
-          as they were written and the page says which language it is quoting in. */}
-      {language === "fi" && (strengths.length > 0 || rating.risks.length > 0)
-        && <em className="rating-language">{t.ratingEnglishOnly}</em>}
-    </span>
-    <a className="rating-credit" href="#/lahteet">OpenFPL</a>
-  </div>;
-}
-
 function Shirt({ player }: { player: SquadPlayer }) {
   const kitSet = player.position === "GK" ? "optimized-gk" : "optimized";
   const source = `${import.meta.env.BASE_URL}kits/${kitSet}/${player.club.toLowerCase()}.webp?v=20260823-gk3`;
@@ -773,16 +710,6 @@ export default function App() {
     () => new Map((data.playerNews ?? []).map((player) => [player.id, player.club])),
     [data.playerNews],
   );
-  const [ratings, setRatings] = useState<Map<number, SquadRating>>(new Map());
-  useEffect(() => {
-    let active = true;
-    loadScout()
-      .then((body) => { if (active && body) setRatings(body.ratings); })
-      // A rating that cannot be read is not worth breaking the table over.
-      .catch(() => {});
-    return () => { active = false; };
-  }, []);
-
   useEffect(() => {
     let active = true;
     Promise.all([loadFotmob(), loadLineups()])
@@ -1265,7 +1192,6 @@ export default function App() {
                 <div className={`progress-cell ${metric("upcoming")}`} data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? t.fixtureFinal : t.fixtureProvisional}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
                 <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints + manager.provisionalBonus - manager.hit)}</strong></div>
               </div>
-              {open && ratings.get(manager.id) && <SquadRatingStrip rating={ratings.get(manager.id)!} squad={manager.squad} language={language} />}
               {open && (data.rosterOnly
                 ? <div className="squad-panel squad-unavailable">{language === "fi" ? "Pelaajat tulevat näkyviin, kun peliviikon deadline on sulkeutunut." : "Players will appear after the gameweek deadline has passed."}</div>
                 : <Squad manager={manager} language={language} autosubs={autosubs} highlighted={highlighted} />)}

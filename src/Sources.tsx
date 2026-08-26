@@ -51,13 +51,6 @@ export default function Sources({ language }: { language: Language }) {
       caveat: "Pelaajatunnukset ovat FPL:n omia, joten luvut liittyvät suoraan oikeisiin pelaajiin ilman nimien arvailua.",
     },
     {
-      name: "OpenFPL Scout AI",
-      url: "https://openfpl.kassem.dev",
-      what: "Koneoppimismalli, joka pisteyttää joukkueen kokoonpanon avoinna olevalle kierrokselle ja vertaa sitä oman mallinsa parhaaseen kokoonpanoon.",
-      where: "Joukkuearvio jokaisen managerin rivin alla Taulukossa.",
-      caveat: "Sen saatavuusarvio lukee vain FPL:n omaa lippua, joten se ei tiedä siirtohuhuista. Jätämme sen saatavuuslauseen pois silloin kun tiedämme sen olevan ristiriidassa oman datamme kanssa.",
-    },
-    {
       name: "Fantasy Football Scout · AllAboutFPL",
       url: "https://www.fantasyfootballscout.co.uk",
       what: "Artikkelit RSS-syötteinä, lajiteltuna julkaisijan omien kategorioiden mukaan.",
@@ -85,13 +78,6 @@ export default function Sources({ language }: { language: Language }) {
       what: "An open dataset fusing FPL's official figures with per-match performance statistics: expected goals and assists, shots, big chances, defensive contributions and saves. Rebuilt three times a day.",
       where: "The statistics page and the xG column on the price page.",
       caveat: "Its player ids are FPL's own, so the figures attach to the right players without any name matching.",
-    },
-    {
-      name: "OpenFPL Scout AI",
-      url: "https://openfpl.kassem.dev",
-      what: "A machine-learning model that marks a squad's eleven for the gameweek still open and compares it with its own best side.",
-      where: "The squad rating under each manager's row in the table.",
-      caveat: "Its availability score reads FPL's flag alone, so it knows nothing about transfer rumours. We drop its availability sentence whenever we can see it contradicts our own data.",
     },
     {
       name: "Fantasy Football Scout · AllAboutFPL",

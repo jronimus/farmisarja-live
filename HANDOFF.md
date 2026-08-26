@@ -7,38 +7,17 @@ before making changes.
 
 ## Next up — start here in a new conversation
 
-Seven jobs, agreed on 26 Aug 2026 at the end of a long session. They are in the order they
-are worth doing. Nothing below has been started; the working tree is clean of them.
+Four jobs left of the seven agreed on 26 Aug 2026, in the order they are worth doing. The
+squad rating strip has since been removed outright — see *OpenFPL, and why the mark was
+removed* — and with it the note about how its grade letter should have been set; the player
+count above the statistics table has been fixed — see *The count nobody could read*.
 
 **Before touching any of it:** the Worker is deployed and current, the front end is *not* —
 `main` has been pushed up to `3f631b9`, and everything after that (the statistics page, the
 sources page, the two integrations, the accessibility pass) is committed locally but has
 never been shipped. Run the validation in *Start here* before the first commit.
 
-### 1. Delete the squad rating strip entirely
-
-The panel under an open manager's row goes. Not trimmed — removed.
-
-The reasoning, which is worth keeping because it applies to the next model somebody
-suggests: **a mark out of a hundred and a projected-points figure are one model's opinion
-dressed as a measurement**, and neither survives the question "what would I do differently
-knowing this". The two sentences the model writes about them — *the lineup trails the AI
-benchmark by 26.4 projected points* and *the captain projects below the AI benchmark
-captain* — restate the mark in words. The one line that was a fact rather than an opinion
-(the count of differentials under 10 % ownership) is already visible in the ownership
-percentages on the same screen, and our own *Emme allekirjoita saatavuusarviota* line only
-existed to correct a claim that is going away with the rest.
-
-- Remove `SquadRatingStrip` and its call site in `src/App.tsx`, the `ratings` state and the
-  `loadScout` effect, and the `.squad-rating` / `.rating-*` block in `src/styles.css`.
-- Remove the `rating*` strings from `src/i18n.ts`.
-- **Then decide about the Worker side.** `worker/scout.ts`, the `/scout` route and its cron
-  entry, `worker/scout.test.ts` and `src/services/scout.ts` would have no consumer left.
-  Recommendation: delete them too. Dead code that still fetches somebody else's service on
-  a schedule is worse than dead code. If they go, drop OpenFPL from `src/Sources.tsx` as
-  well, and from the OpenFPL section of this file.
-
-### 2. A faster and more direct source for transfer news
+### 1. A faster and more direct source for transfer news
 
 The complaint that prompted this: our page was still showing a `Goal` rumour about Watkins
 to Al Hilal at a point when Fabrizio Romano had already posted *here we go* — the move was
@@ -65,7 +44,7 @@ answers, never to assume. Worth testing:
 Whatever is chosen, keep the existing rules: every line names its source and links to it,
 and nothing is printed as fact that is somebody's report.
 
-### 3. Translate the outside sources' phrases into Finnish
+### 2. Translate the outside sources' phrases into Finnish
 
 Two sets of English strings leak into a Finnish page, and both look like closed sets rather
 than free text, so both can be mapped. **Collect the real values first** — read a week of
@@ -84,7 +63,7 @@ data and list the distinct strings, do not invent the list.
   because a translated medical phrase that is wrong is worse than an English one that is
   right.
 
-### 4. Articles: a date and a time, not "1 h sitten"
+### 3. Articles: a date and a time, not "1 h sitten"
 
 `Since` on the articles list should print the publication date and clock time. Relative time
 is fine for a live feed where "3 min ago" is the point; for an article it hides what a
@@ -92,7 +71,7 @@ reader wants, which is whether this was written before or after the team news he
 read. Keep the relative form on the availability rows if it still reads well there — decide
 per list rather than globally.
 
-### 5. Statistics: FPL's own figures per gameweek
+### 4. Statistics: FPL's own figures per gameweek
 
 Today the FPL columns are season totals and only the match statistics follow the gameweek
 picker, which is stated in the picker but is still a seam down the middle of the table.
@@ -115,29 +94,6 @@ Be realistic about the cost, and measure before building:
 - Snapshots can only start now. GW1 cannot be recovered this way, but its per-gameweek
   figures are the season totals as they stood after GW1 — take the first snapshot
   immediately and label anything earlier as unavailable rather than guessing.
-
-### 6. The player count above the statistics table is still dark
-
-`.news-count` reads as near-black on the dark page ground, and it survived an audit that
-reported zero findings — which makes the audit's blind spot the real finding.
-
-**What is actually wrong:** the filter row sits on the page's own dark green ground, but its
-nearest ancestor with a solid background is the pale table, so the audit measured the text
-against the wrong surface and passed it. The colour is `color-mix(in srgb, var(--text) 82%,
-transparent)`, and `--text` in the active skin is `#17192b` — an ink for pale panels.
-
-**The token is the bug.** That skin defines `--page-ink` as `rgba(20,32,25,.78)`, a dark ink,
-while its page ground is dark green: `--page-ink` exists precisely for text on the page
-ground and is wrong in that skin. Fixing the token fixes `.news-count`, `.price-foot` and
-`.price-disclaimer` together. Fix it there rather than patching the three call sites, and
-teach the audit to use the page ground when an element is not inside a solid-background
-panel of its own.
-
-### 7. The squad rating letter, if item 1 is ever reversed
-
-Only if the strip comes back: the grade letter goes first and large, with the number and
-`/100` set smaller beside it. Recorded because the instruction was given before the decision
-to remove the panel, and it is the shape to use if the idea returns.
 
 ## Start here
 
@@ -205,7 +161,6 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `worker/lineups.ts` | Predicted elevens for the fixtures close enough to have one |
 | `src/services/rumours.ts` | Reads that list and picks the strongest report per player |
 | `worker/insights.ts` | FPL Core Insights' CSVs, read into per-player season totals |
-| `worker/scout.ts` | OpenFPL's mark for each squad in this league |
 | `src/Stats.tsx` | The statistics page at `#/tilastot` |
 | `src/Sources.tsx` | Where every figure comes from, at `#/lahteet` |
 | `worker/fixtures/ffs-feed.xml` | A real Fantasy Football Scout feed, saved 26 Aug, for the parser tests |
@@ -898,6 +853,26 @@ the rules that actually win — changing the base `.sort-header` colour does not
   wordmark and the gameweek card, and WCAG 2.2's floor is 24×24 — the 44 everyone quotes is
   Apple's guidance, not the bar.
 
+### The count nobody could read, 26 Aug
+
+`.news-count` — *614 pelaajaa* above the statistics table — measured **1.02:1**. It is fixed
+by using `--page-ink`, and it now measures 10.44:1 against the page's own ground.
+
+Two things about it are worth keeping.
+
+**The audit's blind spot is the real finding.** The count sits on the page's own dark green
+ground, but its nearest ancestor with a solid background is the pale table, so the audit
+measured the text against a surface it does not sit on and reported no finding. When an
+element is not inside a solid-background panel of its own, the ground to measure against is
+the page's, not the first `background` an ancestor happens to declare.
+
+**`--text` is not a safe default for text on the page ground.** The colour had been written
+as `color-mix(in srgb, var(--text) 82%, transparent)` on the reasoning that `--text` is by
+definition the ink the skin reads with. It is the ink the skin's *panels* read with: the
+applied skin sets `--text:#17192b` for its pale surfaces while its ground stays dark green.
+`--page-ink` exists for exactly this case and was already right — `.price-foot` and
+`.price-disclaimer` use it — so the fix was to use it rather than to touch the token.
+
 ### Two things that were checked and left alone
 
 Colour is never the only carrier — prices have a sign, ranks an arrow, fixtures a word. And
@@ -1252,35 +1227,21 @@ cannot tell apart. The same figure, per ninety, is now a column on the price pag
 says a player is being bought, and this is the only thing on it about the football rather
 than about the market.
 
-### OpenFPL — a mark for each squad
+### OpenFPL, and why the mark was removed, 26 Aug
 
-`elcaiseri/OpenFPL-Scout-AI` runs a four-model ensemble over the official data and its
-`/api/scout/team-rating` route is open: an entry id and a gameweek return a mark out of a
-hundred, the points it projects for that eleven against the points it projects for its own,
-and its own sentences about what is strong and what is risky. About a third of a second a
-squad.
+`elcaiseri/OpenFPL-Scout-AI` rated each manager's eleven out of a hundred and the panel sat
+under his row for a day. It is gone, along with `worker/scout.ts`, its route, its cron entry
+and its entry on the sources page.
 
-**It rates the gameweek that is still open**, not the current one: a mark for a team sheet
-nobody can change any more is a post-mortem, and the question is "how well is my side set
-up". OpenFPL will rate a future gameweek from the squad as it stands, which is exactly what
-a manager wants before he makes his transfer.
+The reason is worth keeping, because it applies to the next model somebody suggests: **a
+mark out of a hundred and a projected-points figure are one model's opinion dressed as a
+measurement**, and neither survives the question "what would I do differently knowing this".
+The sentences the model wrote about them only restated the mark in words, and the one line
+that was a fact rather than an opinion — the count of differentials under 10 % ownership —
+is already visible in the ownership percentages on the same screen.
 
-It sits **in the manager's own row** rather than on a page of its own. It is a fact about
-that manager, and every other fact about him — captain, chips, transfers, value — is already
-there. It is set as a quotation, with the model's own wording and a link to whose opinion it
-is; nothing in it is ours.
-
-**Its availability score reads FPL's flag and nothing else**, and that produced the one
-contradiction on the site worth fixing: a squad starting a keeper who is fit, unflagged and
-reported all week as leaving scored a clean ten, and the model wrote "all 11 starters are
-currently marked available" one panel above our own page saying the opposite about the same
-player. So that sentence is dropped whenever our own data disagrees, and the starters it was
-wrong about are named instead. Nothing else about the mark is touched: this is one claim we
-can check, not a licence to rewrite somebody else's model.
-
-Adding a fourth destination pushed the page 16px sideways at 320px, which the overflow guard
-caught. The nav closes its gaps and steps its type down below 380px rather than wrapping:
-four short words on one line still read as one navigation, where two over two read as two.
+The Worker side went with it rather than being left dead: code that still fetches somebody
+else's service on a schedule with no consumer is worse than dead code.
 
 ### Where the credit lives
 
@@ -1288,7 +1249,7 @@ four short words on one line still read as one navigation, where two over two re
 the figures, which was the wrong currency twice over: a reader has nothing to do in
 somebody's source tree, and a bare link is not much of an acknowledgement either. The page
 gives each project a name, a sentence about what it does, where on this site it is used, and
-what is worth knowing before trusting it. Four of the five sources are somebody else's work,
+what is worth knowing before trusting it. Three of the four sources are somebody else's work,
 which is worth being plain about — this site derives very little and reports a great deal.
 
 ## Availability, and the flag FPL does not raise
