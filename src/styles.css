@@ -2763,6 +2763,10 @@ footer a { color:#c4c6d8; }
    so it is set quieter than the sentence above it and carries every outlet that ran it. */
 .news-move { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; }
 .news-move em { color:var(--purple); font-size:11px; font-style:normal; font-weight:800; }
+/* A move that has gone through is not a report about a move, so it does not read as one:
+   the purple of "somebody says" gives way to the red the page already uses for a player who
+   is out. Nothing here is being claimed any more. */
+.news-move.is-done em { color:var(--red); }
 .news-sources { display:flex; flex-wrap:wrap; align-items:center; gap:4px 9px; }
 .news-sources a { display:inline-flex; align-items:center; gap:3px; color:var(--cyan); font-size:9px; font-weight:800; text-decoration:none; }
 .news-sources a svg { width:9px; height:9px; }

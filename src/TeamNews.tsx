@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Clock3, ExternalLink } from "lucide-react";
 import { translations } from "./i18n";
 import { flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
-import { absencesByElement, loadFotmob, movesByElement, type Absence, type Move } from "./services/rumours";
+import { absencesByElement, dealsByElement, loadFotmob, movesByElement, type Absence, type Deal, type Move } from "./services/rumours";
 import { loadLineups } from "./services/lineups";
 import { articlesEndpoint, loadArticles, topicsPresent, type Article } from "./services/articles";
 import type { DashboardData, Language, PlayerNews } from "./types";
@@ -22,8 +22,12 @@ type Filter = "ours" | "all" | "articles";
 /** Anyone the league is exposed to comes first; the rest of the game is behind a filter. */
 const PAGE = 40;
 
-function Flag({ player, absence, move }: { player: PlayerNews; absence?: Absence; move?: Move }) {
+function Flag({ player, absence, move, deal }: { player: PlayerNews; absence?: Absence; move?: Move; deal?: Deal }) {
   const flag = flagOf(player);
+  // He has gone. FPL will flag him itself within a day or so, and until it does this is the
+  // only thing on the page that knows — so it gets the flag that means "he is not playing"
+  // rather than the softer mark a reported move gets.
+  if (flag.level === "none" && deal) return <i className="news-flag flag-out">✕</i>;
   // FotMob has him out and FPL has not said so yet. It is not FPL's percentage, so it does
   // not get FPL's colours: an exclamation in the amber that means "read this".
   if (flag.level === "none" && absence) return <i className="news-flag flag-major">!</i>;
@@ -147,6 +151,15 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
    * Premier League is no promise that anybody is playing this week.
    */
   const [moves, setMoves] = useState<Map<number, Move>>(new Map());
+  /**
+   * The moves that are no longer reports.
+   *
+   * This is the half the rumour digest is slowest at, and the reason the page was showing a
+   * three-day-old `Goal` rumour about a move Romano had already called done. A deal is a
+   * fact, so it replaces the reports rather than joining them: the outlets that guessed at
+   * it have nothing left to be right or wrong about.
+   */
+  const [deals, setDeals] = useState<Map<number, Deal>>(new Map());
   useEffect(() => {
     let active = true;
     // The club-wide list, with the per-match one laid over it where a fixture is close
@@ -163,6 +176,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
         }
         setAbsences(merged);
         setMoves(movesByElement(body.rumours));
+        setDeals(dealsByElement(body.deals));
       })
       .catch(() => {});
     return () => { active = false; };
@@ -176,15 +190,17 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
 
   const rows = useMemo(() => {
     const list = all
-      .filter((player) => isNewsworthy(player) || absences.has(player.id) || moves.has(player.id))
+      .filter((player) => isNewsworthy(player) || absences.has(player.id) || moves.has(player.id) || deals.has(player.id))
       .filter((player) => filter === "all" || player.owners.length > 0);
     // A reported move ranks under FPL's own doubts and over the players with nothing said
     // about them: it is a reason he might not play, not a statement that he cannot.
+    // A completed move ranks with FPL's own doubts rather than under them: it is not a
+    // reason he might not play, it is the reason he will not.
     return [...list].sort((a, b) => {
-      const rank = (player: PlayerNews) => isNewsworthy(player) || absences.has(player.id) ? 0 : 1;
+      const rank = (player: PlayerNews) => isNewsworthy(player) || absences.has(player.id) || deals.has(player.id) ? 0 : 1;
       return rank(a) - rank(b) || newsOrder(a, b);
     });
-  }, [all, filter, absences, moves]);
+  }, [all, filter, absences, moves, deals]);
 
   // These two read the Worker, not FPL, so an FPL outage is no reason to hide them.
   if (!data.playerNews && filter !== "articles") {
@@ -221,6 +237,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
         const flag = flagOf(player);
         const absence = absences.get(player.id);
         const move = moves.get(player.id);
+        const deal = deals.get(player.id);
         return <article className={`news-row level-${flag.level} ${player.owners.length ? "is-held" : ""}`} key={player.id}>
           <span className="news-player">
             <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${player.position === "GK" ? "optimized-gk" : "optimized"}/${player.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
@@ -228,7 +245,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
             <small>{player.club} · {player.position} · £{player.cost.toFixed(1)}m</small>
           </span>
 
-          <span className="news-flag-cell"><Flag player={player} absence={absence} move={move} /></span>
+          <span className="news-flag-cell"><Flag player={player} absence={absence} move={move} deal={deal} /></span>
 
           <span className="news-word">
             {/* FPL's own sentence, verbatim. It is the most reliable thing on this page and
@@ -237,9 +254,11 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
               ? t.absenceTitle
                 .replace("{reason}", t.absenceReason[absence.reason] ?? absence.reason)
                 .replace("{return}", absence.expectedReturn || "—")
-              : move
-                ? t.mayBeMoving
-                : t.newsNoWord)}</em>
+              : deal
+                ? (deal.onLoan ? t.hasJoinedOnLoan : t.hasJoined).replace("{to}", deal.toClub)
+                : move
+                  ? t.mayBeMoving
+                  : t.newsNoWord)}</em>
             <span className="news-meta">
               {/* FPL says what is wrong; FotMob says when he is back. Both, attributed. */}
               {player.news && absence?.expectedReturn
@@ -252,7 +271,18 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
             {/* Every outlet that has reported it, each linked to its own report. Two named
                 reports tell a reader more than one adjective does, which is why the grading
                 is not printed at all: `Imminent` against `High` is an interpretation. */}
-            {move && <span className="news-move">
+            {/* A move that has gone through says so, dated, and the reports about it are
+                not printed underneath: they had a guess and the answer is now known. FPL's
+                own word, when it arrives, appears in the sentence above this one. */}
+            {deal && <span className="news-move is-done">
+              {/* Only when the sentence above is FPL's or FotMob's about an injury. With
+                  nothing else to say the word line is already this move, and printing it
+                  twice on one row reads as two separate pieces of news. */}
+              {(player.news || absence)
+                && <em>{(deal.onLoan ? t.moveDoneOnLoan : t.moveDone).replace("{to}", deal.toClub)}</em>}
+              <span className="news-sources"><small>FotMob</small><Since at={deal.at} language={language} /></span>
+            </span>}
+            {!deal && move && <span className="news-move">
               <em>{(player.news || absence ? t.alsoMayBeMoving : t.movingTo)
                 .replace("{to}", move.destinations.join(", "))}</em>
               <span className="news-sources">

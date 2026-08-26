@@ -39,7 +39,7 @@ export default function Sources({ language }: { language: Language }) {
     {
       name: "FotMob",
       url: "https://www.fotmob.com",
-      what: "Siirtohuhut lähteineen ja todennäköisyysarvioineen, ennustetut avauskokoonpanot, sekä loukkaantuneiden ja pelikieltoisten listat paluuaikoineen.",
+      what: "Siirtohuhut lähteineen ja todennäköisyysarvioineen, jo toteutuneet siirrot maailmanlaajuiselta siirtolistalta, ennustetut avauskokoonpanot, sekä loukkaantuneiden ja pelikieltoisten listat paluuaikoineen.",
       where: "Uutiset-välilehti, ja paitojen merkit Taulukossa.",
       caveat: "Dokumentoimaton rajapinta. Luemme sitä varovasti — puoli liigaa puolessa tunnissa — ja jos se lakkaa vastaamasta, tiedot vanhenevat itsestään pois.",
     },
@@ -68,7 +68,7 @@ export default function Sources({ language }: { language: Language }) {
     {
       name: "FotMob",
       url: "https://www.fotmob.com",
-      what: "Transfer rumours with their sources and a graded likelihood, predicted line-ups, and injury and suspension lists with expected returns.",
+      what: "Transfer rumours with their sources and a graded likelihood, completed moves off its worldwide transfer wire, predicted line-ups, and injury and suspension lists with expected returns.",
       where: "The news page, and the marks on the shirts in the table.",
       caveat: "An undocumented endpoint. It is read gently — half the league every half hour — and if it ever stops answering, what is stored simply ages out.",
     },

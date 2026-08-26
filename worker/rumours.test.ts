@@ -52,6 +52,17 @@ describe("transfer rumours", () => {
     expect(out[1]).toMatchObject({ strength: "imminent", staysInLeague: true, source: "The Athletic", fromClub: "MCI" });
   });
 
+  it("keeps all four of FotMob's grades, Medium included", () => {
+    // `Medium` was missing from the grade table and an unknown grade is skipped, so every
+    // Medium report was being dropped: eighteen across the league on 26 Aug, among them
+    // Romano on Nicolas Jackson to Villa.
+    const payload = { transfers: { allRumours: [
+      { name: "Jack Grealish", fromClubId: 8456, fromClub: "Man City", toClub: "Aston Villa", toClubId: 10252,
+        probability: "Medium", sourceName: "Fabrizio Romano", transferDate: "2026-08-26T16:45:00Z", rumourId: 21 },
+    ] } };
+    expect(rumoursFromTeam(payload, elements, teamByShort)[0]).toMatchObject({ strength: "medium" });
+  });
+
   it("keeps the clubs a half-league tick did not read", () => {
     const now = Date.parse("2026-08-26T12:00:00Z");
     const stored = [rumour({ id: 1, fromClub: "MCI" }), rumour({ id: 2, fromClub: "ARS" })];

@@ -7,44 +7,18 @@ before making changes.
 
 ## Next up — start here in a new conversation
 
-Four jobs left of the seven agreed on 26 Aug 2026, in the order they are worth doing. The
-squad rating strip has since been removed outright — see *OpenFPL, and why the mark was
-removed* — and with it the note about how its grade letter should have been set; the player
-count above the statistics table has been fixed — see *The count nobody could read*.
+Three jobs left of the seven agreed on 26 Aug 2026, in the order they are worth doing. Of
+the four that are done: the squad rating strip was removed outright — see *OpenFPL, and why
+the mark was removed* — and with it the note about how its grade letter should have been set;
+the player count above the statistics table is fixed — see *The count nobody could read*; and
+the transfer news is now fast — see *The wire, and who was actually slow*.
 
 **Before touching any of it:** the Worker is deployed and current, the front end is *not* —
 `main` has been pushed up to `3f631b9`, and everything after that (the statistics page, the
 sources page, the two integrations, the accessibility pass) is committed locally but has
 never been shipped. Run the validation in *Start here* before the first commit.
 
-### 1. A faster and more direct source for transfer news
-
-The complaint that prompted this: our page was still showing a `Goal` rumour about Watkins
-to Al Hilal at a point when Fabrizio Romano had already posted *here we go* — the move was
-effectively done and we were reporting a days-old rumour.
-
-FotMob's `allRumours` is a digest, not a wire. **Research before building** — the pattern
-this project follows is to probe candidate sources with `curl` and report what actually
-answers, never to assume. Worth testing:
-
-- Whether FotMob has a news or transfer *feed* endpoint distinct from the per-club
-  `allRumours` digest, and how quickly a confirmed move appears in `transfers.data`
-  ("Players in" / "Players out") rather than in the rumour list. A completed transfer is
-  already a different field and may well be fast.
-- FPL's own signal, which is authoritative and free: `status` flips to `u` and `news` reads
-  *"Has joined X permanently"*. Slower than Twitter but it is the only source that decides
-  whether the player still scores points. Consider showing "done deals" from FPL alongside
-  rumours from FotMob, clearly separated.
-- Reddit's `r/soccer` and `r/FantasyPL` RSS, filtered to *Here we go* / transfer flair.
-  Note the earlier finding: `reddit.com/r/…/.rss` answered **429** from a datacentre IP, so
-  it needs an OAuth app or it will not work from the Worker.
-- Whether Romano publishes an RSS feed of his own site.
-- X/Twitter's API is priced out of this project; do not plan around it.
-
-Whatever is chosen, keep the existing rules: every line names its source and links to it,
-and nothing is printed as fact that is somebody's report.
-
-### 2. Translate the outside sources' phrases into Finnish
+### 1. Translate the outside sources' phrases into Finnish
 
 Two sets of English strings leak into a Finnish page, and both look like closed sets rather
 than free text, so both can be mapped. **Collect the real values first** — read a week of
@@ -63,7 +37,7 @@ data and list the distinct strings, do not invent the list.
   because a translated medical phrase that is wrong is worse than an English one that is
   right.
 
-### 3. Articles: a date and a time, not "1 h sitten"
+### 2. Articles: a date and a time, not "1 h sitten"
 
 `Since` on the articles list should print the publication date and clock time. Relative time
 is fine for a live feed where "3 min ago" is the point; for an article it hides what a
@@ -71,7 +45,7 @@ reader wants, which is whether this was written before or after the team news he
 read. Keep the relative form on the availability rows if it still reads well there — decide
 per list rather than globally.
 
-### 4. Statistics: FPL's own figures per gameweek
+### 3. Statistics: FPL's own figures per gameweek
 
 Today the FPL columns are season totals and only the match statistics follow the gameweek
 picker, which is stated in the picker but is still a seam down the middle of the table.
@@ -158,6 +132,7 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `worker/articles.ts` | Two RSS feeds, parsed and filtered, served as `/articles` |
 | `worker/fotmob.ts` | The club map and the FPL↔FotMob name matcher both FotMob readers need |
 | `worker/rumours.ts` | FotMob's graded transfer rumours and its club-wide absence lists |
+| `worker/transfers.ts` | FotMob's worldwide transfer wire, filtered to departures from this league |
 | `worker/lineups.ts` | Predicted elevens for the fixtures close enough to have one |
 | `src/services/rumours.ts` | Reads that list and picks the strongest report per player |
 | `worker/insights.ts` | FPL Core Insights' CSVs, read into per-player season totals |
@@ -1251,6 +1226,61 @@ somebody's source tree, and a bare link is not much of an acknowledgement either
 gives each project a name, a sentence about what it does, where on this site it is used, and
 what is worth knowing before trusting it. Three of the four sources are somebody else's work,
 which is worth being plain about — this site derives very little and reports a great deal.
+
+## The wire, and who was actually slow, 26 Aug
+
+The complaint was that the page showed a `Goal` rumour about Watkins to Al Hilal while Romano
+had already posted *here we go*. The measurement came before the fix, and it moved the blame.
+
+At that moment FotMob's own digest carried the Romano report — graded `High`, dated the same
+evening — and the live Worker carried the `Goal` one from three days earlier. **FotMob was
+not slow. We were**, because the rumour sweep reads half the league every half hour, so the
+whole league is an hour old at worst.
+
+### `api/data/transfers`, 29 kB, minutes old
+
+Reading twenty club payloads more often is the obvious fix and the wrong one: each is about
+half a megabyte, so an hourly sweep is already ten megabytes of somebody else's bandwidth.
+
+`https://www.fotmob.com/api/data/transfers` answers **29 kB**: every completed transfer in
+the world, newest first, fifty to a page, `?page=` for the ones behind them and a `hits`
+count of the season's six thousand. Probed on 26 Aug, its top line was a move stamped three
+minutes earlier. No other parameter did anything — `limit`, `leagueId`, `ccode3`, `type`,
+`showRumours` were all ignored, and only `page` was read. `api/transfers` and `api/rumours`
+without the `data/` segment return the site's HTML, not JSON.
+
+What it carries is *done deals*: no `probability` field, because there is nothing left to
+grade. That is exactly the half the rumour digest is slowest at. A tick costs a fortieth of
+one club payload, so `worker/transfers.ts` runs on a five-minute gate against the sweep's
+thirty, and only departures from a Premier League club are kept — an arrival is somebody the
+game does not hold yet, and a contract extension is not a move.
+
+On the page a done deal **replaces** the reports rather than joining them: the outlets that
+guessed at it have nothing left to be right or wrong about, the purple of "somebody says"
+becomes the red of a player who is out, and no source is graded because nothing is claimed.
+
+### FPL's own word, which was checked and kept where it was
+
+`status` flips to `u` and `news` reads *"Has joined Paris Saint-Germain permanently"* — 42
+players carried `u` on 26 Aug and 34 of the 74 distinct news strings were a `Has joined`.
+It is authoritative and it already prints, verbatim, in the sentence above the move line.
+Nothing needed building: the wire's job is to know some hours before FPL does, and FPL's job
+is to be the word that decides whether he still scores points.
+
+Reddit, Romano's own site and X were not probed. The wire settled the question at a fortieth
+of the bandwidth, and the earlier finding still stands that `reddit.com/r/…/.rss` answers
+**429** from a datacentre IP.
+
+### The grade that was being thrown away
+
+FotMob grades a rumour `Imminent`, `High`, `Medium` or `Low`. The grade table held three of
+the four, and an unknown grade is skipped rather than kept ungraded, so **every `Medium`
+report was being dropped** — eighteen of the 412 live across the league on 26 Aug, among
+them Romano on Nicolas Jackson to Villa.
+
+A `Medium` now appears in the news list. It still does not mark a shirt in the table:
+that mark has room for one degree and has to mean "likely enough to plan around", which
+`Imminent` and `High` do and `Medium` does not.
 
 ## Availability, and the flag FPL does not raise
 

@@ -31,7 +31,7 @@ export interface Rumour {
   toClub: string;
   /** True when he would still be in the Premier League afterwards. */
   staysInLeague: boolean;
-  strength: "imminent" | "high" | "low";
+  strength: "imminent" | "high" | "medium" | "low";
   source: string;
   sourceUrl?: string;
   reportedAt: string;
@@ -91,7 +91,16 @@ interface FotMobRumour {
   rumourId: number;
 }
 
-const STRENGTH: Record<string, Rumour["strength"]> = { imminent: "imminent", high: "high", low: "low" };
+/**
+ * FotMob's four grades, all four of them.
+ *
+ * `Medium` was missing here, and an unknown grade is skipped rather than kept ungraded, so
+ * every `Medium` report was being dropped on the floor: eighteen of the four hundred live
+ * across the league on 26 Aug, among them Romano on Nicolas Jackson to Villa. The list is
+ * copied from what the endpoint actually returns rather than from what the first sample
+ * happened to contain.
+ */
+const STRENGTH: Record<string, Rumour["strength"]> = { imminent: "imminent", high: "high", medium: "medium", low: "low" };
 
 export function rumoursFromTeam(
   payload: { transfers?: { allRumours?: FotMobRumour[] } },

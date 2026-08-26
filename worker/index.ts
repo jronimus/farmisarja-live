@@ -5,6 +5,7 @@ import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } fro
 import { readArticles, updateArticles, type ArticlesEnv } from "./articles";
 import { readRumours, updateRumours, type RumoursEnv } from "./rumours";
 import { readLineups, updateLineups, type LineupsEnv } from "./lineups";
+import { readDeals, updateTransfers, type TransfersEnv } from "./transfers";
 import { readInsights, seasonTotals, updateInsights, type InsightsEnv } from "./insights";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
@@ -126,7 +127,10 @@ export default {
     }
     if (url.pathname === "/rumours") {
       const stored = await readRumours(env as RumoursEnv);
-      return new Response(JSON.stringify({ rumours: stored?.rumours ?? [], absences: stored?.absences ?? [] }), {
+      // The done deals ride along on the same response: the page asks one question — what
+      // is going on with this player — and it should not take two requests to answer.
+      const deals = await readDeals(env as TransfersEnv);
+      return new Response(JSON.stringify({ rumours: stored?.rumours ?? [], absences: stored?.absences ?? [], deals: deals?.deals ?? [] }), {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
       });
     }
@@ -198,6 +202,11 @@ export default {
     // Half the league every half hour, and a KV read on every other tick.
     if (minute % 2 === 0) ctx.waitUntil(updateRumours(env as RumoursEnv).catch((error) => {
       console.error(JSON.stringify({ event: "rumours_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // The transfer wire is 29 kB, so it can be read on every tick — it is the one source
+    // here that is minutes old rather than an hour, and the gate inside it is five minutes.
+    ctx.waitUntil(updateTransfers(env as TransfersEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "transfers_error", error: error instanceof Error ? error.message : String(error) }));
     }));
     // The fixtures close to kick-off, every quarter of an hour, on the odd minutes.
     if (minute % 2 === 1) ctx.waitUntil(updateLineups(env as LineupsEnv).catch((error) => {

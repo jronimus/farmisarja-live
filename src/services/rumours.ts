@@ -14,7 +14,7 @@ export interface Rumour {
   fromClub: string;
   toClub: string;
   staysInLeague: boolean;
-  strength: "imminent" | "high" | "low";
+  strength: "imminent" | "high" | "medium" | "low";
   source: string;
   sourceUrl?: string;
   reportedAt: string;
@@ -37,13 +37,41 @@ export interface Absence {
   expectedReturn: string;
 }
 
-/** Both halves arrive together, because the Worker reads them off the same payload. */
-export async function loadFotmob(): Promise<{ rumours: Rumour[]; absences: Absence[] } | null> {
+
+/**
+ * A move that has already happened.
+ *
+ * Off FotMob's own transfer wire rather than out of its per-club rumour digest, which is
+ * what makes it fast: a done deal is on the wire within minutes and in FPL's own flags hours
+ * later. It is a fact rather than a report, so unlike a rumour it is not graded and no
+ * outlet is named — nobody is claiming anything, the move is done.
+ *
+ * What it changes on the page: a player whose rumour has gone through stops being reported
+ * as a rumour. FPL is still the word that decides whether he scores points, and when it
+ * catches up it says so itself in the row above.
+ */
+export interface Deal {
+  element: number;
+  player: string;
+  fromClub: string;
+  toClub: string;
+  staysInLeague: boolean;
+  onLoan: boolean;
+  at: string;
+}
+
+/** All three arrive together: one endpoint, so the page makes one request for them. */
+export async function loadFotmob(): Promise<{ rumours: Rumour[]; absences: Absence[]; deals: Deal[] } | null> {
   if (!rumoursEndpoint) return null;
   const response = await fetch(rumoursEndpoint);
   if (!response.ok) throw new Error(`Rumours request failed: ${response.status}`);
-  const body = await response.json() as { rumours?: Rumour[]; absences?: Absence[] };
-  return { rumours: body.rumours ?? [], absences: body.absences ?? [] };
+  const body = await response.json() as { rumours?: Rumour[]; absences?: Absence[]; deals?: Deal[] };
+  return { rumours: body.rumours ?? [], absences: body.absences ?? [], deals: body.deals ?? [] };
+}
+
+/** The done deals by element, so a row can ask about the player it is drawing. */
+export function dealsByElement(deals: Deal[]): Map<number, Deal> {
+  return new Map(deals.map((deal) => [deal.element, deal]));
 }
 
 export async function loadRumours(): Promise<Rumour[] | null> {
@@ -58,7 +86,7 @@ export function absencesByElement(absences: Absence[]): Map<number, Absence> {
   return out;
 }
 
-const RANK: Record<Rumour["strength"], number> = { imminent: 0, high: 1, low: 2 };
+const RANK: Record<Rumour["strength"], number> = { imminent: 0, high: 1, medium: 2, low: 3 };
 
 /**
  * Everything reported about one player's possible move, gathered into a line.
@@ -125,7 +153,14 @@ export function strongestByPlayer(rumours: Rumour[]): Map<number, Rumour> {
   return best;
 }
 
-/** Only the ones worth marking a shirt for. A `Low` is a newspaper having a guess. */
+/**
+ * Only the ones worth marking a shirt for.
+ *
+ * A `Low` is a newspaper having a guess. A `Medium` is more than that and it belongs in the
+ * news list, but a shirt in the table has room for one mark and no room for a degree: the
+ * mark has to mean "this is likely enough to plan around", and `Imminent` and `High` are the
+ * two grades that do.
+ */
 export function isStrong(rumour: Rumour): boolean {
   return rumour.strength === "imminent" || rumour.strength === "high";
 }
