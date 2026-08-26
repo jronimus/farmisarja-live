@@ -97,7 +97,7 @@ export const STAT_COLUMNS: StatColumn[] = [
   },
   {
     key: "form", source: "fpl", seasonOnly: true, decimals: 1,
-    label: { fi: "Muoto", en: "Form" },
+    label: { fi: "Vire", en: "Form" },
     help: { fi: "FPL:n oma vire: keskimääräiset pisteet viimeisiltä 30 päivältä.", en: "FPL's own form: average points over the last 30 days." },
     value: fpl((s) => s.form),
   },

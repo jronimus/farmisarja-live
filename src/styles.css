@@ -2884,7 +2884,7 @@ footer a { color:#c4c6d8; }
      hidden columns. */
   scrollbar-width:thin;
 }
-.stats-grid { display:grid; min-width:max-content; align-items:stretch; }
+.stats-grid { display:grid; grid-template-columns:var(--stats-cols); min-width:max-content; align-items:stretch; }
 .stats-headrow,
 .stats-line { display:contents; }
 .stats-headrow > span {
@@ -2996,6 +2996,26 @@ footer a { color:#c4c6d8; }
 
 /* The explanation of one column, opened from its head. A title attribute is invisible on a
    touchscreen, which is exactly where an unfamiliar column most needs explaining. */
+/* The explanation a pointer gets for free. Fixed rather than absolute: the heads live in a
+   horizontal scroller, and anything positioned inside it is clipped at the first column that
+   scrolls out of view. Not interactive and never in the way — it sits under the head it
+   describes and disappears the moment the pointer leaves. */
+.stats-hint {
+  position:fixed;
+  z-index:40;
+  max-width:290px;
+  padding:9px 11px;
+  border-radius:10px;
+  background:var(--menu);
+  box-shadow:0 12px 28px rgba(0,0,0,.28),inset 0 0 0 1px color-mix(in srgb,var(--faint) 26%,transparent);
+  color:var(--text);
+  font-size:11px;
+  font-weight:600;
+  line-height:1.5;
+  pointer-events:none;
+}
+.stats-hint b { display:block; font-size:10px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; }
+
 .stats-explainer {
   display:flex;
   align-items:flex-start;
@@ -3067,6 +3087,17 @@ footer a { color:#c4c6d8; }
 .picker-reset { margin-top:4px; padding:8px 14px; border:0; border-radius:9px; background:var(--raised); color:var(--text); font:800 11px "Inter",sans-serif; cursor:pointer; }
 
 @media (max-width:800px) {
+  /* The narrow template. The name column is sticky and was sized by its own content, so on
+     a phone it took 254 of 355 pixels and the table it was pinned to the side of had 67
+     left — the page is for the figures and none of them were on screen. Fixed at 118px the
+     name still reads and three columns of figures fit beside it. */
+  .stats-grid { grid-template-columns:var(--stats-cols-narrow); }
+  .stats-headrow > .head-star,
+  .stats-line > .stats-star { padding-inline:2px; }
+  .stats-headrow > .head-player,
+  .stats-line > .price-player { left:28px; }
+  .stats-headrow > span,
+  .stats-line > span { padding:0 7px; }
   .stats-line > span { min-height:46px; }
   .stats-line .price-player b { font-size:12px; }
   .picker-panel { width:calc(100% - 20px); max-height:78vh; }

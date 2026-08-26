@@ -749,6 +749,28 @@ The season aggregate needs no cache and no key, because it is not assembled here
 FPL's own bootstrap *is* the season total and the page already holds it, so the 38 reads
 never happen.
 
+### The phone, where none of the figures were on screen
+
+The name column is sticky, and it was sized by its own content — "De Cuyper · BHA · DEF ·
+Pirkkolan Beckham" is 254 px. On a 375 px phone that plus the star left **67 px** of
+scrollable table: half of one figure, on a page that exists for figures.
+
+The grid now carries two templates as custom properties, `--stats-cols` and
+`--stats-cols-narrow`, both built where the column count is known, and the stylesheet picks
+between them at 800 px. Narrow is `28px 118px repeat(n, minmax(64px, auto))`, which leaves
+**209 px** and three columns of figures beside a name that still reads.
+
+### An explanation for a pointer, without a press
+
+Each column head shows its own help on hover. The ⓘ button stays, because `title` never
+opens on a touchscreen and a reader on a phone needs a column's meaning more than anybody —
+but pressing a button to be told what xGC means is a toll on a mouse.
+
+The tooltip is `position: fixed` and anchored from the head's own rectangle. Absolute
+positioning inside the head does not work: the heads live in a horizontal scroller, which
+clips anything hanging out of it. Its left edge is clamped to the viewport so the last column
+does not push the page sideways.
+
 ### What the picker says about it
 
 The column picker's FPL group used to be headed *FPL — koko kausi*, which was true when it

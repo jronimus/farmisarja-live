@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Clock3, Info, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { translations } from "./i18n";
 import { insightsEndpoint, loadInsights, type PlayerInsight } from "./services/insights";
@@ -75,6 +75,24 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
   const [shown, setShown] = useState(PAGE_STEP);
   const [openPicker, setOpenPicker] = useState<"columns" | "gameweeks" | null>(null);
   const [explained, setExplained] = useState<StatColumn | null>(null);
+  /**
+   * The same explanation on hover, for a reader who has a pointer.
+   *
+   * The ⓘ button stays: `title` never opens on a touchscreen, and a reader on a phone needs
+   * a column's meaning more than anybody. But pressing a button to be told what "xGC" means
+   * is a toll on a mouse, so a pointer gets it for free.
+   *
+   * It is `position: fixed` and anchored from the head's own rectangle rather than absolutely
+   * positioned inside it, because the head lives in a horizontal scroller that would clip it.
+   */
+  const [hint, setHint] = useState<{ column: StatColumn; left: number; top: number } | null>(null);
+  const hoverable = typeof matchMedia === "function" && matchMedia("(hover: hover)").matches;
+  const showHint = (column: StatColumn, element: HTMLElement) => {
+    if (!hoverable) return;
+    const box = element.getBoundingClientRect();
+    // Clamped so a column at the right-hand edge does not push the page sideways.
+    setHint({ column, left: Math.min(box.left, innerWidth - 300), top: box.bottom + 6 });
+  };
 
   useEffect(() => { localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns)); }, [columns]);
   useEffect(() => { localStorage.setItem(FAVOURITES_KEY, JSON.stringify(favourites)); }, [favourites]);
@@ -235,10 +253,24 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       <button onClick={() => setExplained(null)} aria-label={t.close}><X /></button>
     </div>}
 
+    {hint && <div className="stats-hint" style={{ left: hint.left, top: hint.top }} role="tooltip">
+      <b>{label(hint.column, language)}</b> {help(hint.column, language)}
+    </div>}
+
     {/* The table scrolls inside itself rather than taking the page sideways with it: the
         column list is the reader's, so it can be longer than the screen. */}
     <div className="stats-scroll">
-      <div className="stats-grid" style={{ gridTemplateColumns: `34px minmax(148px,1.4fr) repeat(${visibleColumns.length}, minmax(88px, auto))` }}>
+      {/* Two templates rather than one, because a phone cannot afford the wide one.
+          The name column is sticky, so on a 375px screen a 254px name plus the star left
+          67px of scrollable table — half of one figure, on a page that exists for figures.
+          The stylesheet picks between these; the count has to come from here either way. */}
+      <div
+        className="stats-grid"
+        style={{
+          "--stats-cols": `34px minmax(148px,1.4fr) repeat(${visibleColumns.length}, minmax(88px, auto))`,
+          "--stats-cols-narrow": `28px 118px repeat(${visibleColumns.length}, minmax(64px, auto))`,
+        } as CSSProperties}
+      >
         <div className="stats-headrow">
           <span className="head-star" aria-hidden="true" />
           <span className="head-player">
@@ -246,11 +278,17 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
               {t.player}{sort === "name" && (descending ? <ArrowDown /> : <ArrowUp />)}
             </button>
           </span>
-          {visibleColumns.map((column) => <span key={column.key} className={`head-stat source-${column.source}`}>
+          {visibleColumns.map((column) => <span
+            key={column.key}
+            className={`head-stat source-${column.source}`}
+            onMouseEnter={(event) => showHint(column, event.currentTarget)}
+            onMouseLeave={() => setHint(null)}
+          >
             <button
               className={`price-sort ${sort === column.key ? "active" : ""}`}
               onClick={() => sortBy(column.key)}
-              title={help(column, language)}
+              onFocus={(event) => showHint(column, event.currentTarget.parentElement as HTMLElement)}
+              onBlur={() => setHint(null)}
             >{label(column, language)}{sort === column.key && (descending ? <ArrowDown /> : <ArrowUp />)}</button>
             <button className="head-help" onClick={() => setExplained(column)} aria-label={`${label(column, language)}: ${help(column, language)}`}><Info /></button>
           </span>)}

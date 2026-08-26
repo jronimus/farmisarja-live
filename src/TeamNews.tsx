@@ -237,7 +237,16 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     </section>;
   }
 
-  const ours = all.filter(isNewsworthy).filter((player) => player.owners.length > 0).length;
+  /**
+   * The number on the tab, which has to be the number of rows behind it.
+   *
+   * It counted FPL's own flags alone and the tab lists four things — FPL's flag, FotMob's
+   * absence, a reported move and a completed one — so it read "3" over a list of eleven. A
+   * badge that disagrees with the list under it is worse than no badge.
+   */
+  const ours = all.filter((player) => player.owners.length > 0)
+    .filter((player) => isNewsworthy(player) || absences.has(player.id) || moves.has(player.id) || deals.has(player.id))
+    .length;
   const visible = rows.slice(0, shown);
 
   return <section className="news-page">
