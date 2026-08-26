@@ -7,37 +7,19 @@ before making changes.
 
 ## Next up — start here in a new conversation
 
-Three jobs left of the seven agreed on 26 Aug 2026, in the order they are worth doing. Of
-the four that are done: the squad rating strip was removed outright — see *OpenFPL, and why
-the mark was removed* — and with it the note about how its grade letter should have been set;
-the player count above the statistics table is fixed — see *The count nobody could read*; and
-the transfer news is now fast — see *The wire, and who was actually slow*.
+Two jobs left of the seven agreed on 26 Aug 2026, in the order they are worth doing. Of the
+five that are done: the squad rating strip was removed outright — see *OpenFPL, and why the
+mark was removed* — and with it the note about how its grade letter should have been set; the
+player count above the statistics table is fixed — see *The count nobody could read*; the
+transfer news is now fast — see *The wire, and who was actually slow*; and both publishers'
+English now reads in Finnish — see *Somebody else's English*.
 
 **Before touching any of it:** the Worker is deployed and current, the front end is *not* —
 `main` has been pushed up to `3f631b9`, and everything after that (the statistics page, the
 sources page, the two integrations, the accessibility pass) is committed locally but has
 never been shipped. Run the validation in *Start here* before the first commit.
 
-### 1. Translate the outside sources' phrases into Finnish
-
-Two sets of English strings leak into a Finnish page, and both look like closed sets rather
-than free text, so both can be mapped. **Collect the real values first** — read a week of
-data and list the distinct strings, do not invent the list.
-
-- **FotMob return dates:** `Early September 2026`, `Mid September 2026`, `A few days`,
-  `About a week`, `Back in training`, `Doubtful`, `Unknown`, `Expected back 14 Sep`. Month
-  names and the shape *Early/Mid/Late + month + year* are mechanical; a small parser plus a
-  month table handles all of them, and anything unmatched falls through as written.
-- **FPL's own flag texts:** `Knee injury - Unknown return date`, `Knock - 75% chance of
-  playing`, `Calf injury - Expected back 5 Sep`, `Suspended until 19 Sep`, `Has joined Paris
-  Saint-Germain permanently`, `Has joined Rangers on loan for the rest of the season`. These
-  are *reason - status* pairs; translate both halves from tables and leave a club name
-  alone.
-- Keep the original visible somewhere — a `title`, or the English text after the Finnish —
-  because a translated medical phrase that is wrong is worse than an English one that is
-  right.
-
-### 2. Articles: a date and a time, not "1 h sitten"
+### 1. Articles: a date and a time, not "1 h sitten"
 
 `Since` on the articles list should print the publication date and clock time. Relative time
 is fine for a live feed where "3 min ago" is the point; for an article it hides what a
@@ -45,7 +27,7 @@ reader wants, which is whether this was written before or after the team news he
 read. Keep the relative form on the availability rows if it still reads well there — decide
 per list rather than globally.
 
-### 3. Statistics: FPL's own figures per gameweek
+### 2. Statistics: FPL's own figures per gameweek
 
 Today the FPL columns are season totals and only the match statistics follow the gameweek
 picker, which is stated in the picker but is still a seam down the middle of the table.
@@ -129,6 +111,7 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/PriceChanges.tsx` | The price change page at `#/hinnat`, and its two tabs |
 | `src/TeamNews.tsx` | The availability page at `#/uutiset` |
 | `src/services/playerNews.ts` | What FPL's status letters mean, and the flag FPL does not raise |
+| `src/services/phrases.ts` | FPL's and FotMob's English sentences, parsed into Finnish |
 | `worker/articles.ts` | Two RSS feeds, parsed and filtered, served as `/articles` |
 | `worker/fotmob.ts` | The club map and the FPL↔FotMob name matcher both FotMob readers need |
 | `worker/rumours.ts` | FotMob's graded transfer rumours and its club-wide absence lists |
@@ -1226,6 +1209,39 @@ somebody's source tree, and a bare link is not much of an acknowledgement either
 gives each project a name, a sentence about what it does, where on this site it is used, and
 what is worth knowing before trusting it. Three of the four sources are somebody else's work,
 which is worth being plain about — this site derives very little and reports a great deal.
+
+## Somebody else's English, 26 Aug
+
+FPL writes its own availability sentence and FotMob writes its own expected return, and both
+leaked through verbatim onto a Finnish page. The rule that put them there — print the
+publisher's own words rather than a paraphrase that can disagree with them — holds for the
+*content* and not for the language.
+
+**Both look like free text and neither is.** The tables in `src/services/phrases.ts` were
+collected from the live data rather than invented: 614 FPL players on 26 Aug produced **74
+distinct news strings**, and twenty FotMob club payloads the same day produced **19 distinct
+returns**. All 93 translate; a coverage run over the collected set reports nothing falling
+through.
+
+The shapes, which is what makes it a parser rather than a dictionary:
+
+- FPL: `<reason> - <status>`, where reason is `Knock` or `<part> injury` and status is one of
+  `Unknown return date`, `N% chance of playing`, `Expected back 5 Sep`. Either half may fail
+  to match without spoiling the other.
+- FPL: `Has joined X permanently`, `Has joined X on loan for the rest of the season`,
+  `has returned to X`, `Suspended until 19 Sep`. **The club is never touched** — "Paris
+  Saint-Germain" is not a word to look up in a table.
+- FotMob: `Early/Mid/Late <month> <year>`, which Finnish says the other way round as
+  *syyskuun alku*; `Expected back 14 Sep`; and a short list of fixed phrases — `Doubtful`,
+  `Back in training`, `A few days`, `About a week`, `About 1-2 weeks`, `Unknown`.
+
+Two rules that are the point of the exercise:
+
+- **Anything unmatched falls through exactly as written.** A translated medical phrase that
+  is wrong is worse than an English one that is right.
+- **The original stays on the `title`** of whatever prints the translation, so a reader can
+  check what was actually published. English readers see no translation and no title, because
+  there is no second version to offer them.
 
 ## The wire, and who was actually slow, 26 Aug
 

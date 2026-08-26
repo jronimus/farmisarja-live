@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Clock3, ExternalLink } from "lucide-react";
 import { translations } from "./i18n";
 import { flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
+import { translateNews, translateReturn } from "./services/phrases";
 import { absencesByElement, dealsByElement, loadFotmob, movesByElement, type Absence, type Deal, type Move } from "./services/rumours";
 import { loadLineups } from "./services/lineups";
 import { articlesEndpoint, loadArticles, topicsPresent, type Article } from "./services/articles";
@@ -238,6 +239,8 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
         const absence = absences.get(player.id);
         const move = moves.get(player.id);
         const deal = deals.get(player.id);
+        const own = player.news ? translateNews(player.news, language) : null;
+        const back = absence?.expectedReturn ? translateReturn(absence.expectedReturn, language) : null;
         return <article className={`news-row level-${flag.level} ${player.owners.length ? "is-held" : ""}`} key={player.id}>
           <span className="news-player">
             <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${player.position === "GK" ? "optimized-gk" : "optimized"}/${player.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
@@ -250,10 +253,13 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
           <span className="news-word">
             {/* FPL's own sentence, verbatim. It is the most reliable thing on this page and
                 paraphrasing it would only add a second version to disagree with. */}
-            <em>{player.news || (absence
+            {/* FPL's own sentence, translated but not paraphrased: the words are its own
+                judgement and only the language is ours, so the original stays on the title
+                for a reader who wants to check what was actually published. */}
+            <em title={own?.original ?? back?.original ?? undefined}>{own?.text || (absence
               ? t.absenceTitle
                 .replace("{reason}", t.absenceReason[absence.reason] ?? absence.reason)
-                .replace("{return}", absence.expectedReturn || "—")
+                .replace("{return}", translateReturn(absence.expectedReturn, language).text || "—")
               : deal
                 ? (deal.onLoan ? t.hasJoinedOnLoan : t.hasJoined).replace("{to}", deal.toClub)
                 : move
@@ -262,7 +268,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
             <span className="news-meta">
               {/* FPL says what is wrong; FotMob says when he is back. Both, attributed. */}
               {player.news && absence?.expectedReturn
-                && <small className="news-return">FotMob: {absence.expectedReturn}</small>}
+                && <small className="news-return" title={back?.original ?? undefined}>FotMob: {back?.text}</small>}
               <Since at={player.newsAt} language={language} />
               {player.link && <a href={player.link} target="_blank" rel="noopener noreferrer">
                 {t.newsClubWord} <ExternalLink />

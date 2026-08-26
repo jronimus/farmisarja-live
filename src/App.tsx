@@ -7,6 +7,7 @@ import { gameweekHandsOverAt, provisionalAutosubSquad } from "./services/fplRule
 import { translations } from "./i18n";
 import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, type Highlight, type PlayerOwnership } from "./services/ownership";
 import { flagOf } from "./services/playerNews";
+import { translateNews, translateReturn } from "./services/phrases";
 import { absencesByElement, isStrong, loadFotmob, strongestByPlayer, type Absence, type Rumour } from "./services/rumours";
 import { loadLineups, watchFrom, type LineupWatch } from "./services/lineups";
 import ShareCard, { type CardKind } from "./ShareCard";
@@ -447,7 +448,11 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
   if (flag.level !== "none") {
     // FPL's own word first, and FotMob's return date after it when there is one: FPL says
     // "Knee injury" and stops, where FotMob says when he is expected back.
-    const label = [player.news || (flag.chance !== null ? `${flag.chance} %` : t.flagOut), absence?.expectedReturn]
+    // Both publishers write in English; on a Finnish page they are translated, and the
+    // original goes on the `title` so what was actually published can still be read.
+    const own = player.news ? translateNews(player.news, language) : null;
+    const back = absence?.expectedReturn ? translateReturn(absence.expectedReturn, language) : null;
+    const label = [own?.text || (flag.chance !== null ? `${flag.chance} %` : t.flagOut), back?.text]
       .filter(Boolean).join(" · ");
     return mark(flag.level, flag.level === "out" ? "✕" : flag.chance, label);
   }
@@ -456,7 +461,7 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
   if (absence) {
     const label = t.absenceTitle
       .replace("{reason}", t.absenceReason[absence.reason] ?? absence.reason)
-      .replace("{return}", absence.expectedReturn || "—");
+      .replace("{return}", translateReturn(absence.expectedReturn, language).text || "—");
     return mark(absence.reason === "suspension" ? "out" : "major", "!", label);
   }
   // Not FPL's, and marked apart from FPL's for that reason: a move is not an injury, and a
