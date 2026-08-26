@@ -399,10 +399,6 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         <button disabled={page + 1 >= pageCount} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}>{t.next}</button>
       </div>
     </div>
-
-    {/* Under the table rather than over it: it qualifies what has been read, and a caveat
-        placed before the thing it qualifies is read as a warning about the page. */}
-    <p className="price-disclaimer">{t.priceDisclaimer}</p>
     </> : null}
   </section>;
 }

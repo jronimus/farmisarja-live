@@ -141,8 +141,6 @@ function Articles({ language }: { language: Language }) {
       </a>)}
       {!shown.length && <div className="price-empty">{t.articlesNone}</div>}
     </div>
-
-    <p className="price-disclaimer">{t.articlesNote}</p>
   </>;
 }
 

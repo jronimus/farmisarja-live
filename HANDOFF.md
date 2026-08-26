@@ -855,6 +855,31 @@ difference between two totals nobody wrote down. The exception is the first snap
 while GW1 was finished and checked and GW2 had not kicked off, the season totals *were* GW1's
 own figures. That window closes at the GW2 deadline on 28 Aug.
 
+## The notes, and the test they now have to pass, 27 Aug
+
+Every explanatory paragraph on the site was read and most of them went. The one that made
+the point was under the price table: three sentences on how the predictions are derived,
+above a column that already names a change time.
+
+The test a note has to pass: **does it tell the reader something he cannot see on the screen
+in front of him?** Restating what a row already shows is not a note, it is narration — and it
+is the failure mode to watch for here, because writing one more explanatory sentence is
+always the easy thing to do.
+
+Removed outright: the price page's prediction disclaimer, the articles list's note about RSS
+feeds and limits, and the news list's footnote. Trimmed to the fact behind them: the sources
+intro, both picker notes, the season-only legend, and the price log's start date, which now
+says when the log starts and no longer explains how a log works.
+
+**Kept, and why**, so they are not swept next time:
+
+- `statsNote` is now a **credit**, not an explanation — FPL Core Insights asks for a link
+  back in return for using the dataset, and that is an obligation rather than a note. What it
+  used to explain, xG and xA and the over/under, is on each column's own hover and ⓘ.
+- `bpsNote` and `defConNote` under the fixture statistics: six words each, and both are
+  scoring rules a reader cannot derive from the number beside them.
+- `historyEmpty` is an empty state, and `statsFplWindowMissing` names data that is absent.
+
 ## Readability, and the one thing behind most of it
 
 A pass on 25 Aug, measured before anything was changed: contrast computed per style against
