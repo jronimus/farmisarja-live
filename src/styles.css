@@ -2318,7 +2318,10 @@ footer a { color:#c4c6d8; }
   /* Same total as the row above it, moved between two columns. */
   .price-table.has-selling .price-head,
   .price-table.has-selling .price-row {
-    grid-template-columns:minmax(116px,1.1fr) minmax(112px,1.4fr) 112px 92px 136px 84px 96px 112px;
+    /* 120px because the warning is the widest thing this column ever holds: the triangle,
+       the word and a two-figure price come to 112 on a £15.5m player, and a column with no
+       slack at all clips on the first font that renders a hair wider. */
+    grid-template-columns:minmax(116px,1.1fr) minmax(104px,1.4fr) 112px 92px 136px 84px 96px 120px;
   }
 }
 .price-head { min-height:42px; background:var(--raised); }
@@ -2430,15 +2433,24 @@ footer a { color:#c4c6d8; }
    line, because only one squad is selected. Struck with the league's highlighter when the
    coming change reaches it — the same mark, and the same meaning, as the projection that
    has passed 100: this one is going to happen to you. */
-.price-cost .selling { color:var(--soft); font-weight:800; white-space:nowrap; }
+.price-cost .selling { display:flex; align-items:center; gap:3px; color:var(--soft); font-weight:800; white-space:nowrap; }
 .price-cost .selling i { font-style:normal; }
-.price-cost .selling.hits {
+/* A fall reaching the selling price is money this squad loses tonight by not selling, so
+   the line states the price it will be rather than the one it is, and wears the league's
+   highlighter and a triangle to say so. Two points larger than the figures it sits under:
+   it is the only line in the cell that is about to stop being true. */
+.price-cost .selling.warns {
   align-self:start;
   width:max-content;
   max-width:100%;
+  padding-right:2px;
   color:#141a05;
-  background:linear-gradient(to bottom,transparent 0 6%,var(--pick) 6% 98%,transparent 98%);
+  font-size:10px;
+  background:linear-gradient(to bottom,transparent 0 4%,var(--pick) 4% 100%,transparent 100%);
 }
+.price-cost .selling.warns svg { width:11px; height:11px; flex:none; }
+/* The same arithmetic going the other way. It is worth marking and not worth shouting. */
+.price-cost .selling.gains { color:var(--green); }
 
 .price-empty { padding:26px 16px; color:var(--soft); text-align:center; font-size:13px; }
 
@@ -2631,8 +2643,10 @@ footer a { color:#c4c6d8; }
   /* The figure alone: at 68px the word in front of it is the first thing to go, and the
      column it sits under already says what price this is a version of. */
   .price-cost .selling i { display:none; }
+  /* The last column is sized for the warning, not for the price: a triangle and a two-
+     figure selling price need 74 of the 78, and the name column is the one with slack. */
   .price-table.has-selling .price-head,
-  .price-table.has-selling .price-row { grid-template-columns:minmax(0,1fr) 62px 58px 68px; }
+  .price-table.has-selling .price-row { grid-template-columns:minmax(0,1fr) 62px 58px 78px; }
   .price-foot { font-size:10px; }
 }
 

@@ -1037,8 +1037,17 @@ handed back at the deadline, so what was paid during it was never paid.
 
 The line only appears with a squad selected, because a selling price belongs to one manager
 and one purchase — seven owners of the same player have seven different ones. `has-selling`
-on the table then moves 28px from the owners column to the price column, which is the
+on the table then moves 36px from the owners column to the price column, which is the
 column you need least once you have already picked whose squad this is.
+
+**A fall that reaches the selling price is the one worth warning about**, and the warning is
+the figure itself: the line switches to the price the squad will get back *after* tonight,
+rather than printing the current one and leaving the reader to work the change out. It takes
+a triangle, the highlighter and two extra points of size, because it is the only line in the
+cell that is about to stop being true. A rise reaching the selling price is the same
+arithmetic going the other way, so it is marked in green and not shouted at; the last column
+is sized for the warning rather than for the price it replaces, since a triangle and a
+£15.5m selling price is the widest thing it ever holds.
 
 ### Tonight's projection as its own column, 26 Aug
 

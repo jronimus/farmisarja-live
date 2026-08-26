@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Clock3, History, LineChart, Lock, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, History, LineChart, Lock, Search, TriangleAlert } from "lucide-react";
 import { translations } from "./i18n";
 import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor, outlookRank, projectedAt } from "./services/priceChanges";
 import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
@@ -335,11 +335,21 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
                 with the same highlighter the page uses for everything else that has
                 stopped being a projection. */}
             {selling && <small
-              className={`selling ${selling.moves ? "hits" : ""}`}
+              className={`selling ${selling.moves ? (coming === "fall" ? "warns" : "gains") : ""}`}
               title={selling.moves
                 ? t.sellingMoves.replace("{team}", mine!.teamName).replace("{paid}", `£${selling.paid.toFixed(1)}m`).replace("{sell}", `£${selling.now.toFixed(1)}m`).replace("{next}", `£${(selling.next ?? selling.now).toFixed(1)}m`)
                 : t.sellingHolds.replace("{team}", mine!.teamName).replace("{paid}", `£${selling.paid.toFixed(1)}m`).replace("{sell}", `£${selling.now.toFixed(1)}m`)}
-            ><i>{t.sellingLabel} </i>£{selling.now.toFixed(1)}m{selling.moves && (coming === "rise" ? " ▲" : " ▼")}</small>}
+            >
+              {/* A fall that reaches the selling price is the only one of the three that is
+                  news you can act on, and it is the figure itself that is the warning: the
+                  price this squad gets back for him after tonight, said now rather than
+                  worked out from the one it is replacing. A rise is not a warning — it is
+                  the same arithmetic going your way — so it is marked and not shouted. */}
+              {selling.moves && coming === "fall" && <TriangleAlert />}
+              <i>{t.sellingLabel} </i>
+              £{(selling.moves ? selling.next ?? selling.now : selling.now).toFixed(1)}m
+              {selling.moves && coming === "rise" && " ▲"}
+            </small>}
           </span>
         </div>;
       })}
