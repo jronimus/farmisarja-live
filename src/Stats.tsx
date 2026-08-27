@@ -69,6 +69,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
   const [onlyFavourites, setOnlyFavourites] = useState(false);
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
+  const [club, setClub] = useState("");
   const [manager, setManager] = useState("");
   const [sort, setSort] = useState("totalPoints");
   const [descending, setDescending] = useState(true);
@@ -117,6 +118,11 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
   }, [picked]);
 
   const owners = useMemo(() => ownersByPlayer(data.managers, autosubs), [data.managers, autosubs]);
+  /** Whichever clubs the price list actually holds, in case one drops out of the league. */
+  const clubs = useMemo(
+    () => [...new Set((data.prices?.players ?? []).map((row) => row.club))].sort(),
+    [data.prices],
+  );
   const fplStats = useMemo(
     () => new Map((data.playerStats ?? []).map((stat: PlayerStat) => [stat.id, stat])),
     [data.playerStats],
@@ -154,6 +160,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
     const filtered = joined.filter(({ player }) => {
       if (term && !player.name.toLowerCase().includes(term)) return false;
       if (position && player.position !== position) return false;
+      if (club && player.club !== club) return false;
       /**
        * The team filter and the starred filter add up rather than narrow each other.
        *
@@ -184,9 +191,9 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       if (right === null) return -1;
       return (left - right) * (descending ? -1 : 1);
     });
-  }, [data.prices, fplStats, windowed, fplWindow, insights, owners, search, position, manager, onlyFavourites, favourites, sort, descending]);
+  }, [data.prices, fplStats, windowed, fplWindow, insights, owners, search, position, club, manager, onlyFavourites, favourites, sort, descending]);
 
-  useEffect(() => { setShown(PAGE_STEP); }, [search, position, manager, onlyFavourites, picked, sort, descending]);
+  useEffect(() => { setShown(PAGE_STEP); }, [search, position, club, manager, onlyFavourites, picked, sort, descending]);
 
   if (!insightsEndpoint || failed) return <section className="data-pending" role="status">
     <Clock3 /><strong>{t.statsUnavailable}</strong>
@@ -237,11 +244,18 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
         <option value="">{t.allPositions}</option>
         {["GK", "DEF", "MID", "FWD"].map((entry) => <option key={entry} value={entry}>{entry}</option>)}
       </select>
+      <select className="period-select" value={club} onChange={(event) => setClub(event.target.value)} aria-label={t.allClubs}>
+        <option value="">{t.allClubs}</option>
+        {clubs.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+      </select>
       <button
         className={`favourite-filter ${onlyFavourites ? "active" : ""}`}
         onClick={() => setOnlyFavourites((value) => !value)}
         aria-pressed={onlyFavourites}
-      ><Star /> {t.statsFavourites} ({favourites.length})</button>
+      >{/* The word goes on a phone and the star and the count stay: the row has eight
+           controls to fit on two lines, and a star with a number beside it is not a
+           control anybody has to read to recognise. */}
+        <Star /> <span className="filter-word">{t.statsFavourites} </span>({favourites.length})</button>
       <span className="news-count"><b>{rows.length}</b> {t.playersShown}</span>
     </div>
 
@@ -268,7 +282,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
         className="stats-grid"
         style={{
           "--stats-cols": `34px minmax(148px,1.4fr) repeat(${visibleColumns.length}, minmax(88px, auto))`,
-          "--stats-cols-narrow": `28px 136px repeat(${visibleColumns.length}, 72px)`,
+          "--stats-cols-narrow": `28px 140px repeat(${visibleColumns.length}, 72px)`,
         } as CSSProperties}
       >
         <div className="stats-headrow">
@@ -348,7 +362,6 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
     </Panel>}
 
     {openPicker === "columns" && <Panel title={t.statsColumnsTitle} onClose={() => setOpenPicker(null)}>
-      <p className="picker-note">{t.statsColumnsNote}</p>
       {(["market", "fpl", "match"] as const).map((source) => <div className="picker-group" key={source}>
         <b>{t.statsSources[source]}</b>
         <div className="picker-options">

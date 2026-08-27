@@ -2968,14 +2968,18 @@ footer a { color:#c4c6d8; }
 }
 /* The one place a squad tag may not truncate: in the statistics table it is the whole
    answer to "whose squad is he in", and the sticky name cell is ninety pixels wide on a
-   phone. A name too long for the line wraps inside the tag instead of ending in an
-   ellipsis that hides how many squads there were. */
+   phone. Rather than truncate, the tag drops a pixel of type on the narrow layout, which
+   is enough for the longest name in the league to keep to one line — a name wrapping inside
+   a pill was the first thing tried and it looked like a mistake. */
 .stats-line .price-player .price-owners b {
   max-width:none;
   overflow:visible;
   text-overflow:clip;
-  white-space:normal;
 }
+/* The block centres in its cell rather than starting at the top of it: a row with tags is
+   taller than one without, and left at the top the name floated away from the figures it
+   belongs to. */
+.stats-line .price-player { align-content:center; }
 
 .stats-cell { justify-content:flex-end; }
 .stats-cell b { font-size:13px; font-weight:900; font-variant-numeric:tabular-nums; }
@@ -3149,7 +3153,29 @@ footer a { color:#c4c6d8; }
   .stats-line > span { padding:0 7px; }
   .stats-line > span { min-height:46px; }
   .stats-line .price-player > b { font-size:11px; }
+  /* Two rows on a phone, not three.
+     The seven controls wrapped 2 / 3 / 2 and the count was left alone on the last line for
+     itself. Reordering puts the count up beside the search — it belongs to the search more
+     than to anything else on the row — and the four that narrow the table share the second
+     line. The labels lose a pixel of type, the row loses three pixels of gap, and the
+     favourites button loses its word — a star with a number beside it is not a control
+     anybody has to read to recognise. Nothing else is hidden. */
+  .stats-page .price-filters { gap:6px; }
+  .stats-page .price-filters > .price-search { order:1; flex:1 1 90px; }
+  .stats-page .price-filters > button:nth-of-type(1) { order:2; }
+  .stats-page .price-filters > button:nth-of-type(3) { order:3; }
+  .stats-page .price-filters > .news-count { order:4; }
+  .stats-page .price-filters > button:nth-of-type(2) { order:5; }
+  .stats-page .price-filters > .period-select { order:6; flex:1 1 70px; }
+  .stats-page .price-filters > button { padding:0 10px; font-size:11px; }
+  .stats-page .favourite-filter .filter-word { display:none; }
+  .stats-page .news-count { font-size:9px; }
+  .stats-page .news-count b { font-size:15px; }
+
   .stats-line .price-player > small { font-size:8px; }
+  /* Eight pixels of tag, which fits "Karjarannan Hurjat" — the longest name in the league —
+     on one line in the ninety the name column has. */
+  .stats-line .price-player .price-owners b { padding:1px 5px; font-size:8px; }
   /* The figure loses a pixel of type so the widest of them — a six-figure net transfer
      count with a sign on it — still clears the 58 px a 72 px column leaves. */
   .stats-cell b { font-size:12px; }

@@ -821,12 +821,30 @@ line wraps to as many rows as it needs. Nothing is ever cut off.
 
 The cost is a row that grows. Measured: on a 1440 px screen the name column is 448 px, two
 squads share a line and even five take only two, so the row goes from 52 px to 56 px. On a
-phone only one chip fits a line, so a five-squad player makes a 95 px row.
+phone only one chip fits a line, so a five-squad player makes a tall row.
 
 That is the right way round. A widely held player is the one worth noticing, and a lumpy row
 is a smaller price than a list that lies about how long it is. If it ever needs to be
 compact, show the first two and a `+N` chip — **never** a truncated name, which is the bug
 this replaced.
+
+**A name wrapping inside its own pill was the first thing tried and it looked like a
+mistake.** The fix is a pixel of type: at 8 px the longest name in the league, "Karjarannan
+Hurjat", is 90 px against the 94 the name column now gives it. The block also centres in its
+cell — left at the top, the name floated away from the figures it belongs to.
+
+### Eight controls, two lines
+
+The statistics filter row wrapped 2 / 3 / 2 on a phone, with the player count alone on the
+last line for itself, and a club filter still had to be added — the price page had three
+selects and this page had two.
+
+It is two lines now, 337 px used of 355 on each. The order is set in the media query rather
+than in the markup, so the desktop row keeps its natural sequence: the count moves up beside
+the search, and the four controls that narrow the table share the second line. Labels lose a
+pixel of type, the row loses three pixels of gap, and the favourites button loses its word —
+a star with a number beside it is not a control anybody has to read to recognise. Nothing
+else is hidden.
 
 ### An explanation for a pointer, without a press
 
