@@ -855,6 +855,18 @@ What is left is two lines of full words, both running the whole width:
 Desktop keeps all five on one line, unchanged, because the stretching and the ordering live
 in the media query.
 
+### A rule from the squad card that was leaking into three tables
+
+`.shirt { position:absolute; left:50%; transform:translate(-50%,-3px) }` was written for the
+squad card, unscoped, at three breakpoints. Every table that draws a shirt beside a name then
+inherited a `left` and a `transform` it never asked for — and the moment the statistics cell
+stopped being a grid and became a flex row, the shirt jumped 51 px right and landed on top of
+the player's name.
+
+The three rules are `.player-visual .shirt` now. Scoping it at the source rather than
+neutralising `left` and `transform` in each table is the difference between fixing it once
+and fixing it wherever it next shows up.
+
 ### The header now has a guard, because it kept breaking
 
 `scripts/check-overflow.mjs` asserts three things about the statistics header at every width
