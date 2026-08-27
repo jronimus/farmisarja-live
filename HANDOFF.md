@@ -12,14 +12,36 @@ where the subject lives rather than here: *OpenFPL, and why the mark was removed
 nobody could read*, *The wire, and who was actually slow*, *Somebody else's English*, the
 clock on the articles list, and *A gameweek of FPL's own figures*.
 
-**Before touching anything:** none of it is shipped. `main` was pushed up to `3f631b9`, and
-everything after that — the statistics page, the sources page, the two integrations, the
-accessibility pass, and the six changes above — is committed locally and has never been
-deployed. The Worker in particular now has three things the live one does not: `/rumours`
-carrying `deals`, `/fpl-stats`, and the two new cron entries. Run the validation in *Start
-here* before the first commit, and note that the FPL snapshot for GW1 can only be taken
-while GW1 is still the settled gameweek — **after GW2 kicks off on 28 Aug the chance is
-gone**, and GW1 becomes permanently unavailable in the statistics window.
+**Everything above is shipped**, at 04:47 on 27 Aug: `main` is at `ba0a2cc`, the Pages
+action is green, the live page serves the build that was validated, and the Worker is
+deployed with `/fpl-stats`, `deals` on `/rumours` and the two new cron entries.
+
+**The GW1 snapshot is taken** — `/fpl-stats` answers `gameweeks: [1]` with 614 players, and
+it went in with about forty hours to spare before the GW2 deadline closed that window for
+good. It is permanent now.
+
+Two things were verified live and are worth knowing:
+
+- The transfer wire is working. Six completed moves were recorded within minutes of the
+  Worker going up — Nico González to Newcastle, Disasi to Palace on loan — and FPL had
+  flagged **none** of them: all six still read `status: "a"` with no news. That is the gap
+  the wire exists to fill, demonstrated on the first night.
+- **Watkins is still only a rumour**, correctly. Romano has reported it and FotMob's wire has
+  not recorded the transfer as done, so the page shows it as a report with his name on it.
+  Anything on that row saying otherwise during testing was a stub.
+
+### What is left, in his words: "vielä ois ehkä ollu jotain pikkujuttuja"
+
+Nothing named. The two known ones, neither reported by him:
+
+- **`matchElement` matched "Eric da Silva Moreira" to Morato**, two different Forest players
+  who share `da` and `silva`. It scores on shared name parts of three letters or more, and a
+  Brazilian's full name is mostly shared parts. Worth a rule that a match on given names
+  alone is not a match.
+- A completed move ranks as `out` now, but within that group it still sorts under every owned
+  player. That is deliberate — this league's own exposure comes first — and it means an
+  unowned departure sits around 25th of 40 in the *Kaikki* scope. Check that reads right
+  before changing it.
 
 ## Start here
 
