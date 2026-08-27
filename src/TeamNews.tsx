@@ -88,7 +88,7 @@ function Since({ at, language }: { at: string | null; language: Language }) {
  * rather than pointing at it. No images either: neither feed carries one, and fetching
  * their pages for an OG tag would be a dozen requests to hotlink somebody else's picture.
  */
-function Articles({ pressers, language }: { pressers: Presser[]; language: Language }) {
+function Articles({ pressers, named, language }: { pressers: Presser[]; named: Map<number, string>; language: Language }) {
   const t = translations(language);
   const [articles, setArticles] = useState<Article[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -138,15 +138,20 @@ function Articles({ pressers, language }: { pressers: Presser[]; language: Langu
         rel="noopener noreferrer"
       >
         <span className="article-head">
-          {clubsByUrl.get(article.url)?.length && <span className="presser-clubs">
-            {clubsByUrl.get(article.url)!.map((club) => <i className="shirt" key={club} title={club}>
-              <img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/optimized/${club.toLowerCase()}.webp?v=20260823-gk3`} alt={club} />
-            </i>)}
-          </span>}
           <b>{article.title}</b>
           {article.topic && <i className={`article-topic topic-${article.topic}`}>{t.topics[article.topic as keyof typeof t.topics] ?? article.topic}</i>}
         </span>
         {article.excerpt && <em>{article.excerpt}</em>}
+        {/* Who the piece is about. The shirt alone did not say which club it was — four
+            crests overlapping is a pattern, not a name — so the name is the tag and the
+            shirt is beside it. */}
+        {(article.clubs?.length || article.players?.length) && <span className="article-about">
+          {article.clubs?.map((club) => <i className="about-club" key={club}>
+            <img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/optimized/${club.toLowerCase()}.webp?v=20260823-gk3`} alt="" />
+            {club}
+          </i>)}
+          {article.players?.map((id) => named.get(id) && <i className="about-player" key={id}>{named.get(id)}</i>)}
+        </span>}
         <span className="article-meta">
           <b>{article.source}</b>
           <Published at={article.published} language={language} />
@@ -195,6 +200,8 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
   const coming = Date.parse(data.deadline) > Date.now() ? data.gameweek : (data.nextEvent?.gameweek ?? data.gameweek);
 
   const all = data.playerNews ?? [];
+  /** Element id to the name the page prints, so an article's tags can say who. */
+  const named = useMemo(() => new Map(all.map((player) => [player.id, player.name])), [all]);
 
   /**
    * FotMob's own unavailable list, beside FPL's flags.
@@ -311,7 +318,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
         >{label}</button>)}
     </div>
 
-    {section === "articles" ? <Articles pressers={pressers.filter((entry) => entry.gameweek === coming)} language={language} />
+    {section === "articles" ? <Articles pressers={pressers.filter((entry) => entry.gameweek === coming)} named={named} language={language} />
       : <>
 
     {/* Whose players, which only narrows the list above and never replaces it — so it is set

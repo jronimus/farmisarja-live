@@ -19,6 +19,10 @@ export interface Article {
   club?: string;
   /** The gameweek it is about. */
   gameweek?: number;
+  /** Every club the headline and the lead name, by FPL's short name. */
+  clubs?: string[];
+  /** Every player they name, by FPL element id. */
+  players?: number[];
 }
 
 /**

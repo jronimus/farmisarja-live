@@ -1,4 +1,5 @@
 import { pressersFrom, type Presser } from "./pressers";
+import { clubsIn, playersIn, type Squad } from "./mentions";
 /**
  * The article feed.
  *
@@ -40,6 +41,10 @@ export interface Article {
   club?: string;
   /** The gameweek that piece is about, which is the only one worth reading before a deadline. */
   gameweek?: number;
+  /** Every club the headline and the lead name, by FPL's short name. */
+  clubs?: string[];
+  /** Every player they name, by FPL element id — only the ones that can be named safely. */
+  players?: number[];
 }
 
 export interface ArticlesEnv {
@@ -197,7 +202,19 @@ export function topicFor(categories: string[]): string | undefined {
   return undefined;
 }
 
-export function parseFeed(xml: string, source: string, shortByName: Map<string, string> = new Map()): Article[] {
+/**
+ * Who a piece is about, read off its headline and its lead sentence.
+ *
+ * Not the body: the body of an FPL article names thirty players in passing, and a tag is
+ * only useful while it means "this piece is about him".
+ */
+function mentions(text: string, shortByName: Map<string, string>, squad: Squad[]): { clubs?: string[]; players?: number[] } {
+  const clubs = clubsIn(text, shortByName);
+  const players = playersIn(text, squad, clubs);
+  return { ...(clubs.length ? { clubs } : {}), ...(players.length ? { players } : {}) };
+}
+
+export function parseFeed(xml: string, source: string, shortByName: Map<string, string> = new Map(), squad: Squad[] = []): Article[] {
   const items = xml.match(/<item[\s>][\s\S]*?<\/item>/g) ?? [];
   const out: Article[] = [];
   for (const item of items) {
@@ -216,6 +233,7 @@ export function parseFeed(xml: string, source: string, shortByName: Map<string, 
       excerpt: excerptFrom(between(item, "description") ?? ""),
       topic: topicFor(categories),
       ...teamNewsFor(title, shortByName),
+      ...mentions(`${title} ${excerptFrom(between(item, "description") ?? "")}`, shortByName, squad),
     });
   }
   return out;
@@ -261,12 +279,20 @@ export async function updateArticles(env: ArticlesEnv, now = Date.now()): Promis
 
   // FPL's own club names, so the headline matcher has no table of its own to keep in step.
   let shortByName = new Map<string, string>();
+  let squad: Squad[] = [];
   try {
     const bootstrap = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", {
       headers: { Accept: "application/json", "User-Agent": "Farmisarja-Live/0.1" },
       cf: { cacheEverything: true, cacheTtl: 3600 },
-    }).then((response) => response.json() as Promise<{ teams: Array<{ name: string; short_name: string }> }>);
+    }).then((response) => response.json() as Promise<{
+      teams: Array<{ id: number; name: string; short_name: string }>;
+      elements: Array<{ id: number; web_name: string; team: number }>;
+    }>);
     shortByName = new Map(bootstrap.teams.map((team) => [team.name.toLowerCase(), team.short_name]));
+    const shortById = new Map(bootstrap.teams.map((team) => [team.id, team.short_name]));
+    squad = bootstrap.elements.map((element) => ({
+      id: element.id, webName: element.web_name, club: shortById.get(element.team) ?? "",
+    }));
   } catch (error) {
     // Without it the club pieces stay in the general list rather than the page breaking.
     console.error(JSON.stringify({ event: "article_teams_error", error: error instanceof Error ? error.message : String(error) }));
@@ -279,7 +305,7 @@ export async function updateArticles(env: ArticlesEnv, now = Date.now()): Promis
         cf: { cacheEverything: true, cacheTtl: 600 },
       });
       if (!response.ok) throw new Error(`${source.name} ${response.status}`);
-      return parseFeed(await response.text(), source.name, shortByName);
+      return parseFeed(await response.text(), source.name, shortByName, squad);
     } catch (error) {
       // One dead feed is not a dead page: the others still have something to say.
       console.error(JSON.stringify({ event: "article_feed_error", source: source.name, error: error instanceof Error ? error.message : String(error) }));
