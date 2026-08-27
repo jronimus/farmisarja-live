@@ -280,7 +280,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
           </span>
           {visibleColumns.map((column) => <span
             key={column.key}
-            className={`head-stat source-${column.source}`}
+            className="head-stat"
             onMouseEnter={(event) => showHint(column, event.currentTarget)}
             onMouseLeave={() => setHint(null)}
           >

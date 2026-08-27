@@ -2321,7 +2321,7 @@ footer a { color:#c4c6d8; }
 .price-head,
 .price-row {
   display:grid;
-  grid-template-columns:minmax(116px,1.1fr) minmax(140px,1.7fr) 112px 92px 136px 84px 96px 84px;
+  grid-template-columns:minmax(116px,1.1fr) minmax(140px,1.7fr) 112px 92px 136px 84px 84px;
   align-items:center;
   gap:0 10px;
   padding:0 16px;
@@ -2333,7 +2333,7 @@ footer a { color:#c4c6d8; }
     /* 120px because the warning is the widest thing this column ever holds: the triangle,
        the word and a two-figure price come to 112 on a £15.5m player, and a column with no
        slack at all clips on the first font that renders a hair wider. */
-    grid-template-columns:minmax(116px,1.1fr) minmax(104px,1.4fr) 112px 92px 136px 84px 96px 120px;
+    grid-template-columns:minmax(116px,1.1fr) minmax(104px,1.4fr) 112px 92px 136px 84px 120px;
   }
 }
 .price-head { min-height:42px; background:var(--raised); }
@@ -2646,7 +2646,6 @@ footer a { color:#c4c6d8; }
   .price-owners-cell,.head-owners,
   .price-outlook,.head-outlook,
   .price-rate,.head-rate,
-  .price-threat,.head-threat,
   .price-ownership,.head-ownership { display:none; }
   .price-row { min-height:46px; }
   .price-player { grid-template-columns:22px auto; column-gap:6px; }
@@ -2984,12 +2983,11 @@ footer a { color:#c4c6d8; }
 .stats-cell b.down { color:var(--red); }
 .stats-empty { grid-column:1 / -1; justify-content:center; padding:26px 16px; color:var(--soft); font-size:13px; }
 
-/* Which source a column came from, said in a hairline rather than a word: there is no room
-   for a word in a nine-pixel head, and the picker names the groups anyway. */
-.head-stat { justify-content:flex-end; border-top:2px solid transparent; }
-.head-stat.source-market { border-top-color:color-mix(in srgb,var(--yellow) 70%,transparent); }
-.head-stat.source-fpl { border-top-color:color-mix(in srgb,var(--accent) 90%,transparent); }
-.head-stat.source-match { border-top-color:color-mix(in srgb,var(--cyan) 70%,transparent); }
+/* A two-pixel coloured hairline used to sit over each head, saying which source the column
+   came from. It was decoration pretending to be information: nothing on the page said what
+   yellow or cyan meant, the picker already names the groups, and at two pixels over a nine
+   pixel head nobody could see it well enough to ask. */
+.head-stat { justify-content:flex-end; }
 .head-help {
   display:grid;
   place-items:center;

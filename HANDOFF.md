@@ -910,6 +910,28 @@ rather than adding a per-page override. Two segmented groups were a pixel out an
 Measured after: `[38,38,38,38,38,38,38]` on the price page, `[38,38,38,38,38,38]` on the
 statistics page, `[38]` on the news page.
 
+## Two things on a page that were there because the data was, 27 Aug
+
+The same test as the notes, applied to what a page draws rather than what it says.
+
+**xG + xA is off the price page.** It answered a different question from every other column
+beside it — progress to the threshold, tonight's projection, when, rate per hour, ownership
+are all about *whether the price moves*, and expected goal involvement is about *whether the
+player is good*, which the statistics page answers properly with a gameweek picker behind it.
+There was no recorded reason for it; it went in when the Core Insights integration did.
+
+It was also unsound as built. The only guard was `minutes > 0`, so measured against the live
+dataset: of the 310 players with any minutes, **88 had under 45** and still got a per-90 rate,
+and the top of that list was a player with **one minute showing 1.80 / 90**. In the column
+that reads identically to a figure off two full matches.
+
+**The source hairline is off the statistics head.** A two-pixel coloured line over each
+column said which source it came from — yellow for the market, accent for FPL, cyan for the
+match statistics. Nothing on the page said what the colours meant, the picker already names
+the groups, and at two pixels over a nine-pixel head it was too faint to prompt the question.
+Decoration pretending to be information, which is the same failure as a note that explains
+what the reader can already see.
+
 ## The notes, and the test they now have to pass, 27 Aug
 
 Every explanatory paragraph on the site was read and most of them went. The one that made
