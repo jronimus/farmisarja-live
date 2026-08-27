@@ -123,7 +123,7 @@ export default {
       const stored = await readArticles(env as ArticlesEnv);
       // The cron refreshes these every twenty minutes, so five is well inside the window
       // and keeps a page left open on a phone off the KV read budget.
-      return new Response(JSON.stringify({ articles: stored?.articles ?? [] }), {
+      return new Response(JSON.stringify({ articles: stored?.articles ?? [], pressers: stored?.pressers ?? [], pressersFor: stored?.pressersFor ?? 0 }), {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
       });
     }

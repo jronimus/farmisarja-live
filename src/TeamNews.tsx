@@ -5,7 +5,7 @@ import { flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
 import { translateNews, translateReturn } from "./services/phrases";
 import { reportsSince, absencesByElement, dealsByElement, loadFotmob, movesByElement, type Absence, type Deal, type Move } from "./services/rumours";
 import { loadLineups } from "./services/lineups";
-import { articlesEndpoint, loadArticles, pressersFor, topicsPresent, type Article } from "./services/articles";
+import { articlesEndpoint, loadArticles, topicsPresent, type Article, type Presser } from "./services/articles";
 import type { DashboardData, Language, PlayerNews } from "./types";
 
 /**
@@ -96,7 +96,7 @@ function Articles({ language }: { language: Language }) {
 
   useEffect(() => {
     let active = true;
-    loadArticles()
+    loadArticles().then((body) => body?.articles ?? [])
       .then((next) => { if (active) setArticles(next ?? []); })
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
@@ -153,27 +153,27 @@ function Articles({ language }: { language: Language }) {
  * fully" into a cleared flag would be a judgement of ours wearing his words. The piece is
  * put in front of the reader instead, beside the club it is about, and he decides.
  */
-function Pressers({ articles, gameweek, language }: { articles: Article[]; gameweek: number; language: Language }) {
+function Pressers({ pressers, gameweek, language }: { pressers: Presser[]; gameweek: number; language: Language }) {
   const t = translations(language);
-  const pressers = pressersFor(articles, gameweek);
-  if (!pressers.length) {
+  const shown = pressers.filter((entry) => entry.gameweek === gameweek);
+  if (!shown.length) {
     return <div className="price-empty">{t.pressersNone.replace("{n}", String(gameweek))}</div>;
   }
   return <div className="presser-list">
-    {pressers.map((article) => <a
+    {shown.map((presser) => <a
       className="presser-row"
-      key={article.id}
-      href={article.url}
+      key={presser.club}
+      href={presser.url}
       target="_blank"
       rel="noopener noreferrer"
     >
-      <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/optimized/${article.club!.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
+      <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/optimized/${presser.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
       <span className="presser-lines">
-        <b>{article.club}</b>
-        <em>{article.title}</em>
+        <b>{presser.club}</b>
+        <em>{presser.title}</em>
       </span>
       <span className="presser-meta">
-        <Published at={article.published} language={language} />
+        <Published at={presser.published} language={language} />
         <ExternalLink />
       </span>
     </a>)}
@@ -198,10 +198,10 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
    * The article list, loaded here rather than inside the articles tab, because the press
    * pieces are read off it too and the availability list links to them.
    */
-  const [articles, setArticles] = useState<Article[] | null>(null);
+  const [pressers, setPressers] = useState<Presser[]>([]);
   useEffect(() => {
     let active = true;
-    loadArticles().then((next) => { if (active) setArticles(next ?? []); }).catch(() => {});
+    loadArticles().then((body) => { if (active && body) setPressers(body.pressers); }).catch(() => {});
     return () => { active = false; };
   }, []);
   /** The gameweek nobody has played yet, which is the only one a press conference is about. */
@@ -309,7 +309,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     .filter((player) => isNewsworthy(player) || absences.has(player.id) || moves.has(player.id) || deals.has(player.id))
     .length;
   /** The coming gameweek's press piece per club, for the row to point at. */
-  const pressers = new Map(pressersFor(articles ?? [], coming).map((article) => [article.club as string, article]));
+  const presserFor = new Map(pressers.filter((entry) => entry.gameweek === coming).map((entry) => [entry.club, entry]));
   const visible = rows.slice(0, shown);
 
   return <section className="news-page">
@@ -324,7 +324,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     </div>
 
     {section === "articles" ? <Articles language={language} />
-      : section === "pressers" ? <Pressers articles={articles ?? []} gameweek={coming} language={language} />
+      : section === "pressers" ? <Pressers pressers={pressers} gameweek={coming} language={language} />
       : <>
 
     {/* Whose players, which only narrows the list above and never replaces it — so it is set
@@ -345,7 +345,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
         const absence = absences.get(player.id);
         const move = moves.get(player.id);
         const deal = deals.get(player.id);
-        const presser = pressers.get(player.club);
+        const presser = presserFor.get(player.club);
         const own = player.news ? translateNews(player.news, language) : null;
         const back = absence?.expectedReturn ? translateReturn(absence.expectedReturn, language) : null;
         return <article className={`news-row level-${flag.level} ${player.owners.length ? "is-held" : ""}`} key={player.id}>

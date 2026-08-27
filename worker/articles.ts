@@ -1,3 +1,4 @@
+import { pressersFrom, type Presser } from "./pressers";
 /**
  * The article feed.
  *
@@ -48,6 +49,10 @@ export interface ArticlesEnv {
 interface StoredArticles {
   checkAfter: string;
   articles: Article[];
+  /** Which clubs have spoken about the coming gameweek, and where to read it. */
+  pressers?: Presser[];
+  /** The gameweek those pressers are for, so a stale set is not shown against a new one. */
+  pressersFor?: number;
 }
 
 const ARTICLES_KEY = "articles:list";
@@ -271,6 +276,28 @@ export async function updateArticles(env: ArticlesEnv, now = Date.now()): Promis
   }));
 
   const articles = selectArticles(fetched.flat(), now);
+
+  /**
+   * Who has spoken about the coming gameweek.
+   *
+   * The gameweek is read off the club pieces and the running articles themselves rather than
+   * from the fixture list: this file has no business knowing the calendar, and the headline
+   * that says `Gameweek 2` is the same headline the reader is being pointed at.
+   */
+  const wanted = Math.max(0, ...articles.map((article) => article.gameweek ?? 0),
+    ...articles.filter((article) => /team news:.*live injury updates/i.test(article.title))
+      .map((article) => Number(/Gameweek\s+(\d+)/i.exec(article.title)?.[1] ?? 0)));
+  let pressers: Presser[] = [];
+  if (wanted > 0) {
+    pressers = await pressersFrom(articles, wanted, shortByName, async (url) => {
+      const response = await fetch(url, {
+        headers: { Accept: "text/html", "User-Agent": "Farmisarja-Live/0.1" },
+        cf: { cacheEverything: true, cacheTtl: 600 },
+      });
+      if (!response.ok) throw new Error(`${url} ${response.status}`);
+      return await response.text();
+    });
+  }
   // A fetch that returned nothing at all leaves what is already stored alone rather than
   // wiping the page because both feeds happened to be down on one tick.
   if (!articles.length && stored?.articles.length) {
@@ -280,6 +307,8 @@ export async function updateArticles(env: ArticlesEnv, now = Date.now()): Promis
   await env.TELEGRAM_STATE.put(ARTICLES_KEY, JSON.stringify({
     checkAfter: new Date(now + CHECK_MS).toISOString(),
     articles,
+    pressers,
+    pressersFor: wanted,
   } satisfies StoredArticles));
   return { written: true, count: articles.length };
 }
