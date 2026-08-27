@@ -60,13 +60,48 @@ export interface Deal {
   at: string;
 }
 
-/** All three arrive together: one endpoint, so the page makes one request for them. */
-export async function loadFotmob(): Promise<{ rumours: Rumour[]; absences: Absence[]; deals: Deal[] } | null> {
+/**
+ * When each player last played, and when each club last did.
+ *
+ * The one thing that settles a report nobody retracts. See `worker/appearances.ts`.
+ */
+export interface Appearances {
+  /** Element id to the ISO kick-off of the last match he took any part in. */
+  lastPlayedAt: Record<string, string>;
+  /** FPL team id to the ISO kick-off of that club's last finished match. */
+  lastFixtureAt: Record<string, string>;
+}
+
+/** All of it arrives together: one endpoint, so the page makes one request for it. */
+export async function loadFotmob(): Promise<{ rumours: Rumour[]; absences: Absence[]; deals: Deal[] } & Appearances | null> {
   if (!rumoursEndpoint) return null;
   const response = await fetch(rumoursEndpoint);
   if (!response.ok) throw new Error(`Rumours request failed: ${response.status}`);
-  const body = await response.json() as { rumours?: Rumour[]; absences?: Absence[]; deals?: Deal[] };
-  return { rumours: body.rumours ?? [], absences: body.absences ?? [], deals: body.deals ?? [] };
+  const body = await response.json() as { rumours?: Rumour[]; absences?: Absence[]; deals?: Deal[] } & Partial<Appearances>;
+  return {
+    rumours: body.rumours ?? [],
+    absences: body.absences ?? [],
+    deals: body.deals ?? [],
+    lastPlayedAt: body.lastPlayedAt ?? {},
+    lastFixtureAt: body.lastFixtureAt ?? {},
+  };
+}
+
+/**
+ * The reports a player has since answered on the pitch.
+ *
+ * A move reported on Tuesday says nothing about a man who played on Saturday. So every
+ * report filed before his last appearance is dropped, and what is left is what has been said
+ * since — which is exactly the case worth a flag: **new talk, and no minutes after it.**
+ *
+ * A player with no appearance recorded keeps all his reports. Absence of evidence that he
+ * played is not evidence that he did.
+ */
+export function reportsSince(rumours: Rumour[], lastPlayedAt: Appearances["lastPlayedAt"]): Rumour[] {
+  return rumours.filter((rumour) => {
+    const played = lastPlayedAt[String(rumour.element)];
+    return !played || rumour.reportedAt > played;
+  });
 }
 
 /** The done deals by element, so a row can ask about the player it is drawing. */
@@ -79,10 +114,24 @@ export async function loadRumours(): Promise<Rumour[] | null> {
   return body ? body.rumours : null;
 }
 
-/** The absences a squad can act on, by element. Unmatched names are dropped here. */
-export function absencesByElement(absences: Absence[]): Map<number, Absence> {
+/**
+ * The absences a squad can act on, by element. Unmatched names are dropped here.
+ *
+ * And so is anyone who **played in his club's most recent match**. FotMob's list is a
+ * snapshot of who a club could not pick, and it is never retracted — a recovered player just
+ * stops appearing the next time it is read, which can be an hour later. In between, the page
+ * was calling a man unavailable who had played ninety minutes on Saturday. Having played in
+ * the club's last match settles it completely, and nothing else does.
+ */
+export function absencesByElement(absences: Absence[], seen?: Appearances): Map<number, Absence> {
   const out = new Map<number, Absence>();
-  for (const absence of absences) if (absence.element !== null) out.set(absence.element, absence);
+  for (const absence of absences) {
+    if (absence.element === null) continue;
+    const played = seen?.lastPlayedAt[String(absence.element)];
+    const clubLast = seen?.lastFixtureAt[absence.club];
+    if (played && clubLast && played >= clubLast) continue;
+    out.set(absence.element, absence);
+  }
   return out;
 }
 

@@ -8,7 +8,7 @@ import { translations } from "./i18n";
 import { buildClubOwnership, buildOwnership, ownershipOf, type ClubOwnership, type Highlight, type PlayerOwnership } from "./services/ownership";
 import { flagOf } from "./services/playerNews";
 import { translateNews, translateReturn } from "./services/phrases";
-import { absencesByElement, isStrong, loadFotmob, strongestByPlayer, type Absence, type Rumour } from "./services/rumours";
+import { absencesByElement, isStrong, loadFotmob, reportsSince, strongestByPlayer, type Absence, type Rumour } from "./services/rumours";
 import { loadLineups, watchFrom, type LineupWatch } from "./services/lineups";
 import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
@@ -752,11 +752,13 @@ export default function App() {
          * which is exactly when it is worth more — so the broad one is the floor and the
          * near one is laid over it.
          */
-        const absences = absencesByElement(fotmob?.absences ?? []);
+        // The same two rules the news page applies: a shirt is not marked for a report the
+        // player has already answered on the pitch, nor for an absence he has played through.
+        const absences = absencesByElement(fotmob?.absences ?? [], fotmob ?? undefined);
         for (const [element, player] of lineups.unavailable) {
           absences.set(element, { element, name: player.name, club: player.club, reason: player.reason, expectedReturn: player.expectedReturn });
         }
-        setMarks({ rumours: strongestByPlayer(fotmob?.rumours ?? []), absences, lineups });
+        setMarks({ rumours: strongestByPlayer(reportsSince(fotmob?.rumours ?? [], fotmob?.lastPlayedAt ?? {})), absences, lineups });
       })
       // Marks that cannot be read are not worth breaking the table over.
       .catch(() => {});

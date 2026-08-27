@@ -7,6 +7,7 @@ import { readRumours, updateRumours, type RumoursEnv } from "./rumours";
 import { readLineups, updateLineups, type LineupsEnv } from "./lineups";
 import { readDeals, updateTransfers, type TransfersEnv } from "./transfers";
 import { figuresFor, readCursor, updateFplHistory, type FplHistoryEnv } from "./fplHistory";
+import { readAppearances, updateAppearances, type AppearancesEnv } from "./appearances";
 import { readInsights, seasonTotals, updateInsights, type InsightsEnv } from "./insights";
 
 const CARD_KINDS: ShareCardKind[] = ["round", "total", "awards", "deadline"];
@@ -131,7 +132,15 @@ export default {
       // The done deals ride along on the same response: the page asks one question — what
       // is going on with this player — and it should not take two requests to answer.
       const deals = await readDeals(env as TransfersEnv);
-      return new Response(JSON.stringify({ rumours: stored?.rumours ?? [], absences: stored?.absences ?? [], deals: deals?.deals ?? [] }), {
+      // When each player last played, which is what settles a report that nobody retracts.
+      const seen = await readAppearances(env as AppearancesEnv);
+      return new Response(JSON.stringify({
+        rumours: stored?.rumours ?? [],
+        absences: stored?.absences ?? [],
+        deals: deals?.deals ?? [],
+        lastPlayedAt: seen?.lastPlayedAt ?? {},
+        lastFixtureAt: seen?.lastFixtureAt ?? {},
+      }), {
         headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300" },
       });
     }
@@ -232,6 +241,11 @@ export default {
     // season, so a week of it is one snapshot less the one before.
     if (minute % 5 === 3) ctx.waitUntil(updateFplHistory(env as FplHistoryEnv).catch((error) => {
       console.error(JSON.stringify({ event: "fpl_history_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
+    // Who has played since, on the same hourly gate: minutes settle within the hour after a
+    // match and nothing here moves faster than that.
+    if (minute % 5 === 2) ctx.waitUntil(updateAppearances(env as AppearancesEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "appearances_error", error: error instanceof Error ? error.message : String(error) }));
     }));
     // The dataset rebuilds three times a day; reading it hourly, on a minute of its own,
     // is already more often than it can change.

@@ -3,7 +3,7 @@ import { Clock3, ExternalLink } from "lucide-react";
 import { translations } from "./i18n";
 import { flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
 import { translateNews, translateReturn } from "./services/phrases";
-import { absencesByElement, dealsByElement, loadFotmob, movesByElement, type Absence, type Deal, type Move } from "./services/rumours";
+import { reportsSince, absencesByElement, dealsByElement, loadFotmob, movesByElement, type Absence, type Deal, type Move } from "./services/rumours";
 import { loadLineups } from "./services/lineups";
 import { articlesEndpoint, loadArticles, topicsPresent, type Article } from "./services/articles";
 import type { DashboardData, Language, PlayerNews } from "./types";
@@ -197,14 +197,17 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     Promise.all([loadFotmob(), loadLineups()])
       .then(([body, fixtures]) => {
         if (!active || !body) return;
-        const merged = absencesByElement(body.absences);
+        const merged = absencesByElement(body.absences, body);
         for (const fixture of fixtures ?? []) {
           for (const player of fixture.unavailable) {
             if (player.element !== null) merged.set(player.element, player as Absence);
           }
         }
         setAbsences(merged);
-        setMoves(movesByElement(body.rumours));
+        // Every report he has already answered on the pitch is dropped; what is left is what
+        // has been said since, which is the case worth a mark — new talk, and no minutes
+        // after it.
+        setMoves(movesByElement(reportsSince(body.rumours, body.lastPlayedAt)));
         setDeals(dealsByElement(body.deals));
       })
       .catch(() => {});
