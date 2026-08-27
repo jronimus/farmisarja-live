@@ -227,7 +227,9 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     // reason he might not play, it is the reason he will not.
     return [...list].sort((a, b) => {
       const rank = (player: PlayerNews) => isNewsworthy(player) || absences.has(player.id) || deals.has(player.id) ? 0 : 1;
-      return rank(a) - rank(b) || newsOrder(a, b);
+      // A completed move ranks as `out`: FPL has not flagged him yet, and not having been
+      // flagged yet is exactly what the wire is read for.
+      return rank(a) - rank(b) || newsOrder(a, b, new Set(deals.keys()));
     });
   }, [all, scope, absences, moves, deals]);
 

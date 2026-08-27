@@ -49,8 +49,17 @@ export function flagOf(player: {
  */
 const LEVEL_RANK: Record<PlayerFlag["level"], number> = { out: 0, major: 1, doubt: 2, none: 3 };
 
-export function newsOrder(a: PlayerNews, b: PlayerNews): number {
-  return LEVEL_RANK[flagOf(a).level] - LEVEL_RANK[flagOf(b).level]
+/**
+ * `gone` is the set of players whose move has already gone through.
+ *
+ * They rank as `out` whatever FPL's flag says, because FPL's flag has not caught up yet —
+ * that is the entire reason the transfer wire is read. Watkins was confirmed to Al Hilal and
+ * sat 130th of 163 rows, below every 75 % knock, because his FPL status was still `a`. The
+ * manager who owns him would never have scrolled that far.
+ */
+export function newsOrder(a: PlayerNews, b: PlayerNews, gone?: Set<number>): number {
+  const level = (player: PlayerNews) => gone?.has(player.id) ? 0 : LEVEL_RANK[flagOf(player).level];
+  return level(a) - level(b)
     || b.owners.length - a.owners.length
     || b.ownership - a.ownership
     || a.name.localeCompare(b.name);
