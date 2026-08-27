@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { excerptFrom, parseFeed, plain, selectArticles, topicFor } from "./articles";
+import { excerptFrom, parseFeed, plain, selectArticles, teamNewsFor, topicFor, type Article } from "./articles";
 
 // A real Fantasy Football Scout feed, saved 26 Aug 2026. Parsing is only worth testing
 // against what a publisher actually sends, entities, CDATA, tabs and all.
@@ -59,5 +59,52 @@ describe("article feed", () => {
     const long = `<p>${"word ".repeat(80)}</p>`;
     expect(excerptFrom(long).length).toBeLessThanOrEqual(220);
     expect(excerptFrom(long).endsWith("…")).toBe(true);
+  });
+});
+
+describe("a club's own team news for a gameweek", () => {
+  // FPL's own names, which is where the matcher gets them.
+  const teams = new Map([["arsenal", "ARS"], ["spurs", "TOT"], ["man utd", "MUN"], ["aston villa", "AVL"]]);
+
+  it("reads the club and the gameweek out of the headline", () => {
+    expect(teamNewsFor("Bruno G, Saka, Timber: Arsenal injury latest for FPL Gameweek 1", teams))
+      .toEqual({ club: "ARS", gameweek: 1 });
+    expect(teamNewsFor("Manzambi, Madjo, Watkins: Aston Villa injury latest for FPL Gameweek 12", teams))
+      .toEqual({ club: "AVL", gameweek: 12 });
+  });
+
+  it("knows the names the two spell differently", () => {
+    // Fantasy Football Scout writes Man United and Tottenham; FPL files them as Man Utd and
+    // Spurs, so neither would match the other's list without this.
+    expect(teamNewsFor("Sesko, Mount, De Ligt: Man United injury latest for FPL Gameweek 1", teams))
+      .toEqual({ club: "MUN", gameweek: 1 });
+    expect(teamNewsFor("Porro, Solanke: Tottenham injury latest for FPL Gameweek 1", teams))
+      .toEqual({ club: "TOT", gameweek: 1 });
+  });
+
+  it("returns nothing rather than guessing", () => {
+    // A headline that is not one of these, and a club nobody has heard of.
+    expect(teamNewsFor("FPL Gameweek 2 team news: Wednesday's live injury updates", teams)).toBeUndefined();
+    expect(teamNewsFor("Someone: Real Madrid injury latest for FPL Gameweek 1", teams)).toBeUndefined();
+    expect(teamNewsFor("Best cheap FPL players for a Gameweek 2 Bench Boost", teams)).toBeUndefined();
+  });
+});
+
+describe("the daily cap", () => {
+  const piece = (over: Partial<Article>): Article => ({
+    id: String(Math.random()), title: "t", url: "u", source: "Fantasy Football Scout",
+    published: "2026-08-27T12:00:00Z", excerpt: "", ...over,
+  });
+
+  it("holds an ordinary source to five a day", () => {
+    const many = Array.from({ length: 9 }, (_, index) => piece({ id: `a${index}` }));
+    expect(selectArticles(many, Date.parse("2026-08-27T18:00:00Z"))).toHaveLength(5);
+  });
+
+  it("lets every club's own piece through", () => {
+    // Twenty land on one afternoon; the cap would keep five, and which five would be
+    // arbitrary.
+    const clubs = Array.from({ length: 20 }, (_, index) => piece({ id: `c${index}`, club: `C${index}`, gameweek: 2 }));
+    expect(selectArticles(clubs, Date.parse("2026-08-27T18:00:00Z"))).toHaveLength(20);
   });
 });

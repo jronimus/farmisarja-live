@@ -15,6 +15,28 @@ export interface Article {
   published: string;
   excerpt: string;
   topic?: string;
+  /** FPL's own short club name, when this is that club's team-news piece for a gameweek. */
+  club?: string;
+  /** The gameweek it is about. */
+  gameweek?: number;
+}
+
+/**
+ * One piece per club for the gameweek that has not been played yet.
+ *
+ * Fantasy Football Scout writes these off each manager's press conference, and they are the
+ * closest thing there is to hearing it from the manager. **Only the coming gameweek's**: the
+ * whole value of a press conference is that it is about the team sheet nobody has seen, and
+ * last week's is a record of a match that has already been played.
+ *
+ * Newest first per club, because on a press day a club can get more than one and the later
+ * one has heard more.
+ */
+export function pressersFor(articles: Article[], gameweek: number): Article[] {
+  return articles
+    .filter((article) => article.club && article.gameweek === gameweek)
+    .sort((a, b) => a.club!.localeCompare(b.club!) || b.published.localeCompare(a.published))
+    .filter((article, index, list) => index === 0 || list[index - 1].club !== article.club);
 }
 
 const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");

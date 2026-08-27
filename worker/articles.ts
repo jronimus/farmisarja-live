@@ -28,6 +28,17 @@ export interface Article {
   excerpt: string;
   /** Our own tag, mapped from the publisher's category. Absent when it maps to nothing. */
   topic?: string;
+  /**
+   * FPL's own short club name, when this is that club's team-news piece for a gameweek.
+   *
+   * Fantasy Football Scout writes one of these per club off the manager's press conference,
+   * titled *"Bruno G, Saka, Timber: Arsenal injury latest for FPL Gameweek 1"*. Twenty of
+   * them land on the same afternoon, which is why they are recognised rather than left in
+   * the general list: the per-day cap would throw away fifteen of the twenty.
+   */
+  club?: string;
+  /** The gameweek that piece is about, which is the only one worth reading before a deadline. */
+  gameweek?: number;
 }
 
 export interface ArticlesEnv {
@@ -50,7 +61,12 @@ const SOURCES = [
 const CHECK_MS = 20 * 60_000;
 /** A wildcard draft for Gameweek 2 is dead by Gameweek 4. */
 const MAX_AGE_MS = 7 * 86_400_000;
-const MAX_ARTICLES = 60;
+/**
+ * Sixty was chosen when a day held five or six pieces. A press day adds twenty club pieces
+ * on top of them, and dropping the twentieth club because the number was set two weeks ago
+ * would be the cap deciding which half of the league is worth reading.
+ */
+const MAX_ARTICLES = 90;
 /**
  * How many of one source's articles may share a day.
  *
@@ -59,6 +75,33 @@ const MAX_ARTICLES = 60;
  * day rather than overall so a quiet Tuesday still shows what there was.
  */
 const PER_SOURCE_PER_DAY = 5;
+
+/**
+ * The club whose team news a headline is about, and the gameweek it is for.
+ *
+ * The shape is fixed and the club is spelt out in full: *"<players>: <Club> injury latest
+ * for FPL Gameweek <n>"*. Matching the club name against FPL's own list means no table of
+ * our own to keep in step — only the handful of names the two spell differently, which is
+ * what `ALIASES` holds. A headline that does not fit the shape is not one of these, and
+ * says so by returning nothing rather than by guessing.
+ */
+const ALIASES: Record<string, string> = {
+  "man united": "MUN", "manchester united": "MUN", "man utd": "MUN",
+  "manchester city": "MCI", "tottenham": "TOT", "tottenham hotspur": "TOT",
+  "nottingham forest": "NFO", "forest": "NFO", "wolves": "WOL",
+  "brighton and hove albion": "BHA", "west ham": "WHU", "leicester": "LEI",
+};
+
+const TEAM_NEWS = /^.*?:\s*(.+?)\s+injury latest for FPL Gameweek\s+(\d+)/i;
+
+export function teamNewsFor(title: string, shortByName: Map<string, string>): { club: string; gameweek: number } | undefined {
+  const match = TEAM_NEWS.exec(title);
+  if (!match) return undefined;
+  const name = match[1].trim().toLowerCase();
+  const club = shortByName.get(name) ?? ALIASES[name];
+  if (!club) return undefined;
+  return { club, gameweek: Number(match[2]) };
+}
 
 /**
  * The publisher's own category, mapped to ours.
@@ -137,7 +180,7 @@ export function topicFor(categories: string[]): string | undefined {
   return undefined;
 }
 
-export function parseFeed(xml: string, source: string): Article[] {
+export function parseFeed(xml: string, source: string, shortByName: Map<string, string> = new Map()): Article[] {
   const items = xml.match(/<item[\s>][\s\S]*?<\/item>/g) ?? [];
   const out: Article[] = [];
   for (const item of items) {
@@ -155,6 +198,7 @@ export function parseFeed(xml: string, source: string): Article[] {
       published: published.toISOString(),
       excerpt: excerptFrom(between(item, "description") ?? ""),
       topic: topicFor(categories),
+      ...teamNewsFor(title, shortByName),
     });
   }
   return out;
@@ -174,10 +218,15 @@ export function selectArticles(articles: Article[], now: number): Article[] {
   for (const article of [...articles].sort((a, b) => b.published.localeCompare(a.published))) {
     if (seen.has(article.id)) continue;
     if (now - Date.parse(article.published) > MAX_AGE_MS) continue;
-    const key = `${article.source}:${article.published.slice(0, 10)}`;
-    const count = perDay.get(key) ?? 0;
-    if (count >= PER_SOURCE_PER_DAY) continue;
-    perDay.set(key, count + 1);
+    // A club's own team-news piece is exempt from the daily cap. Twenty of them arrive on
+    // one afternoon and the cap keeps five, which would leave a page of team news covering
+    // a quarter of the league — and the fifteen it dropped would be arbitrary.
+    if (!article.club) {
+      const key = `${article.source}:${article.published.slice(0, 10)}`;
+      const count = perDay.get(key) ?? 0;
+      if (count >= PER_SOURCE_PER_DAY) continue;
+      perDay.set(key, count + 1);
+    }
     seen.add(article.id);
     out.push(article);
     if (out.length >= MAX_ARTICLES) break;
@@ -193,6 +242,19 @@ export async function updateArticles(env: ArticlesEnv, now = Date.now()): Promis
   const stored = await readArticles(env);
   if (stored?.checkAfter && Date.parse(stored.checkAfter) > now) return { written: false, count: 0 };
 
+  // FPL's own club names, so the headline matcher has no table of its own to keep in step.
+  let shortByName = new Map<string, string>();
+  try {
+    const bootstrap = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", {
+      headers: { Accept: "application/json", "User-Agent": "Farmisarja-Live/0.1" },
+      cf: { cacheEverything: true, cacheTtl: 3600 },
+    }).then((response) => response.json() as Promise<{ teams: Array<{ name: string; short_name: string }> }>);
+    shortByName = new Map(bootstrap.teams.map((team) => [team.name.toLowerCase(), team.short_name]));
+  } catch (error) {
+    // Without it the club pieces stay in the general list rather than the page breaking.
+    console.error(JSON.stringify({ event: "article_teams_error", error: error instanceof Error ? error.message : String(error) }));
+  }
+
   const fetched = await Promise.all(SOURCES.map(async (source) => {
     try {
       const response = await fetch(source.url, {
@@ -200,7 +262,7 @@ export async function updateArticles(env: ArticlesEnv, now = Date.now()): Promis
         cf: { cacheEverything: true, cacheTtl: 600 },
       });
       if (!response.ok) throw new Error(`${source.name} ${response.status}`);
-      return parseFeed(await response.text(), source.name);
+      return parseFeed(await response.text(), source.name, shortByName);
     } catch (error) {
       // One dead feed is not a dead page: the others still have something to say.
       console.error(JSON.stringify({ event: "article_feed_error", source: source.name, error: error instanceof Error ? error.message : String(error) }));

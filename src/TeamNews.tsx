@@ -5,7 +5,7 @@ import { flagOf, isNewsworthy, newsOrder } from "./services/playerNews";
 import { translateNews, translateReturn } from "./services/phrases";
 import { reportsSince, absencesByElement, dealsByElement, loadFotmob, movesByElement, type Absence, type Deal, type Move } from "./services/rumours";
 import { loadLineups } from "./services/lineups";
-import { articlesEndpoint, loadArticles, topicsPresent, type Article } from "./services/articles";
+import { articlesEndpoint, loadArticles, pressersFor, topicsPresent, type Article } from "./services/articles";
 import type { DashboardData, Language, PlayerNews } from "./types";
 
 /**
@@ -26,7 +26,7 @@ import type { DashboardData, Language, PlayerNews } from "./types";
  * while "articles" replaces it with something else entirely. So the page is two sections
  * now, and the scope lives inside the one it belongs to.
  */
-type Section = "availability" | "articles";
+type Section = "availability" | "pressers" | "articles";
 type Scope = "ours" | "all";
 
 /** Anyone the league is exposed to comes first; the rest of the game is behind a filter. */
@@ -144,6 +144,42 @@ function Articles({ language }: { language: Language }) {
   </>;
 }
 
+/**
+ * One piece per club for the gameweek nobody has played yet.
+ *
+ * Fantasy Football Scout writes these off each manager's press conference, and they are as
+ * close as this page gets to hearing it from the manager himself. Which is also the reason
+ * the page does not act on them: what a manager says is prose, and turning "he trained
+ * fully" into a cleared flag would be a judgement of ours wearing his words. The piece is
+ * put in front of the reader instead, beside the club it is about, and he decides.
+ */
+function Pressers({ articles, gameweek, language }: { articles: Article[]; gameweek: number; language: Language }) {
+  const t = translations(language);
+  const pressers = pressersFor(articles, gameweek);
+  if (!pressers.length) {
+    return <div className="price-empty">{t.pressersNone.replace("{n}", String(gameweek))}</div>;
+  }
+  return <div className="presser-list">
+    {pressers.map((article) => <a
+      className="presser-row"
+      key={article.id}
+      href={article.url}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/optimized/${article.club!.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
+      <span className="presser-lines">
+        <b>{article.club}</b>
+        <em>{article.title}</em>
+      </span>
+      <span className="presser-meta">
+        <Published at={article.published} language={language} />
+        <ExternalLink />
+      </span>
+    </a>)}
+  </div>;
+}
+
 export type RumourOwner = { name: string; club: string; position: string; owners: PlayerNews["owners"] };
 
 /**
@@ -158,6 +194,18 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
   const [section, setSection] = useState<Section>("availability");
   const [scope, setScope] = useState<Scope>("ours");
   const [shown, setShown] = useState(PAGE);
+  /**
+   * The article list, loaded here rather than inside the articles tab, because the press
+   * pieces are read off it too and the availability list links to them.
+   */
+  const [articles, setArticles] = useState<Article[] | null>(null);
+  useEffect(() => {
+    let active = true;
+    loadArticles().then((next) => { if (active) setArticles(next ?? []); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+  /** The gameweek nobody has played yet, which is the only one a press conference is about. */
+  const coming = Date.parse(data.deadline) > Date.now() ? data.gameweek : (data.nextEvent?.gameweek ?? data.gameweek);
 
   const all = data.playerNews ?? [];
 
@@ -260,12 +308,14 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
   const ours = all.filter((player) => player.owners.length > 0)
     .filter((player) => isNewsworthy(player) || absences.has(player.id) || moves.has(player.id) || deals.has(player.id))
     .length;
+  /** The coming gameweek's press piece per club, for the row to point at. */
+  const pressers = new Map(pressersFor(articles ?? [], coming).map((article) => [article.club as string, article]));
   const visible = rows.slice(0, shown);
 
   return <section className="news-page">
     {/* What the page is showing. Two things, because there are two. */}
     <div className="news-sections" role="group" aria-label={t.navNews}>
-      {([["availability", t.newsAvailability], ["articles", t.newsArticles]] as Array<[Section, string]>)
+      {([["availability", t.newsAvailability], ["pressers", t.newsPressers], ["articles", t.newsArticles]] as Array<[Section, string]>)
         .map(([key, label]) => <button
           key={key}
           className={section === key ? "active" : ""}
@@ -274,6 +324,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     </div>
 
     {section === "articles" ? <Articles language={language} />
+      : section === "pressers" ? <Pressers articles={articles ?? []} gameweek={coming} language={language} />
       : <>
 
     {/* Whose players, which only narrows the list above and never replaces it — so it is set
@@ -294,6 +345,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
         const absence = absences.get(player.id);
         const move = moves.get(player.id);
         const deal = deals.get(player.id);
+        const presser = pressers.get(player.club);
         const own = player.news ? translateNews(player.news, language) : null;
         const back = absence?.expectedReturn ? translateReturn(absence.expectedReturn, language) : null;
         return <article className={`news-row level-${flag.level} ${player.owners.length ? "is-held" : ""}`} key={player.id}>
@@ -321,6 +373,13 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
                   ? t.mayBeMoving
                   : t.newsNoWord)}</em>
             <span className="news-meta">
+              {/* His club's own team-news piece for the coming gameweek, where the manager
+                  was asked about exactly this. The page does not read it for him and does
+                  not act on it: what a manager says is prose, and turning "he trained fully"
+                  into a cleared flag would be our judgement wearing his words. */}
+              {presser && <a href={presser.url} target="_blank" rel="noopener noreferrer" className="news-presser">
+                {t.newsPresserLink} <ExternalLink />
+              </a>}
               {/* FPL says what is wrong; FotMob says when he is back. Both, attributed. */}
               {player.news && absence?.expectedReturn
                 && <small className="news-return" title={back?.original ?? undefined}>FotMob: {back?.text}</small>}
