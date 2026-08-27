@@ -115,9 +115,18 @@ function Articles({ pressers, named, language }: { pressers: Presser[]; named: M
    * Worker's reading is joined back on by url and the row carries their shirts.
    */
   const clubsByUrl = new Map(pressers.map((presser) => [presser.url, presser.clubs]));
-  const tagged = articles.map((article) => clubsByUrl.has(article.url)
-    ? { ...article, topic: "pressers" }
-    : article);
+  const tagged = articles.map((article) => {
+    const spoken = clubsByUrl.get(article.url);
+    if (!spoken) return article;
+    // The clubs a press piece speaks for are in its body, not its headline, so the headline
+    // matcher cannot see them — "Wednesday's live injury updates" names nobody. Joining the
+    // worker's reading back on is the only way those four clubs reach the row.
+    return {
+      ...article,
+      topic: "pressers",
+      clubs: [...new Set([...(article.clubs ?? []), ...spoken])].sort(),
+    };
+  });
   const topics = topicsPresent(tagged);
   const shown = topic ? tagged.filter((article) => article.topic === topic) : tagged;
 
