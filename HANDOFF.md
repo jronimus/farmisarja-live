@@ -79,6 +79,7 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `src/services/ownership.ts` | League ownership and effective ownership, for the player highlight |
 | `src/services/priceChanges.ts` | FPL's published price-change numbers, and the two figures derived from them |
 | `src/PriceChanges.tsx` | The price change page at `#/hinnat`, and its two tabs |
+| `src/Picker.tsx` | The panel both filter pages open, portalled out of `main` |
 | `src/TeamNews.tsx` | The availability page at `#/uutiset` |
 | `src/services/playerNews.ts` | What FPL's status letters mean, and the flag FPL does not raise |
 | `src/services/phrases.ts` | FPL's and FotMob's English sentences, parsed into Finnish |
@@ -854,12 +855,39 @@ What is left is two lines of full words, both running the whole width:
 Desktop keeps all five on one line, unchanged, because the stretching and the ordering live
 in the media query.
 
-### The count is a readout, and now looks like one
+### The count belongs to the column, not to the filter row
 
-It sat as bare 18 px text between 38 px controls, which reads as something left behind rather
-than something placed. It is 38 px now, pill-shaped like its neighbours, and **outlined
-rather than filled** — that is the whole distinction: the pills around it are filled because
-they can be pressed, and this one cannot. It is what the filters returned.
+Two attempts said the same thing: as bare text between 38 px controls it read as something
+left behind, and as an outlined pill it read as a control that had lost its purpose. It is a
+caption on the thing it counts, so it now sits in the table's own **PELAAJA** head, right
+aligned. That also empties it out of the filter row, which is what let those rows come out
+even.
+
+### No line stops short of the edge
+
+A row that ends two thirds of the way across reads as unfinished. On a phone every control in
+these two filter rows now either fills what is left of its line or shares it with the ones
+beside it:
+
+| | lines, all flush 10 → 365 |
+| --- | --- |
+| Statistics | search / **Koko kausi · Sarakkeet (n) · Rajaa (n)** |
+| Prices | Ennuste·Historia + countdown / search + Rajaa (n) / Kaikki·Nousijat·Laskijat·Lukitut |
+
+The statistics search takes a line of its own because the three buttons beside it come to
+more than a phone's width, and a search box squeezed to a hundred pixels is one nobody can
+read what they typed into.
+
+### Three things that were wrong about the panel
+
+- **Its top was hidden.** `.app-shell > main` carries `z-index:1` and `.app-shell > header`
+  carries 30, so the header and the ticker paint over everything inside main *however high
+  its own z-index* — the panel asked for 61 and still lost its title bar and its close
+  button. `Panel` lives in `src/Picker.tsx` now and portals into `.app-shell`, where its 61
+  competes with the header's 30 and wins. Both pages use the one component.
+- **A trigger label wrapped.** "Sarakkeet (22)" is wider than "Sarakkeet (9)" and a label on
+  two lines makes the control taller than the row it sits in. Triggers are `nowrap`.
+- **An option with an icon was not centred**, because `.picker-options button` was a block.
 
 ### An explanation for a pointer, without a press
 

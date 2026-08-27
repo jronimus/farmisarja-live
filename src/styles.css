@@ -3027,6 +3027,9 @@ footer a { color:#c4c6d8; }
 .picker-trigger {
   display:inline-flex;
   align-items:center;
+  /* "Sarakkeet (22)" is wider than "Sarakkeet (9)" and neither may break: a label on two
+     lines makes the control taller than the row it sits in. */
+  white-space:nowrap;
   gap:6px;
   height:38px;
   padding:0 13px;
@@ -3107,6 +3110,9 @@ footer a { color:#c4c6d8; }
 .picker-group > b { display:block; margin-bottom:6px; color:var(--faint); font-size:10px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; }
 .picker-options { display:flex; flex-wrap:wrap; gap:5px; }
 .picker-options button {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
   padding:6px 10px;
   border:0;
   border-radius:999px;
@@ -3116,6 +3122,7 @@ footer a { color:#c4c6d8; }
   cursor:pointer;
 }
 .picker-options button.active { background:var(--accent); color:#fff; }
+.picker-options button svg { width:13px; height:13px; }
 /* The four columns that have no per-gameweek answer, marked on the chip itself rather than
    left for the reader to discover as an empty cell. Quieter than the label it follows: it is
    a qualifier on the column, not a second column. */
@@ -3158,12 +3165,24 @@ footer a { color:#c4c6d8; }
      were squeezed until "Joukkueet" and "Pelipaikat" were cut in half, which is a control a
      reader has to guess at. Four of them are behind the Rajaa panel now, which leaves the
      search a line of its own beside the count, and the three panel buttons the second. */
-  .stats-page .price-filters { gap:6px; }
-  .stats-page .price-filters > .price-search { order:1; flex:1 1 180px; }
-  .stats-page .price-filters > .news-count { order:2; }
+  .price-filters { gap:6px; }
+  /* No line stops short of the edge. Every control in these rows either fills what is left
+     of its line or shares it evenly with the ones beside it — a row that ends two thirds of
+     the way across reads as unfinished, and there is nothing else to put there. */
+  .price-page .price-tabs,
+  .price-page .price-countdown { flex:1 1 auto; justify-content:center; }
+  .price-page .price-search { flex:1 1 180px; }
+  .price-page .price-filters > .picker-trigger { flex:1 1 auto; justify-content:center; }
+  .price-page .price-direction { flex:1 1 100%; }
+  .price-page .price-direction button { flex:1 1 0; }
+
+  /* The statistics search takes a line of its own: the three panel buttons beside it come
+     to more than a phone's width, and a search box squeezed to a hundred pixels is a search
+     box nobody can read what they typed into. */
+  .stats-page .price-filters > .price-search { order:1; flex:1 1 100%; }
   /* The three share the second line rather than ending it short. A row that stops two
      thirds of the way across reads as unfinished, and there is nothing else to put there. */
-  .stats-page .price-filters > button { order:3; flex:1 1 0; justify-content:center; }
+  .stats-page .price-filters > button { order:3; flex:1 1 auto; justify-content:center; }
   .stats-line .price-player > small { font-size:8px; }
   /* Eight pixels of tag, which fits "Karjarannan Hurjat" — the longest name in the league —
      on one line in the ninety the name column has. */
@@ -3931,6 +3950,16 @@ input:focus-visible,
    *The count nobody could read*. The figure carries the display face the scores use and the
    word beside it steps back into the same small caps as a column head: the number is the
    answer and "pelaajaa" is only its unit. */
+.head-count {
+  margin-left:auto;
+  padding-left:8px;
+  color:color-mix(in srgb,var(--soft) 55%,var(--text));
+  font-size:10px;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+}
+
 .news-count {
   display:inline-flex;
   align-items:baseline;

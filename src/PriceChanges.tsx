@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Clock3, History, LineChart, Lock, Search, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, Filter, History, LineChart, Lock, Search, TriangleAlert } from "lucide-react";
 import { translations } from "./i18n";
+import Panel from "./Picker";
 import { daysUntilChangeDay, hoursToChange, maybeThisWeek, nextPriceDeadline, outlookFor, outlookRank, projectedAt } from "./services/priceChanges";
 import { ownersByPlayer, type PlayerOwner } from "./services/ownership";
 import { sellingPrice, sellingPriceMoves } from "./services/fplRules";
@@ -71,6 +72,7 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
   const [club, setClub] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [manager, setManager] = useState("");
   // Everything, like FPL's own page. Splitting risers from fallers is a filter, not a
   // default: the question "what is moving" comes before "which way".
@@ -196,7 +198,49 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
     </section>;
   }
 
+  /** How many narrowings are on, so the button says so without opening it. */
+  const narrowings = [manager, position, club].filter(Boolean).length;
+
   return <section className="price-page">
+    {filtersOpen && <Panel title={t.statsFilters} onClose={() => setFiltersOpen(false)}>
+      <div className="picker-group">
+        <b>{t.allTeams}</b>
+        <div className="picker-options">
+          <button className={manager ? "" : "active"} onClick={() => setManager("")}>{t.allTeams}</button>
+          {data.managers.map((entry) => <button
+            key={entry.id}
+            className={manager === String(entry.id) ? "active" : ""}
+            aria-pressed={manager === String(entry.id)}
+            onClick={() => setManager((value) => value === String(entry.id) ? "" : String(entry.id))}
+          >{entry.teamName}</button>)}
+        </div>
+      </div>
+      <div className="picker-group">
+        <b>{t.allPositions}</b>
+        <div className="picker-options">
+          <button className={position ? "" : "active"} onClick={() => setPosition("")}>{t.allPositions}</button>
+          {["GK", "DEF", "MID", "FWD"].map((entry) => <button
+            key={entry}
+            className={position === entry ? "active" : ""}
+            aria-pressed={position === entry}
+            onClick={() => setPosition((value) => value === entry ? "" : entry)}
+          >{entry}</button>)}
+        </div>
+      </div>
+      <div className="picker-group">
+        <b>{t.allClubs}</b>
+        <div className="picker-options">
+          <button className={club ? "" : "active"} onClick={() => setClub("")}>{t.allClubs}</button>
+          {clubs.map((entry) => <button
+            key={entry}
+            className={club === entry ? "active" : ""}
+            aria-pressed={club === entry}
+            onClick={() => setClub((value) => value === entry ? "" : entry)}
+          >{entry}</button>)}
+        </div>
+      </div>
+      <button className="picker-reset" onClick={() => { setManager(""); setPosition(""); setClub(""); }}>{t.statsFiltersReset}</button>
+    </Panel>}
     <div className="price-filters">
       <Tabs tab={tab} setTab={setTab} language={language} />
       <Countdown deadline={nextPriceDeadline(market, Date.now())} language={language} />
@@ -204,18 +248,12 @@ export default function PriceChanges({ data, language, autosubs }: { data: Dashb
         <Search />
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t.searchPlayer} aria-label={t.searchPlayer} />
       </label>
-      <select className="period-select" value={manager} onChange={(event) => setManager(event.target.value)} aria-label={t.allTeams}>
-        <option value="">{t.allTeams}</option>
-        {data.managers.map((entry) => <option key={entry.id} value={entry.id}>{entry.teamName}</option>)}
-      </select>
-      <select className="period-select" value={position} onChange={(event) => setPosition(event.target.value)} aria-label={t.allPositions}>
-        <option value="">{t.allPositions}</option>
-        {["GK", "DEF", "MID", "FWD"].map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-      </select>
-      <select className="period-select" value={club} onChange={(event) => setClub(event.target.value)} aria-label={t.allClubs}>
-        <option value="">{t.allClubs}</option>
-        {clubs.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-      </select>
+      {/* The same three narrowings the statistics page keeps behind a panel, kept behind one
+          here for the same reason: three native selects need more width than a phone has, and
+          shrinking them cuts the words in half. */}
+      <button className={`picker-trigger ${narrowings ? "active" : ""}`} onClick={() => setFiltersOpen(true)}>
+        <Filter /> {t.statsFilters}{narrowings ? ` (${narrowings})` : ""}
+      </button>
       <div className="price-direction" role="group" aria-label={t.risers}>
         {(([["all", t.allPlayersFilter], ["risers", t.risers], ["fallers", t.fallers], ["locked", t.lockedOnly]] as Array<[Direction, string]>)
           // Locked describes a price that cannot move yet, which is a fact about the future

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ArrowDown, ArrowUp, Clock3, Filter, Info, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { translations } from "./i18n";
+import Panel from "./Picker";
 import { insightsEndpoint, loadInsights, type PlayerInsight } from "./services/insights";
 import { carryCurrentState, loadFplWindow, type FplWindow } from "./services/fplHistory";
 import { COLUMNS_BY_KEY, DEFAULT_COLUMNS, STAT_COLUMNS, help, label, type StatColumn, type StatRow } from "./services/statColumns";
@@ -36,19 +37,6 @@ function stored<T>(key: string, fallback: T): T {
 }
 
 /** A popover with its own backdrop, used by both pickers. */
-function Panel({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return <>
-    <button className="picker-backdrop" onClick={onClose} tabIndex={-1} aria-hidden="true" />
-    <div className="picker-panel" role="dialog" aria-label={title}>
-      <div className="picker-head">
-        <b>{title}</b>
-        <button onClick={onClose} aria-label={title}><X /></button>
-      </div>
-      {children}
-    </div>
-  </>;
-}
-
 export default function Stats({ data, language, autosubs }: { data: DashboardData; language: Language; autosubs: boolean }) {
   const t = translations(language);
   const [insights, setInsights] = useState<Map<number, PlayerInsight> | null>(null);
@@ -246,7 +234,6 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       <button className={`picker-trigger ${narrowings ? "active" : ""}`} onClick={() => setOpenPicker("filters")}>
         <Filter /> {t.statsFilters}{narrowings ? ` (${narrowings})` : ""}
       </button>
-      <span className="news-count"><b>{rows.length}</b> {t.playersShown}</span>
     </div>
 
     {/* One explanation panel rather than a tooltip on every head: `title` never opens on a
@@ -281,6 +268,10 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
             <button className={`price-sort ${sort === "name" ? "active" : ""}`} onClick={() => sortBy("name", false)}>
               {t.player}{sort === "name" && (descending ? <ArrowDown /> : <ArrowUp />)}
             </button>
+            {/* How many rows the filters left, over the column they are rows of. It was a
+                pill in the filter row and looked like a control that had lost its purpose;
+                here it is a caption on the thing it counts. */}
+            <small className="head-count">{rows.length}</small>
           </span>
           {visibleColumns.map((column) => <span
             key={column.key}
@@ -414,8 +405,6 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
           >{label(column, language)}{column.seasonOnly && <i className="picker-season-only">{t.statsSeasonOnly}</i>}</button>)}
         </div>
       </div>)}
-      {/* Said once, under the group it applies to, rather than repeated on four buttons. */}
-      <p className="picker-note">{t.statsSeasonOnlyNote}</p>
       <button className="picker-reset" onClick={() => setColumns(DEFAULT_COLUMNS)}>{t.statsColumnsReset}</button>
     </Panel>}
 
