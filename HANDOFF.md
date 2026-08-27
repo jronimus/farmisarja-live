@@ -7,41 +7,44 @@ before making changes.
 
 ## Next up — start here in a new conversation
 
-All seven jobs agreed on 26 Aug 2026 are done. Where each of them ended up is written down
-where the subject lives rather than here: *OpenFPL, and why the mark was removed*, *The count
-nobody could read*, *The wire, and who was actually slow*, *Somebody else's English*, the
-clock on the articles list, and *A gameweek of FPL's own figures*.
+**Everything is shipped.** `main` is at `ec404a9`, the Pages action is green, the live page
+serves the validated build and the Worker carries every route below. There is no work in
+flight and nothing half-finished.
 
-**Everything above is shipped**, at 04:47 on 27 Aug: `main` is at `ba0a2cc`, the Pages
-action is green, the live page serves the build that was validated, and the Worker is
-deployed with `/fpl-stats`, `deals` on `/rumours` and the two new cron entries.
+The GW1 snapshot is taken and permanent — `/fpl-stats` answers `gameweeks: [1]` with 614
+players. It went in about forty hours before the GW2 deadline closed that window for good.
 
-**The GW1 snapshot is taken** — `/fpl-stats` answers `gameweeks: [1]` with 614 players, and
-it went in with about forty hours to spare before the GW2 deadline closed that window for
-good. It is permanent now.
+### What was built on 27 Aug, after the seven jobs
 
-Two things were verified live and are worth knowing:
+Each of these has its own section further down; this is the map.
 
-- The transfer wire is working. Six completed moves were recorded within minutes of the
-  Worker going up — Nico González to Newcastle, Disasi to Palace on loan — and FPL had
-  flagged **none** of them: all six still read `status: "a"` with no news. That is the gap
-  the wire exists to fill, demonstrated on the first night.
-- **Watkins is still only a rumour**, correctly. Romano has reported it and FotMob's wire has
-  not recorded the transfer as done, so the page shows it as a report with his name on it.
-  Anything on that row saying otherwise during testing was a stub.
+| | where it lives |
+| --- | --- |
+| A report the player has answered on the pitch stops warning | `worker/appearances.ts` |
+| The manager's own press conference, per club | `worker/pressers.ts` |
+| Which clubs and players an article is about | `worker/mentions.ts` |
+| Every reported move marked, weighted by grading | `src/App.tsx`, *The mark and the claim* |
 
-### What is left, in his words: "vielä ois ehkä ollu jotain pikkujuttuja"
+### Loose ends, none of them blocking
 
-Nothing named. The two known ones, neither reported by him:
+- **`matchElement` paired "Eric da Silva Moreira" with Morato**, two different Forest players
+  who share `da` and `silva`. `worker/mentions.ts` solved the same problem properly for
+  articles — refuse unless it resolves to exactly one man — and `worker/fotmob.ts` has not
+  been given the same treatment.
+- **The article tags are sparse and that is mostly correct.** Four of eighteen carry one, and
+  the other fourteen are *Transfer Tips*, *Team Reveal*, *Watchlist* — pieces that name
+  nobody. Only the headline and the lead are read, deliberately: an FPL article's body names
+  thirty players in passing.
+- The per-club Friday press pieces had not been published when this was written. They will
+  land under the same **Pressit** tag and take their club off the running article's row.
 
-- **`matchElement` matched "Eric da Silva Moreira" to Morato**, two different Forest players
-  who share `da` and `silva`. It scores on shared name parts of three letters or more, and a
-  Brazilian's full name is mostly shared parts. Worth a rule that a match on given names
-  alone is not a match.
-- A completed move ranks as `out` now, but within that group it still sorts under every owned
-  player. That is deliberate — this league's own exposure comes first — and it means an
-  unowned departure sits around 25th of 40 in the *Kaikki* scope. Check that reads right
-  before changing it.
+### Two habits this session earned the hard way
+
+- **`tsc -b` lies.** Its incremental cache hid three type errors that failed the deploy. Run
+  `npx tsc -b --force` after deleting both `.tsbuildinfo` files before pushing anything that
+  crosses the `src` / `worker` boundary.
+- **A thing can be "fixed" and still be invisible.** Twice: a mark added at 1.56:1 and a
+  count at 1.02:1. Measure the contrast, do not look at it and decide.
 
 ## Start here
 
@@ -63,6 +66,29 @@ Nothing named. The two known ones, neither reported by him:
 7. "Shippaa" is one word for the whole release: tests and build, a commit in the repository's
    own voice, push to `main`, `npx wrangler deploy`, wait for the Pages action and check the
    live page.
+
+## Working on another machine
+
+Everything needed is in the clone. On a fresh Mac:
+
+```
+git clone https://github.com/jronimus/farmisarja-live.git
+cd farmisarja-live
+cp .env.example .env
+npm install
+npm run dev
+```
+
+`.env` is gitignored but **`.env.example` is tracked and holds the same two values** — the
+league id and the Worker's public URL, neither of them a secret. Copying it is genuinely
+enough; without it the page draws its header, its footer and nothing in between.
+
+Node 24 is what this was built on. Deploying the Worker needs `npx wrangler login` once, which
+opens a browser; the Worker's secrets live in Cloudflare and never in the repo. Pushing to
+`main` deploys the front end by itself.
+
+**This file is the only thing that carries between machines.** A new conversation starts with
+no memory of the last one, so anything worth keeping belongs here rather than in a chat.
 
 ## What is here
 
@@ -108,6 +134,9 @@ proxies FPL, and drives Telegram notifications and share-card screenshots.
 | `worker/articles.ts` | Two RSS feeds, parsed and filtered, served as `/articles` |
 | `worker/fotmob.ts` | The club map and the FPL↔FotMob name matcher both FotMob readers need |
 | `worker/rumours.ts` | FotMob's graded transfer rumours and its club-wide absence lists |
+| `worker/appearances.ts` | When each player last played, which settles a stale report |
+| `worker/pressers.ts` | The clubs that have spoken before the coming gameweek |
+| `worker/mentions.ts` | Which clubs and players a headline is about |
 | `worker/transfers.ts` | FotMob's worldwide transfer wire, filtered to departures from this league |
 | `worker/lineups.ts` | Predicted elevens for the fixtures close enough to have one |
 | `src/services/rumours.ts` | Reads that list and picks the strongest report per player |
@@ -1119,6 +1148,80 @@ says when the log starts and no longer explains how a log works.
 - `bpsNote` and `defConNote` under the fixture statistics: six words each, and both are
   scoring rules a reader cannot derive from the number beside them.
 - `historyEmpty` is an empty state, and `statsFplWindowMissing` names data that is absent.
+
+## A report the player has answered on the pitch, 27 Aug
+
+A transfer rumour and an absence list are both claims about the future, and both go stale the
+same way: **the player takes the pitch.** Neither source retracts anything — FotMob's rumours
+age out after a fortnight and its absence list simply stops naming a recovered player the next
+time it is read — so nothing but the football closes them.
+
+That is a fact rather than a judgement, which is why it belongs in the page at all. Two rules,
+applied to the shirt marks in the table as well as the news list:
+
+- A rumour **filed before his last appearance** is dropped. What is left is what has been said
+  since — new talk with no minutes after it.
+- An absence is dropped when he **played in his club's most recent finished match**.
+
+`worker/appearances.ts` reads it from `event/{gw}/live/`, whose `explain` carries minutes per
+*fixture* rather than per gameweek, so a double gameweek resolves to the match he actually
+played. An unused substitute has an `explain` entry and no minutes; being in the squad is not
+having played, and the tests hold that line.
+
+## The mark and the claim, 27 Aug
+
+Villa's Martinez carried two reports on the news page while his shirt on the pitch said
+nothing, because the shirt only marked `Imminent` and `High`. The two halves of the site
+disagreed in the one way a reader notices.
+
+**Every reported move is marked; the grading decides how loudly.** A shirt has room for one
+mark and no room for a paragraph, but it has room for two weights — the difference between
+"look at this before you pick" and "somebody has written something".
+
+**And the wording follows the grading.** *"Ei välttämättä pelaamassa"* is a claim about the
+team sheet, and putting it over one newspaper's guess is what this page exists not to do. Only
+`Imminent` and `High` say it; below that the row names the destination, links the source, and
+stops.
+
+The quiet mark was then invisible — 1.56:1 against the card with a near-white glyph. It is
+**outlined rather than washed out**: the ring is the full purple at 5.35:1 and the arrow reads
+9.15:1. Fill means you can act on it, a ring means it is only telling you something, which is
+the same distinction the row count uses.
+
+## The manager's own press conference, 27 Aug
+
+Fantasy Football Scout covers a press week two ways, and the section needs both: a **running
+article per press day** with a heading per club in its body, which is all there is on the
+Wednesday and Thursday, and a **piece per club on the Friday** whose headline names it.
+
+Both are tagged **Pressit** in the article list — they are articles, not a section of their
+own. The row carries the clubs it speaks for. A club named on its own Friday piece is taken
+off the running article's row, and a running article left with nobody drops out.
+
+Two things that were wrong first:
+
+- **The cup pressers were dropped**, on the reasoning that a manager talking about Tuesday's
+  tie has said nothing about Saturday. The article says otherwise in as many words — *"Alonso
+  hopes Caicedo can be available for the visit of Brighton this weekend"*. **The heading says
+  which match the presser was called for, not what was said in it.** One club was listed where
+  four had spoken.
+- **Brighton went missing** because the club-name aliases lived in `articles.ts` and the press
+  reader had its own lookup. `clubFromName` is the one place either resolves a name now.
+
+## Which clubs and players an article is about, 27 Aug
+
+`worker/mentions.ts`, and the rules are built to refuse rather than to reach. Measured against
+the live squad of 614: **fourteen surnames belong to more than one player** and **eight are
+ordinary English words**. So a shared or word-like name is taken only when the same piece
+names a club that settles it, and then only if it settles it to exactly one man.
+
+FPL files `M.Sangaré` and `Pedro Porro` where a headline writes `Sangare` and `Porro`, so each
+player offers a few spellings of himself and the ambiguity rules run over all of them together.
+
+Verified against the live feed: *"Osula, Porro, Maddison"* tags all three, *"Can Savinho be a
+good FPL buy at Spurs?"* tags Man City and Spurs, and *"Sangare assist"* tags **nobody**,
+because M.Sangaré and I.Sangaré are two players and the headline names no club to choose
+between them. That last one is the rule working, not a gap.
 
 ## Readability, and the one thing behind most of it
 
