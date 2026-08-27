@@ -2474,7 +2474,21 @@ footer a { color:#c4c6d8; }
 /* The same arithmetic going the other way. It is worth marking and not worth shouting. */
 .price-cost .selling.gains { color:var(--green); }
 
-.price-empty { padding:26px 16px; color:var(--soft); text-align:center; font-size:13px; }
+/* An empty state looks like the list it stands in for.
+   Two of the five sit on the page's own ground rather than inside a card — the pressers and
+   the articles — and there `--soft` is an ink for a pale panel that is not there: the
+   pressers line measured **3.10:1**. Giving the state the card its list would have had puts
+   the panel back under the panel ink, and inside a list that already is one the surfaces are
+   the same colour, so nothing shows twice. */
+.price-empty {
+  padding:26px 16px;
+  border-radius:14px;
+  background:var(--surface);
+  color:var(--soft);
+  font-size:13px;
+  font-weight:700;
+  text-align:center;
+}
 
 /* How far down the list the reader is, beside the button that takes him further. It sits on
    the page's own ground, so it takes `--page-ink` — see *The count nobody could read*. The
