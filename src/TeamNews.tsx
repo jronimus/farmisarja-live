@@ -145,7 +145,7 @@ function Articles({ pressers, named, language }: { pressers: Presser[]; named: M
         {/* Who the piece is about. The shirt alone did not say which club it was — four
             crests overlapping is a pattern, not a name — so the name is the tag and the
             shirt is beside it. */}
-        {(article.clubs?.length || article.players?.length) && <span className="article-about">
+        {Boolean(article.clubs?.length || article.players?.length) && <span className="article-about">
           {article.clubs?.map((club) => <i className="about-club" key={club}>
             <img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/optimized/${club.toLowerCase()}.webp?v=20260823-gk3`} alt="" />
             {club}
@@ -364,7 +364,10 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
               : deal
                 ? (deal.onLoan ? t.hasJoinedOnLoan : t.hasJoined).replace("{to}", deal.toClub)
                 : move
-                  ? t.mayBeMoving
+                  // "Ei välttämättä pelaamassa" is a claim about the team sheet, and only a
+                  // report graded `Imminent` or `High` earns one. Below that the row reports
+                  // the report and stops.
+                  ? (move.strongest === "imminent" || move.strongest === "high" ? t.mayBeMoving : t.transferTalk)
                   : t.newsNoWord)}</em>
             <span className="news-meta">
               {/* His club's own team-news piece for the coming gameweek, where the manager

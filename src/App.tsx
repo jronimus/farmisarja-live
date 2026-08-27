@@ -486,15 +486,33 @@ function PlayerFlagMark({ player, language }: { player: SquadPlayer; language: L
       .replace("{return}", translateReturn(absence.expectedReturn, language).text || "—");
     return mark(absence.reason === "suspension" ? "out" : "major", "!", label);
   }
-  // Not FPL's, and marked apart from FPL's for that reason: a move is not an injury, and a
-  // reported one is not the same claim as a published percentage. Only the strong ones —
-  // `Low` is a newspaper having a guess, and a shirt is no place for one.
-  if (rumour && isStrong(rumour)) {
-    // The destination and who reported it. Not the grading: `Imminent` against `High` is
-    // somebody's interpretation, and it is doing its work already by deciding whether this
-    // mark appears at all.
-    const label = t.rumourFlagTitle.replace("{to}", rumour.toClub).replace("{source}", rumour.source);
-    return mark("rumour", "⇄", label);
+  /**
+   * Not FPL's, and marked apart from FPL's for that reason: a move is not an injury, and a
+   * reported one is not the same claim as a published percentage.
+   *
+   * Every reported move is marked, and the grading decides how loudly. It used to decide
+   * *whether*, on the argument that a `Low` is a newspaper having a guess and a shirt is no
+   * place for one — and that left the two halves of the site disagreeing in the one way a
+   * reader notices. Villa's Martinez carried two reports on the news page, under the same ⇄
+   * this draws, while his shirt on the pitch said nothing at all.
+   *
+   * A shirt still has room for one mark and no room for a paragraph. It has room for two
+   * weights, though, and that is the difference between "look at this before you pick" and
+   * "somebody has written something".
+   */
+  if (rumour) {
+    /**
+     * The destination and who reported it — and, only where the grading earns it, that he
+     * may not be playing.
+     *
+     * A `Low` is one newspaper having a guess. Saying "ei välttämättä pelaamassa" over that
+     * is putting a claim about the team sheet on somebody's speculation, which is the thing
+     * this page exists not to do. The quiet mark reports the report and stops.
+     */
+    const strong = isStrong(rumour);
+    const label = (strong ? t.rumourFlagTitle : t.rumourFlagQuiet)
+      .replace("{to}", rumour.toClub).replace("{source}", rumour.source);
+    return mark(strong ? "rumour" : "rumour flag-quiet", "⇄", label);
   }
   /**
    * His club's eleven has been predicted and he is not in it.

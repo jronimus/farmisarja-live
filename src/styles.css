@@ -2746,6 +2746,10 @@ footer a { color:#c4c6d8; }
    colours: the site's own purple, with the two-way arrow that means a transfer everywhere
    else in football. It only ever appears for a report FotMob grades strong or imminent. */
 .player-flag.flag-rumour { background:#7b3fe4; color:#fff; font-size:12px; }
+/* A report nobody has graded above `Low`. It is still on the shirt — the news page lists it
+   and the two should not disagree — but it is one newspaper having a guess, and it says so
+   by being quiet rather than by being absent. */
+.player-flag.flag-quiet { background:color-mix(in srgb,#7b3fe4 30%,transparent); color:#efe6ff; }
 /* Left out of a published prediction: a red triangle, because it is a warning and not a
    label. The letters `XI` were tried first and read as *he is in the eleven*, which is the
    exact opposite of what the mark means. */
