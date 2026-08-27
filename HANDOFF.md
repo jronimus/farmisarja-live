@@ -855,6 +855,22 @@ What is left is two lines of full words, both running the whole width:
 Desktop keeps all five on one line, unchanged, because the stretching and the ordering live
 in the media query.
 
+### The head is one line, and 34 px instead of 52
+
+Stacking the ⓘ above the label meant its 24 px target set the head's height on its own. Side
+by side it costs nothing vertically — the head is as tall as that target and no taller.
+
+The column pays for it in width: 72 px became 96, and the label type dropped from 9 px to 8.
+That is the cheaper of the two. A table that scrolls sideways has width to spend; a header
+band eating a fifth of a phone screen does not. The arrow moved to the cell's left edge, out
+of flow, with a matching `padding-left` on every heading — there is no room for it on the
+right, where the ⓘ is, and reserving space at the end of the line is what made "MINUUTIT"
+wrap.
+
+Three floors had to come down together, and the guard caught each one as it was missed: the
+head cells' own `min-height`, the base `.stats-headrow > span { min-height:42px }`, and a
+five-pixel bottom padding on the player heading against four everywhere else.
+
 ### A rule from the squad card that was leaking into three tables
 
 `.shirt { position:absolute; left:50%; transform:translate(-50%,-3px) }` was written for the

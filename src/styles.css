@@ -3182,6 +3182,9 @@ footer a { color:#c4c6d8; }
   .stats-headrow > .head-player { align-items:flex-end; padding-bottom:4px; }
   .stats-headrow > span,
   .stats-line > span { padding:0 7px; }
+  /* The base 42px floor is taller than anything the head now holds: the ⓘ's 24px target and
+     at most three lines of eight-pixel type. */
+  .stats-headrow > span { min-height:34px; }
   .stats-line > span { min-height:46px; }
   .stats-line .player-lines > b { font-size:11px; }
   /* Two rows on a phone, and every word whole.
@@ -3218,31 +3221,25 @@ footer a { color:#c4c6d8; }
      and its gap were taking 21 of the 58 px the heading had to fit into. The head grows to
      58 px to make room above the label — the ⓘ keeps its 24 px target, which is not
      negotiable on the one device where the target size is the whole point. */
-  /* The head stacks: the ⓘ on its own line, the label directly under it, both against the
-     right edge and both pushed to the bottom of the cell.
-     Pinning the ⓘ to the top corner left it stranded thirty pixels above the label it
-     belongs to, with nothing in between. In flow it keeps its 24px target — which is not
-     negotiable on the one layout where the target size is the point — and sits where a
-     reader can see what it is asking about. */
+  /* One line: the label, the arrow and the ⓘ side by side.
+     Stacked, the ⓘ's 24px target set the head's height on its own and the row came to 52px.
+     Beside the label it costs nothing vertically — the head is as tall as that target and no
+     taller — so the row is about thirty. The column pays for it in width instead, which is
+     the cheaper of the two: a table that scrolls sideways has width to spend and a header
+     band that eats a fifth of the screen does not. */
   .stats-headrow > .head-stat {
-    flex-direction:column;
-    /* Stretch, not flex-end. In a column flex box the cross axis is the horizontal one, so
-       `flex-end` shrank the label to its own content and it wrapped mid-word at 43px inside
-       a 72px column — "MINUUTI / T". The label is right-aligned by `text-align`, which does
-       not touch its width. */
-    align-items:stretch;
-    justify-content:flex-end;
-    gap:0;
-    /* As low as the stack allows: the ⓘ's 24px target, the label under it, and four pixels
-       under that. A wrapped label takes it to about 49px and a single-line one to 38. */
-    min-height:44px;
+    position:relative;
+    /* Bottom, not centre. Centred, a one-line label and a two-line one sit at two different
+       baselines across the row; bottom-aligned they end on the same one and the ⓘ sits with
+       them. */
+    align-items:flex-end;
+    gap:3px;
+    min-height:0;
     padding-bottom:4px;
-    /* Six hundredths of an em is worth about six pixels across a heading, which at this
-       width is the difference between one line and two. */
+    font-size:8px;
     letter-spacing:.02em;
   }
-  .head-stat .head-help { order:-1; align-self:flex-end; }
-  .head-stat .head-help svg { width:11px; height:11px; }
+  .stats-headrow > .head-player { font-size:8px; letter-spacing:.02em; }
   /* Block rather than flex. As a flex container the label is an anonymous item, which will
      not shrink below its own max-content however the wrapping is set — so a long compound
      kept overflowing the column instead of breaking inside it. */
@@ -3263,28 +3260,13 @@ footer a { color:#c4c6d8; }
     line-height:1.15;
     text-align:right;
   }
-  /* The arrow leaves the flow on the narrow layout. Inline it does two things wrong at
-     once: it makes the sorted heading's line box a pixel taller than its neighbours', and
-     in a 58px column it wraps onto a line of its own, so "xG" became two lines with an
-     arrow under it. Out of flow it does neither, and every head reserves the same width for
-     it whether it is showing one or not. */
-  /* The arrow moves up beside the ⓘ instead of taking a bite out of the label's width.
-     Reserving fourteen pixels for it at the end of the line left "MINUUTIT" — eight letters
-     of nine-pixel type — wrapping inside a 72px column, which is absurd. Up there it costs
-     the label nothing, and it is still on the heading it belongs to. */
-  /* `.head-stat` only. `.head-player` is `position:sticky`, which is already a containing
-     block for an absolutely positioned child — and giving it `relative` turns the sticky
-     off, which is how the name column slid away under the figures once before. */
+  /* The arrow sits at the cell's left edge, out of flow, with a matching `padding-left` on
+     every heading so nothing runs under it. On the right there is no room: the ⓘ is there,
+     and reserving space at the end of the line is what made "MINUUTIT" wrap. */
   .stats-headrow > .head-stat { position:relative; }
-  /* The button is the arrow's containing block, not the cell. `.head-player` is
-     `position:sticky` — it is the column that stays put while the figures scroll under it —
-     and giving it `position:relative` for the arrow's sake silently turned that off, so the
-     name column slid away under the first figures. A sticky cell is never the thing to hang
-     an absolute child on. */
-
-  /* Clear of the ⓘ, which ends 31px in from the cell edge. */
-  .head-stat .price-sort svg { position:absolute; top:5px; right:36px; }
-  .head-player .price-sort svg { position:absolute; top:6px; right:7px; }
+  .stats-headrow .price-sort { padding-left:13px; }
+  .head-stat .price-sort svg { position:absolute; left:7px; bottom:5px; }
+  .head-player .price-sort svg { position:absolute; left:0; bottom:5px; }
   .picker-panel { width:calc(100% - 20px); max-height:78vh; }
 }
 
