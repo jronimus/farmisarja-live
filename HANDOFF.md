@@ -855,6 +855,28 @@ What is left is two lines of full words, both running the whole width:
 Desktop keeps all five on one line, unchanged, because the stretching and the ordering live
 in the media query.
 
+### The header now has a guard, because it kept breaking
+
+`scripts/check-overflow.mjs` asserts three things about the statistics header at every width
+of 800 or less, which is the layout every one of these breakages showed up on:
+
+1. **The star and the name stay put** when the table is scrolled 400 px sideways.
+2. **Every heading's last line ends on the same baseline.**
+3. **The shirt sits at the same height** whether a row carries squad tags or not.
+
+It was verified by breaking the page on purpose: adding `position:relative` back to
+`.head-player` produces `FAIL 375px header — .head-player is not sticky: 66 -> -334`.
+
+**The rule that keeps being learned:** `position:sticky` *is* a positioned value, so a sticky
+cell is already a containing block for an absolutely positioned child. Adding `relative` to
+one to hang an arrow or an icon on it does not add anything — it silently turns the sticky
+off. Hang it on a child instead, or on a neighbour that is not sticky.
+
+And a second: in a **column** flex box the cross axis is the horizontal one, so
+`align-items:flex-end` shrinks a label to its own content rather than right-aligning it.
+That is how "MINUUTIT" came to wrap inside a 72 px column at 43 px wide. Stretch it and
+right-align with `text-align`.
+
 ### The heads all end on the same line, and why they did not
 
 Three separate causes, each found by measuring the last line box of every heading rather

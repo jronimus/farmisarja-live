@@ -80,6 +80,9 @@ const PROBE = `(() => {
    that bug shipped twice. This one opens the menu, walks both of its tabs, and asserts the
    menu contains its own contents. Geometry, not paint — with `overflow:hidden` on the menu
    the same row is clipped rather than spilled, and a clipped owners figure is no better. */
+let headerFailures = [];
+let headerChecks = 0;
+
 const MENU_PROBE = `(async () => {
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const trigger = document.querySelector(".player-picker-button");
@@ -108,6 +111,62 @@ const MENU_PROBE = `(async () => {
   const clubRows = menu.querySelectorAll(".player-picker-option").length;
   document.body.click();
   return JSON.stringify({ rows, clubRows, offenders: offenders.slice(0, 8) });
+})()`;
+
+/* The statistics table's header, which three separate changes have quietly broken.
+   Each break looked fine in the code and only showed up on the screen:
+   a `position:relative` added for an arrow's sake turned off the name column's
+   `position:sticky`, so it slid away under the figures; a touch target's
+   `min-height` left one-line headings floating above two-line ones; and a shirt
+   spanning two grid rows sat high in every row that grew a third. So the three
+   are asserted rather than looked at. */
+const STICKY_PROBE = `(async () => {
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const scroller = document.querySelector(".stats-scroll");
+  if (!scroller) return JSON.stringify({ skipped: "not the statistics page" });
+  const line = document.querySelector(".stats-line");
+  if (!line) return JSON.stringify({ skipped: "no rows" });
+  const offenders = [];
+
+  // 1. The star and the name stay put while the figures scroll under them.
+  const pinned = [".head-star", ".head-player", ".stats-line .stats-star", ".stats-line .price-player"];
+  const before = pinned.map((sel) => Math.round(document.querySelector(sel).getBoundingClientRect().left));
+  scroller.scrollLeft = 400;
+  await wait(120);
+  const after = pinned.map((sel) => Math.round(document.querySelector(sel).getBoundingClientRect().left));
+  pinned.forEach((sel, index) => {
+    if (before[index] !== after[index]) {
+      offenders.push({ what: sel + " is not sticky", detail: before[index] + " -> " + after[index] });
+    }
+  });
+  scroller.scrollLeft = 0;
+  await wait(120);
+
+  // 2. Every heading's last line ends on the same baseline.
+  const bottomOf = (button) => {
+    const text = [...button.childNodes].find((node) => node.nodeType === 3);
+    if (!text) return null;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    const rects = [...range.getClientRects()];
+    return rects.length ? Math.round(rects[rects.length - 1].bottom) : null;
+  };
+  const bottoms = [...new Set([...document.querySelectorAll(".stats-headrow .price-sort")]
+    .map(bottomOf).filter((value) => value !== null))];
+  if (bottoms.length > 1) offenders.push({ what: "headings end on different lines", detail: bottoms.join(", ") });
+
+  // 3. The shirt sits at the same height whether the row carries squad tags or not.
+  const offsets = [...new Set([...document.querySelectorAll(".stats-line")].slice(0, 20).map((row) => {
+    const cell = row.querySelector(".price-player");
+    const shirt = row.querySelector(".shirt");
+    if (!cell || !shirt) return null;
+    const c = cell.getBoundingClientRect();
+    const s = shirt.getBoundingClientRect();
+    return Math.round((s.top + s.height / 2) - (c.top + c.height / 2));
+  }).filter((value) => value !== null))];
+  if (offsets.length > 1) offenders.push({ what: "the shirt sits at different heights", detail: offsets.join(", ") });
+
+  return JSON.stringify({ offenders });
 })()`;
 
 /* Headless Chrome draws overlay scrollbars, so 100vw and the layout width agree
@@ -236,6 +295,30 @@ for (const width of widths) {
     console.log(`ok   ${width}px  ${url.includes("#/") ? url.slice(url.indexOf("#")) : "/"}`);
   }
 
+  // The statistics header, asserted only where it exists and only on the narrow layout,
+  // which is the one every one of these breakages showed up on.
+  if (url.includes("#/tilastot") && width <= 800) {
+    let sticky = {};
+    for (let attempt = 0; attempt < 2 && typeof sticky.value !== "string"; attempt += 1) {
+      if (attempt) await sleep(500);
+      ({ result: sticky = {} } = await send("Runtime.evaluate", { expression: STICKY_PROBE, returnByValue: true, awaitPromise: true }));
+    }
+    const report = typeof sticky.value === "string" ? JSON.parse(sticky.value) : { failed: true };
+    if (report.failed) {
+      console.error(`FAIL ${width}px header — the probe did not run`);
+      headerFailures.push({ width, offenders: [] });
+    } else if (report.skipped) {
+      console.log(`     header ${width}px — skipped, ${report.skipped}`);
+    } else if (report.offenders.length) {
+      headerFailures.push({ width, offenders: report.offenders });
+      console.log(`FAIL ${width}px header`);
+      for (const offender of report.offenders) console.log(`       ${offender.what}: ${offender.detail}`);
+    } else {
+      headerChecks += 1;
+      console.log(`ok   ${width}px  statistics header`);
+    }
+  }
+
   // The picker only exists on the table page, and only where the toolbar shows it.
   if (!url.includes("#/")) {
     // Two attempts. The evaluate comes back without a result when its execution context
@@ -282,10 +365,11 @@ socket.close();
 chrome.kill();
 await rm(profile, { recursive: true, force: true }).catch(() => {});
 
-if (failures.length || menuFailures.length || viewportUnits.length) {
+if (failures.length || menuFailures.length || headerFailures.length || viewportUnits.length) {
   console.error(`\n${failures.length} of ${widths.length * urls.length} widths overflow, `
     + `${menuFailures.length} picker menus paint outside themselves, `
+    + `${headerFailures.length} statistics headers are broken, `
     + `${viewportUnits.length} viewport-unit widths.`);
   process.exit(1);
 }
-console.log(`\nAll ${widths.length * urls.length} widths and ${menuChecks} picker menus fit.`);
+console.log("\nAll " + widths.length * urls.length + " widths, " + menuChecks + " picker menus and " + headerChecks + " statistics headers are sound.");

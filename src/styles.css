@@ -2941,27 +2941,43 @@ footer a { color:#c4c6d8; }
 .stats-line.is-held > span { background:color-mix(in srgb,var(--pick) 6%,transparent); }
 /* The name column stays put while the figures scroll under it: a row of numbers with no
    name attached is unreadable, and this table is wider than any screen. */
+/* Both layers, because both tokens are translucent in this skin: `--surface` composites at
+   .96 and `--raised` at .92, which is invisible until something scrolls underneath — and
+   then the figures print faintly through the name column that is supposed to be covering
+   them. The colour goes on as an image over an opaque backstop. */
 .stats-headrow > .head-star,
 .stats-headrow > .head-player,
 .stats-line > .stats-star,
-.stats-line > .price-player { position:sticky; z-index:1; background:var(--surface); }
+.stats-line > .price-player {
+  position:sticky;
+  z-index:1;
+  background-color:var(--menu);
+  background-image:linear-gradient(var(--surface),var(--surface));
+}
 .stats-headrow > .head-star,
-.stats-headrow > .head-player { z-index:3; background:var(--raised); }
+.stats-headrow > .head-player { z-index:3; background-image:linear-gradient(var(--raised),var(--raised)); }
 .stats-headrow > .head-star,
 .stats-line > .stats-star { left:0; padding-inline:6px; }
 .stats-headrow > .head-player,
 .stats-line > .price-player { left:34px; box-shadow:1px 0 0 color-mix(in srgb,var(--faint) 22%,transparent); }
 .stats-line.is-held > .stats-star,
-.stats-line.is-held > .price-player { background:color-mix(in srgb,var(--pick) 6%,var(--surface)); }
+.stats-line.is-held > .price-player {
+  background-image:linear-gradient(
+    color-mix(in srgb,var(--pick) 6%,var(--surface)),
+    color-mix(in srgb,var(--pick) 6%,var(--surface)));
+}
 
-.stats-line .price-player { display:grid; grid-template-columns:24px auto; grid-template-rows:auto auto; column-gap:8px; min-width:0; }
-.stats-line .price-player .shirt { grid-row:1 / 3; width:24px; height:24px; position:relative; }
+/* A flex row, not a two-row grid. The shirt centres against however many lines the name
+   block has — one squad, five, or none — where a grid had it spanning two fixed rows. */
+.stats-line .price-player { display:flex; align-items:center; gap:8px; min-width:0; }
+.stats-line .player-lines { display:flex; flex-direction:column; min-width:0; }
+.stats-line .price-player .shirt { flex:none; width:24px; height:24px; position:relative; }
 .stats-line .price-player .shirt-image { width:24px; height:24px; object-fit:contain; }
-.stats-line .price-player > b { grid-column:2; font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.stats-line .price-player > small { grid-column:2; color:var(--faint); font-size:9px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stats-line .player-lines > b { font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stats-line .player-lines > small { color:var(--faint); font-size:9px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 /* The squads holding him. A list rather than a sentence, so it can wrap to as many lines as
    it needs instead of ending in an ellipsis that hides how many there were. */
-.stats-line .price-player .price-owners {
+.stats-line .player-lines .price-owners {
   display:flex;
   flex-wrap:wrap;
   gap:2px 4px;
@@ -2974,7 +2990,7 @@ footer a { color:#c4c6d8; }
    phone. Rather than truncate, the tag drops a pixel of type on the narrow layout, which
    is enough for the longest name in the league to keep to one line — a name wrapping inside
    a pill was the first thing tried and it looked like a mistake. */
-.stats-line .price-player .price-owners b {
+.stats-line .player-lines .price-owners b {
   max-width:none;
   overflow:visible;
   text-overflow:clip;
@@ -2982,7 +2998,7 @@ footer a { color:#c4c6d8; }
 /* The block centres in its cell rather than starting at the top of it: a row with tags is
    taller than one without, and left at the top the name floated away from the figures it
    belongs to. */
-.stats-line .price-player { align-content:center; }
+
 
 .stats-cell { justify-content:flex-end; }
 .stats-cell b { font-size:13px; font-weight:900; font-variant-numeric:tabular-nums; }
@@ -3166,7 +3182,7 @@ footer a { color:#c4c6d8; }
   .stats-headrow > span,
   .stats-line > span { padding:0 7px; }
   .stats-line > span { min-height:46px; }
-  .stats-line .price-player > b { font-size:11px; }
+  .stats-line .player-lines > b { font-size:11px; }
   /* Two rows on a phone, and every word whole.
      Packing eight controls onto two lines worked and read badly: the selects and the search
      were squeezed until "Joukkueet" and "Pelipaikat" were cut in half, which is a control a
@@ -3190,10 +3206,10 @@ footer a { color:#c4c6d8; }
   /* The three share the second line rather than ending it short. A row that stops two
      thirds of the way across reads as unfinished, and there is nothing else to put there. */
   .stats-page .price-filters > button { order:3; flex:1 1 auto; justify-content:center; }
-  .stats-line .price-player > small { font-size:8px; }
+  .stats-line .player-lines > small { font-size:8px; }
   /* Eight pixels of tag, which fits "Karjarannan Hurjat" — the longest name in the league —
      on one line in the ninety the name column has. */
-  .stats-line .price-player .price-owners b { padding:1px 5px; font-size:8px; }
+  .stats-line .player-lines .price-owners b { padding:1px 5px; font-size:8px; }
   /* The figure loses a pixel of type so the widest of them — a six-figure net transfer
      count with a sign on it — still clears the 58 px a 72 px column leaves. */
   .stats-cell b { font-size:12px; }
@@ -3201,16 +3217,28 @@ footer a { color:#c4c6d8; }
      and its gap were taking 21 of the 58 px the heading had to fit into. The head grows to
      58 px to make room above the label — the ⓘ keeps its 24 px target, which is not
      negotiable on the one device where the target size is the whole point. */
+  /* The head stacks: the ⓘ on its own line, the label directly under it, both against the
+     right edge and both pushed to the bottom of the cell.
+     Pinning the ⓘ to the top corner left it stranded thirty pixels above the label it
+     belongs to, with nothing in between. In flow it keeps its 24px target — which is not
+     negotiable on the one layout where the target size is the point — and sits where a
+     reader can see what it is asking about. */
   .stats-headrow > .head-stat {
-    position:relative;
-    align-items:flex-end;
+    flex-direction:column;
+    /* Stretch, not flex-end. In a column flex box the cross axis is the horizontal one, so
+       `flex-end` shrank the label to its own content and it wrapped mid-word at 43px inside
+       a 72px column — "MINUUTI / T". The label is right-aligned by `text-align`, which does
+       not touch its width. */
+    align-items:stretch;
+    justify-content:flex-end;
+    gap:1px;
     min-height:58px;
     padding-bottom:5px;
     /* Six hundredths of an em is worth about six pixels across a heading, which at this
        width is the difference between one line and two. */
     letter-spacing:.02em;
   }
-  .head-stat .head-help { position:absolute; top:1px; right:1px; }
+  .head-stat .head-help { order:-1; align-self:flex-end; }
   .head-stat .head-help svg { width:11px; height:11px; }
   /* Block rather than flex. As a flex container the label is an anonymous item, which will
      not shrink below its own max-content however the wrapping is set — so a long compound
@@ -3237,10 +3265,23 @@ footer a { color:#c4c6d8; }
      in a 58px column it wraps onto a line of its own, so "xG" became two lines with an
      arrow under it. Out of flow it does neither, and every head reserves the same width for
      it whether it is showing one or not. */
-  .head-stat .price-sort { padding-right:13px; }
-  .head-player .price-sort { padding-right:13px; }
-  .stats-headrow .price-sort svg { position:absolute; right:6px; bottom:6px; }
-  .stats-headrow > .head-player { position:relative; }
+  /* The arrow moves up beside the ⓘ instead of taking a bite out of the label's width.
+     Reserving fourteen pixels for it at the end of the line left "MINUUTIT" — eight letters
+     of nine-pixel type — wrapping inside a 72px column, which is absurd. Up there it costs
+     the label nothing, and it is still on the heading it belongs to. */
+  /* `.head-stat` only. `.head-player` is `position:sticky`, which is already a containing
+     block for an absolutely positioned child — and giving it `relative` turns the sticky
+     off, which is how the name column slid away under the figures once before. */
+  .stats-headrow > .head-stat { position:relative; }
+  /* The button is the arrow's containing block, not the cell. `.head-player` is
+     `position:sticky` — it is the column that stays put while the figures scroll under it —
+     and giving it `position:relative` for the arrow's sake silently turned that off, so the
+     name column slid away under the first figures. A sticky cell is never the thing to hang
+     an absolute child on. */
+
+  /* Clear of the ⓘ, which ends 31px in from the cell edge. */
+  .head-stat .price-sort svg { position:absolute; top:6px; right:36px; }
+  .head-player .price-sort svg { position:absolute; top:6px; right:7px; }
   .picker-panel { width:calc(100% - 20px); max-height:78vh; }
 }
 

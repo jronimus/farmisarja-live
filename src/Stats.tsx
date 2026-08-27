@@ -312,6 +312,11 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
             </span>
             <span className="price-player">
               <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/${row.player.position === "GK" ? "optimized-gk" : "optimized"}/${row.player.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
+              {/* The lines are wrapped so the shirt can centre against all of them.
+                  As a two-row grid with the shirt spanning both, a third line — the squads —
+                  left the shirt centred on the first two and sitting visibly high in every
+                  row that had one. */}
+              <span className="player-lines">
               <b>{row.player.name}</b>
               <small>{row.player.club} · {row.player.position}</small>
               {/* The squads that hold him, on a line of their own that is allowed to wrap.
@@ -322,6 +327,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
               {held.length > 0 && <small className="price-owners">
                 {held.map((team) => <b key={team}>{team}</b>)}
               </small>}
+              </span>
             </span>
             {visibleColumns.map((column) => {
               const cell = figure(column, row);
