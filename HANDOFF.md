@@ -855,12 +855,32 @@ What is left is two lines of full words, both running the whole width:
 Desktop keeps all five on one line, unchanged, because the stretching and the ordering live
 in the media query.
 
+### The heads all end on the same line, and why they did not
+
+Three separate causes, each found by measuring the last line box of every heading rather
+than by looking:
+
+- **`min-height:24px`** — the touch target on `.price-sort`. In a block box a one-line
+  heading floated at the top of those 24 pixels while a two-line one nearly filled them, so
+  the last lines sat at 293, 298 and 300. The button is a bottom-aligned column flex box now,
+  stretched rather than shrunk to fit so the text still wraps.
+- **The sort arrow, inline.** `vertical-align:-1px` moved the whole line box down with it, so
+  the one sorted heading sat a pixel below the seven beside it. Reserving the space for every
+  heading fixed the alignment and broke something else: in a 58 px column the arrow wrapped
+  onto a line of its own, and "xG" became two lines with an arrow under it. On the narrow
+  layout it is out of flow, with a matching `padding-right` on every head so nothing runs
+  under where it sits.
+- **The player heading was left centred** while the sixteen beside it were bottom aligned.
+
+Measured after: one distinct bottom across all seventeen, on the phone and at 1440.
+
 ### The count belongs to the column, not to the filter row
 
 Two attempts said the same thing: as bare text between 38 px controls it read as something
 left behind, and as an outlined pill it read as a control that had lost its purpose. It is a
-caption on the thing it counts, so it now sits in the table's own **PELAAJA** head, right
-aligned. That also empties it out of the filter row, which is what let those rows come out
+caption on the thing it counts, so it now sits in the table's own **PELAAJA** head, directly
+after the word rather than pushed to the far edge of the cell, where it read as a stray
+figure. That also empties it out of the filter row, which is what let those rows come out
 even.
 
 ### No line stops short of the edge

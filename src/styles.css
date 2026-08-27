@@ -2357,6 +2357,9 @@ footer a { color:#c4c6d8; }
 /* Height as well as width: an unsized lucide icon keeps its 24px box and makes the one
    sorted header two-thirds taller than the seven beside it. */
 .price-sort svg { width:11px; height:11px; }
+/* The arrow is always drawn so every heading has the same line box; only the sorted one
+   is visible. */
+.price-sort .sort-idle { opacity:0; }
 .price-sort.active { color:var(--text); }
 
 .price-row { min-height:56px; border-top:1px solid color-mix(in srgb,var(--faint) 22%,transparent); }
@@ -3156,6 +3159,10 @@ footer a { color:#c4c6d8; }
   .stats-line > .stats-star { padding-inline:2px; }
   .stats-headrow > .head-player,
   .stats-line > .price-player { left:28px; }
+  /* The player heading sits on the same line as the sixteen beside it. The stat heads are
+     bottom aligned because their labels wrap to two lines; this one was left centred and
+     floated above them. */
+  .stats-headrow > .head-player { align-items:flex-end; padding-bottom:5px; }
   .stats-headrow > span,
   .stats-line > span { padding:0 7px; }
   .stats-line > span { min-height:46px; }
@@ -3208,15 +3215,32 @@ footer a { color:#c4c6d8; }
   /* Block rather than flex. As a flex container the label is an anonymous item, which will
      not shrink below its own max-content however the wrapping is set — so a long compound
      kept overflowing the column instead of breaking inside it. */
-  .head-stat .price-sort {
-    display:block;
+  /* A column flex box, bottom aligned, rather than a block.
+     `.price-sort` carries `min-height:24px` for the touch target, and in a block box a
+     one-line heading then floated at the top of those 24 pixels while a two-line one nearly
+     filled them — so the headings' last lines sat at three different heights across the row.
+     Stretched and pushed to the bottom they all end on the same line, and the anonymous
+     text item still wraps because it is stretched rather than shrunk to fit. */
+  .stats-headrow .price-sort {
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
+    align-items:stretch;
     white-space:normal;
     overflow-wrap:break-word;
     hyphens:auto;
     line-height:1.15;
     text-align:right;
   }
-  .head-stat .price-sort svg { display:inline-block; vertical-align:-1px; }
+  /* The arrow leaves the flow on the narrow layout. Inline it does two things wrong at
+     once: it makes the sorted heading's line box a pixel taller than its neighbours', and
+     in a 58px column it wraps onto a line of its own, so "xG" became two lines with an
+     arrow under it. Out of flow it does neither, and every head reserves the same width for
+     it whether it is showing one or not. */
+  .head-stat .price-sort { padding-right:13px; }
+  .head-player .price-sort { padding-right:13px; }
+  .stats-headrow .price-sort svg { position:absolute; right:6px; bottom:6px; }
+  .stats-headrow > .head-player { position:relative; }
   .picker-panel { width:calc(100% - 20px); max-height:78vh; }
 }
 
@@ -3951,8 +3975,7 @@ input:focus-visible,
    word beside it steps back into the same small caps as a column head: the number is the
    answer and "pelaajaa" is only its unit. */
 .head-count {
-  margin-left:auto;
-  padding-left:8px;
+  padding-left:2px;
   color:color-mix(in srgb,var(--soft) 55%,var(--text));
   font-size:10px;
   font-weight:900;
@@ -3987,15 +4010,16 @@ input:focus-visible,
   text-transform:none;
 }
 
-/* An unstyled link inherits the browser's 1990s blue, which read 1.88:1 here. Every link
-   inside a footnote is now the same cyan the rest of the site uses for a link out, and it
-   is underlined: colour alone is not a signal for a reader who cannot separate these two. */
-/* A link in a footnote, kept cyan enough to read as a link and mixed toward the page's own
-   ink so it clears 4.5:1 in every skin. Underlined as well: colour alone is not a signal
-   for a reader who cannot separate these two. */
+/* A link in a footnote, kept cyan enough to read as a link. Underlined as well, because
+   colour alone is not a signal for a reader who cannot separate these two.
+   The mix is toward `--page-ink` and not `--text`: these footnotes sit on the page's own
+   dark ground, `--text` is the ink for the pale panels, and mixing cyan into it produced a
+   dark teal on dark green that measured **1.79:1** — under a sentence measuring 10.44. The
+   third time this exact mistake has been made, and the tell is the same every time: an
+   element outside a panel taking the panel's ink. */
 .price-disclaimer a,
 .sources-intro a {
-  color:color-mix(in srgb,var(--cyan) 55%,var(--text));
+  color:color-mix(in srgb,var(--cyan) 45%,var(--page-ink));
   text-decoration:underline;
   text-underline-offset:2px;
 }

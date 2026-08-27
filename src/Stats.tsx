@@ -266,7 +266,9 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
           <span className="head-star" aria-hidden="true" />
           <span className="head-player">
             <button className={`price-sort ${sort === "name" ? "active" : ""}`} onClick={() => sortBy("name", false)}>
-              {t.player}{sort === "name" && (descending ? <ArrowDown /> : <ArrowUp />)}
+              {t.player}{sort === "name"
+                ? (descending ? <ArrowDown /> : <ArrowUp />)
+                : <ArrowDown className="sort-idle" />}
             </button>
             {/* How many rows the filters left, over the column they are rows of. It was a
                 pill in the filter row and looked like a control that had lost its purpose;
@@ -284,7 +286,13 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
               onClick={() => sortBy(column.key)}
               onFocus={(event) => showHint(column, event.currentTarget.parentElement as HTMLElement)}
               onBlur={() => setHint(null)}
-            >{label(column, language)}{sort === column.key && (descending ? <ArrowDown /> : <ArrowUp />)}</button>
+            >{label(column, language)}{sort === column.key
+              ? (descending ? <ArrowDown /> : <ArrowUp />)
+              // Drawn and hidden rather than left out: an arrow that appears only on the
+              // sorted column makes that one heading's line box taller than the seven beside
+              // it, and the word sits a pixel or two below its neighbours. Reserving the
+              // space for all of them is the same trick the league table already uses.
+              : <ArrowDown className="sort-idle" />}</button>
             <button className="head-help" onClick={() => setExplained(column)} aria-label={`${label(column, language)}: ${help(column, language)}`}><Info /></button>
           </span>)}
         </div>
