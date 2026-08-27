@@ -52,6 +52,16 @@ describe("transfer rumours", () => {
     expect(out[1]).toMatchObject({ strength: "imminent", staysInLeague: true, source: "The Athletic", fromClub: "MCI" });
   });
 
+  it("drops a move to the club he already plays for", () => {
+    // FotMob files contract talk in the transfer list with both ends the same club: Romano
+    // on Bruno Fernandes to Man United, while he is Man United's captain.
+    const payload = { transfers: { allRumours: [
+      { name: "Jack Grealish", fromClubId: 8456, fromClub: "Man City", toClub: "Man City", toClubId: 8456,
+        probability: "Medium", sourceName: "Fabrizio Romano", transferDate: "2026-08-20T07:23:00Z", rumourId: 31 },
+    ] } };
+    expect(rumoursFromTeam(payload, elements, teamByShort)).toEqual([]);
+  });
+
   it("keeps all four of FotMob's grades, Medium included", () => {
     // `Medium` was missing from the grade table and an unknown grade is skipped, so every
     // Medium report was being dropped: eighteen across the league on 26 Aug, among them

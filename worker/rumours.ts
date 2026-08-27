@@ -112,6 +112,16 @@ export function rumoursFromTeam(
     // Only players leaving a Premier League club. An incoming rumour is about somebody who
     // is not in the game yet, and FPL squads cannot hold him either way.
     if (!CLUBS[entry.fromClubId]) continue;
+    /**
+     * A move to the club he already plays for is not a move.
+     *
+     * FotMob files contract talk in the same list as transfers, with both ends set to the
+     * same club — Romano on Bruno Fernandes to Man United, graded `Medium`, while he is
+     * Man United's captain. It came out as "Siirtohuhu — ei välttämättä pelaamassa", which
+     * is exactly backwards: a player signing a new deal where he is is the one player on the
+     * page whose minutes are *not* in question.
+     */
+    if (entry.toClubId === entry.fromClubId) continue;
     const strength = STRENGTH[(entry.probability ?? "").toLowerCase()];
     if (!strength) continue;
     const element = matchElement(entry.name, entry.fromClubId, elements, teamByShort);
