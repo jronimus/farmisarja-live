@@ -833,18 +833,33 @@ mistake.** The fix is a pixel of type: at 8 px the longest name in the league, "
 Hurjat", is 90 px against the 94 the name column now gives it. The block also centres in its
 cell — left at the top, the name floated away from the figures it belongs to.
 
-### Eight controls, two lines
+### Four narrowings behind one button
 
-The statistics filter row wrapped 2 / 3 / 2 on a phone, with the player count alone on the
-last line for itself, and a club filter still had to be added — the price page had three
-selects and this page had two.
+Squeezing eight controls onto two lines worked and read badly: the selects and the search
+were shrunk until "Joukkueet" and "Pelipaikat" were cut in half, which is a control a reader
+has to guess at.
 
-It is two lines now, 337 px used of 355 on each. The order is set in the media query rather
-than in the markup, so the desktop row keeps its natural sequence: the count moves up beside
-the search, and the four controls that narrow the table share the second line. Labels lose a
-pixel of type, the row loses three pixels of gap, and the favourites button loses its word —
-a star with a number beside it is not a control anybody has to read to recognise. Nothing
-else is hidden.
+The three selects and the favourites toggle are behind a **Rajaa** panel now, which counts
+its own active narrowings on the button. That is the idiom the page already had — the
+gameweeks and the columns are panels — and it removes native `<select>` from this row
+entirely, so nothing here is sized by the browser. Chips inside a panel beat a `<select>` on
+a phone anyway.
+
+What is left is two lines of full words, both running the whole width:
+
+- the search and the count
+- **Koko kausi · Sarakkeet (n) · Rajaa (n)**, sharing the line at `flex:1 1 0` so it does not
+  stop two thirds of the way across
+
+Desktop keeps all five on one line, unchanged, because the stretching and the ordering live
+in the media query.
+
+### The count is a readout, and now looks like one
+
+It sat as bare 18 px text between 38 px controls, which reads as something left behind rather
+than something placed. It is 38 px now, pill-shaped like its neighbours, and **outlined
+rather than filled** — that is the whole distinction: the pills around it are filled because
+they can be pressed, and this one cannot. It is what the filters returned.
 
 ### An explanation for a pointer, without a press
 

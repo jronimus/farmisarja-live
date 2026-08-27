@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Clock3, Info, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, Filter, Info, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { translations } from "./i18n";
 import { insightsEndpoint, loadInsights, type PlayerInsight } from "./services/insights";
 import { carryCurrentState, loadFplWindow, type FplWindow } from "./services/fplHistory";
@@ -74,7 +74,7 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
   const [sort, setSort] = useState("totalPoints");
   const [descending, setDescending] = useState(true);
   const [shown, setShown] = useState(PAGE_STEP);
-  const [openPicker, setOpenPicker] = useState<"columns" | "gameweeks" | null>(null);
+  const [openPicker, setOpenPicker] = useState<"columns" | "gameweeks" | "filters" | null>(null);
   const [explained, setExplained] = useState<StatColumn | null>(null);
   /**
    * The same explanation on hover, for a reader who has a pointer.
@@ -221,6 +221,8 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
     else { setSort(key); setDescending(downFirst); }
   };
 
+  /** How many narrowings are on, so the button says so without opening it. */
+  const narrowings = [manager, position, club].filter(Boolean).length + (onlyFavourites ? 1 : 0);
   const visible = rows.slice(0, shown);
   const windowLabel = picked.length === 0 ? t.statsSeason
     : picked.length === 1 ? t.statsGameweek.replace("{n}", String(picked[0]))
@@ -236,26 +238,14 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       <button className="picker-trigger" onClick={() => setOpenPicker("columns")}>
         <SlidersHorizontal /> {t.statsColumnsButton.replace("{n}", String(visibleColumns.length))}
       </button>
-      <select className="period-select" value={manager} onChange={(event) => setManager(event.target.value)} aria-label={t.allTeams}>
-        <option value="">{t.allTeams}</option>
-        {data.managers.map((entry) => <option key={entry.id} value={entry.id}>{entry.teamName}</option>)}
-      </select>
-      <select className="period-select" value={position} onChange={(event) => setPosition(event.target.value)} aria-label={t.allPositions}>
-        <option value="">{t.allPositions}</option>
-        {["GK", "DEF", "MID", "FWD"].map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-      </select>
-      <select className="period-select" value={club} onChange={(event) => setClub(event.target.value)} aria-label={t.allClubs}>
-        <option value="">{t.allClubs}</option>
-        {clubs.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-      </select>
-      <button
-        className={`favourite-filter ${onlyFavourites ? "active" : ""}`}
-        onClick={() => setOnlyFavourites((value) => !value)}
-        aria-pressed={onlyFavourites}
-      >{/* The word goes on a phone and the star and the count stay: the row has eight
-           controls to fit on two lines, and a star with a number beside it is not a
-           control anybody has to read to recognise. */}
-        <Star /> <span className="filter-word">{t.statsFavourites} </span>({favourites.length})</button>
+      {/* Four narrowings behind one button rather than four controls in the row.
+          Three native selects and a toggle needed more width than a phone has, and shrinking
+          them cut the words in half — "Joukkue…", "Pelipaik…" — which is a control a reader
+          has to guess at. The page already puts the gameweeks and the columns behind a panel,
+          so this is the idiom it already had. */}
+      <button className={`picker-trigger ${narrowings ? "active" : ""}`} onClick={() => setOpenPicker("filters")}>
+        <Filter /> {t.statsFilters}{narrowings ? ` (${narrowings})` : ""}
+      </button>
       <span className="news-count"><b>{rows.length}</b> {t.playersShown}</span>
     </div>
 
@@ -359,6 +349,56 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
           onClick={() => setPicked((list) => toggle(list, week))}
         >{t.statsGameweek.replace("{n}", String(week))}</button>)}
       </div>
+    </Panel>}
+
+    {openPicker === "filters" && <Panel title={t.statsFilters} onClose={() => setOpenPicker(null)}>
+      <div className="picker-group">
+        <b>{t.allTeams}</b>
+        <div className="picker-options">
+          <button className={manager ? "" : "active"} onClick={() => setManager("")}>{t.allTeams}</button>
+          {data.managers.map((entry) => <button
+            key={entry.id}
+            className={manager === String(entry.id) ? "active" : ""}
+            aria-pressed={manager === String(entry.id)}
+            onClick={() => setManager((value) => value === String(entry.id) ? "" : String(entry.id))}
+          >{entry.teamName}</button>)}
+        </div>
+      </div>
+      <div className="picker-group">
+        <b>{t.allPositions}</b>
+        <div className="picker-options">
+          <button className={position ? "" : "active"} onClick={() => setPosition("")}>{t.allPositions}</button>
+          {["GK", "DEF", "MID", "FWD"].map((entry) => <button
+            key={entry}
+            className={position === entry ? "active" : ""}
+            aria-pressed={position === entry}
+            onClick={() => setPosition((value) => value === entry ? "" : entry)}
+          >{entry}</button>)}
+        </div>
+      </div>
+      <div className="picker-group">
+        <b>{t.allClubs}</b>
+        <div className="picker-options">
+          <button className={club ? "" : "active"} onClick={() => setClub("")}>{t.allClubs}</button>
+          {clubs.map((entry) => <button
+            key={entry}
+            className={club === entry ? "active" : ""}
+            aria-pressed={club === entry}
+            onClick={() => setClub((value) => value === entry ? "" : entry)}
+          >{entry}</button>)}
+        </div>
+      </div>
+      <div className="picker-group">
+        <b>{t.statsFavourites}</b>
+        <div className="picker-options">
+          <button
+            className={onlyFavourites ? "active" : ""}
+            aria-pressed={onlyFavourites}
+            onClick={() => setOnlyFavourites((value) => !value)}
+          ><Star /> {t.statsFavourites} ({favourites.length})</button>
+        </div>
+      </div>
+      <button className="picker-reset" onClick={() => { setManager(""); setPosition(""); setClub(""); setOnlyFavourites(false); }}>{t.statsFiltersReset}</button>
     </Panel>}
 
     {openPicker === "columns" && <Panel title={t.statsColumnsTitle} onClose={() => setOpenPicker(null)}>
