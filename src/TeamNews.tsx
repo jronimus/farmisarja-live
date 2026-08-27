@@ -26,7 +26,7 @@ import type { DashboardData, Language, PlayerNews } from "./types";
  * while "articles" replaces it with something else entirely. So the page is two sections
  * now, and the scope lives inside the one it belongs to.
  */
-type Section = "availability" | "pressers" | "articles";
+type Section = "availability" | "articles";
 type Scope = "ours" | "all";
 
 /** Anyone the league is exposed to comes first; the rest of the game is behind a filter. */
@@ -88,7 +88,7 @@ function Since({ at, language }: { at: string | null; language: Language }) {
  * rather than pointing at it. No images either: neither feed carries one, and fetching
  * their pages for an OG tag would be a dozen requests to hotlink somebody else's picture.
  */
-function Articles({ language }: { language: Language }) {
+function Articles({ pressers, language }: { pressers: Presser[]; language: Language }) {
   const t = translations(language);
   const [articles, setArticles] = useState<Article[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -96,8 +96,7 @@ function Articles({ language }: { language: Language }) {
 
   useEffect(() => {
     let active = true;
-    loadArticles().then((body) => body?.articles ?? [])
-      .then((next) => { if (active) setArticles(next ?? []); })
+    loadArticles().then((body) => { if (active) setArticles(body?.articles ?? []); })
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, []);
@@ -109,8 +108,18 @@ function Articles({ language }: { language: Language }) {
     <Clock3 /><strong>{t.articlesLoading}</strong>
   </section>;
 
-  const topics = topicsPresent(articles);
-  const shown = topic ? articles.filter((article) => article.topic === topic) : articles;
+  /**
+   * A press piece is an article with a tag, not a section of its own.
+   *
+   * Which clubs it speaks for is the only thing the list cannot work out for itself, so the
+   * Worker's reading is joined back on by url and the row carries their shirts.
+   */
+  const clubsByUrl = new Map(pressers.map((presser) => [presser.url, presser.clubs]));
+  const tagged = articles.map((article) => clubsByUrl.has(article.url)
+    ? { ...article, topic: "pressers" }
+    : article);
+  const topics = topicsPresent(tagged);
+  const shown = topic ? tagged.filter((article) => article.topic === topic) : tagged;
 
   return <>
     {topics.length > 1 && <div className="topic-filters" role="group" aria-label={t.articleTopics}>
@@ -129,6 +138,11 @@ function Articles({ language }: { language: Language }) {
         rel="noopener noreferrer"
       >
         <span className="article-head">
+          {clubsByUrl.get(article.url)?.length && <span className="presser-clubs">
+            {clubsByUrl.get(article.url)!.map((club) => <i className="shirt" key={club} title={club}>
+              <img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/optimized/${club.toLowerCase()}.webp?v=20260823-gk3`} alt={club} />
+            </i>)}
+          </span>}
           <b>{article.title}</b>
           {article.topic && <i className={`article-topic topic-${article.topic}`}>{t.topics[article.topic as keyof typeof t.topics] ?? article.topic}</i>}
         </span>
@@ -153,33 +167,6 @@ function Articles({ language }: { language: Language }) {
  * fully" into a cleared flag would be a judgement of ours wearing his words. The piece is
  * put in front of the reader instead, beside the club it is about, and he decides.
  */
-function Pressers({ pressers, gameweek, language }: { pressers: Presser[]; gameweek: number; language: Language }) {
-  const t = translations(language);
-  const shown = pressers.filter((entry) => entry.gameweek === gameweek);
-  if (!shown.length) {
-    return <div className="price-empty">{t.pressersNone.replace("{n}", String(gameweek))}</div>;
-  }
-  return <div className="presser-list">
-    {shown.map((presser) => <a
-      className="presser-row"
-      key={presser.club}
-      href={presser.url}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <i className="shirt"><img className="shirt-image" src={`${import.meta.env.BASE_URL}kits/optimized/${presser.club.toLowerCase()}.webp?v=20260823-gk3`} alt="" /></i>
-      <span className="presser-lines">
-        <b>{presser.club}</b>
-        <em>{presser.title}</em>
-      </span>
-      <span className="presser-meta">
-        <Published at={presser.published} language={language} />
-        <ExternalLink />
-      </span>
-    </a>)}
-  </div>;
-}
-
 export type RumourOwner = { name: string; club: string; position: string; owners: PlayerNews["owners"] };
 
 /**
@@ -309,13 +296,14 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
     .filter((player) => isNewsworthy(player) || absences.has(player.id) || moves.has(player.id) || deals.has(player.id))
     .length;
   /** The coming gameweek's press piece per club, for the row to point at. */
-  const presserFor = new Map(pressers.filter((entry) => entry.gameweek === coming).map((entry) => [entry.club, entry]));
+  const presserFor = new Map(pressers.filter((entry) => entry.gameweek === coming)
+    .flatMap((entry) => entry.clubs.map((club) => [club, entry] as const)));
   const visible = rows.slice(0, shown);
 
   return <section className="news-page">
     {/* What the page is showing. Two things, because there are two. */}
     <div className="news-sections" role="group" aria-label={t.navNews}>
-      {([["availability", t.newsAvailability], ["pressers", t.newsPressers], ["articles", t.newsArticles]] as Array<[Section, string]>)
+      {([["availability", t.newsAvailability], ["articles", t.newsArticles]] as Array<[Section, string]>)
         .map(([key, label]) => <button
           key={key}
           className={section === key ? "active" : ""}
@@ -323,8 +311,7 @@ export default function TeamNews({ data, language }: { data: DashboardData; lang
         >{label}</button>)}
     </div>
 
-    {section === "articles" ? <Articles language={language} />
-      : section === "pressers" ? <Pressers pressers={pressers} gameweek={coming} language={language} />
+    {section === "articles" ? <Articles pressers={pressers.filter((entry) => entry.gameweek === coming)} language={language} />
       : <>
 
     {/* Whose players, which only narrows the list above and never replaces it — so it is set

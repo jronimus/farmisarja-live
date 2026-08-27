@@ -31,13 +31,14 @@ export interface Article {
  * talking about Tuesday's tie has said nothing about Saturday's team sheet.
  */
 export interface Presser {
-  club: string;
+  /** Every club this one piece speaks for, in alphabetical order. */
+  clubs: string[];
   gameweek: number;
   title: string;
   url: string;
   source: string;
   published: string;
-  /** True when it is that club's own piece rather than a section of a running article. */
+  /** True when it is one club's own piece rather than a running article. */
   own: boolean;
 }
 
@@ -55,7 +56,7 @@ export async function loadArticles(): Promise<{ articles: Article[]; pressers: P
 }
 
 /** The topics actually present, in a fixed order, so the filter row does not reshuffle. */
-export const TOPIC_ORDER = ["team-news", "notes", "picks", "captaincy", "chips", "transfers", "prices", "setpieces", "preview", "analysis"] as const;
+export const TOPIC_ORDER = ["pressers", "team-news", "notes", "picks", "captaincy", "chips", "transfers", "prices", "setpieces", "preview", "analysis"] as const;
 
 export function topicsPresent(articles: Article[]): string[] {
   const present = new Set(articles.map((article) => article.topic).filter(Boolean) as string[]);

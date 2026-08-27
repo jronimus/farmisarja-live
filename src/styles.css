@@ -2872,38 +2872,17 @@ footer a { color:#c4c6d8; }
 }
 .topic-filters button.active { background:var(--raised); color:var(--text); }
 
-/* One row per club, for the gameweek nobody has played yet. The shirt does the naming, so
-   the headline has the width — it is the only part that says anything. */
-.presser-list { display:flex; flex-direction:column; gap:6px; }
-.presser-row {
-  display:grid;
-  grid-template-columns:30px minmax(0,1fr) auto;
-  align-items:center;
-  gap:0 12px;
-  padding:11px 14px;
-  border-radius:12px;
-  background:var(--surface);
-  color:inherit;
-  text-decoration:none;
-}
-.presser-row .shirt { width:26px; height:26px; position:relative; }
-.presser-row .shirt-image { width:26px; height:26px; object-fit:contain; }
-.presser-lines { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.presser-lines b { color:var(--faint); font-size:9px; font-weight:900; letter-spacing:.05em; }
-.presser-lines em { color:var(--text); font-size:13px; font-style:normal; font-weight:800; line-height:1.35; }
-.presser-meta { display:flex; align-items:center; gap:7px; color:var(--faint); font-size:10px; font-weight:800; }
-.presser-meta svg { width:12px; height:12px; }
+/* The clubs a press piece speaks for, on the article row itself. They overlap: four crests
+   in a line is a parade, and the point is only which clubs. */
+.presser-clubs { display:inline-flex; align-items:center; flex:none; }
+.presser-clubs .shirt { width:22px; height:22px; position:relative; }
+.presser-clubs .shirt + .shirt { margin-left:-8px; }
+.presser-clubs .shirt-image { width:22px; height:22px; object-fit:contain; }
 
 /* The same link from a flagged player's row, pointing at the piece where his manager was
    asked about exactly this. */
 .news-presser { display:inline-flex; align-items:center; gap:4px; color:var(--cyan); font-weight:800; text-decoration:none; }
 .news-presser svg { width:11px; height:11px; }
-
-@media (max-width:800px) {
-  .presser-row { grid-template-columns:26px minmax(0,1fr); gap:0 9px; padding:10px 12px; }
-  .presser-lines em { font-size:12px; }
-  .presser-meta { grid-column:2; margin-top:3px; }
-}
 
 .article-list { display:flex; flex-direction:column; gap:8px; }
 .article-row {
@@ -2916,7 +2895,7 @@ footer a { color:#c4c6d8; }
   text-decoration:none;
 }
 .article-row:hover { background:var(--surface-alt); }
-.article-head { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; }
+.article-head { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .article-head b { font-size:14px; font-weight:800; line-height:1.3; }
 .article-topic {
   padding:3px 7px;

@@ -29,15 +29,22 @@ import { clubFromName, type Article } from "./articles";
  * new section appearing in that article costs nothing.
  */
 
+/**
+ * One piece, and every club it speaks for.
+ *
+ * A running article covers several clubs at once, so it is one row with several names on it
+ * rather than the same headline repeated down the page. A club's own Friday piece is a row
+ * with one name.
+ */
 export interface Presser {
-  /** FPL's own short club name. */
-  club: string;
+  /** FPL's own short club names, in alphabetical order. */
+  clubs: string[];
   gameweek: number;
   title: string;
   url: string;
   source: string;
   published: string;
-  /** True when it is that club's own piece rather than a section of a running article. */
+  /** True when it is one club's own piece rather than a running article. */
   own: boolean;
 }
 
@@ -92,13 +99,14 @@ export async function pressersFrom(
   fetchPage: (url: string) => Promise<string>,
   limit = 2,
 ): Promise<Presser[]> {
-  const out: Presser[] = [];
+  const own: Presser[] = [];
+  const running: Presser[] = [];
 
   // A club's own piece needs no reading: the headline names it.
   for (const article of articles) {
     if (article.club && article.gameweek === gameweek) {
-      out.push({
-        club: article.club, gameweek, title: article.title, url: article.url,
+      own.push({
+        clubs: [article.club], gameweek, title: article.title, url: article.url,
         source: article.source, published: article.published, own: true,
       });
     }
@@ -109,38 +117,37 @@ export async function pressersFrom(
   for (const article of liveBlogs(articles, gameweek).slice(0, limit)) {
     try {
       const found = clubsInArticle(await fetchPage(article.url), shortByName, gameweek);
-      if (!found || found.gameweek !== gameweek) continue;
-      for (const club of found.clubs) {
-        out.push({
-          club, gameweek, title: article.title, url: article.url,
-          source: article.source, published: article.published, own: false,
-        });
-      }
+      if (!found || found.gameweek !== gameweek || !found.clubs.length) continue;
+      running.push({
+        clubs: found.clubs, gameweek, title: article.title, url: article.url,
+        source: article.source, published: article.published, own: false,
+      });
     } catch (error) {
       console.error(JSON.stringify({ event: "presser_read_error", url: article.url, error: error instanceof Error ? error.message : String(error) }));
     }
   }
 
-  return best(out);
+  return dedupe([...own, ...running]);
 }
 
 /**
- * One per club: a club's own piece beats a section of a running article, and after that the
- * later reading wins.
+ * A club is named once, on the fullest piece that speaks for it.
  *
- * The Friday piece is written after the press conference and quotes it at length; a
- * Wednesday section is a paragraph filed as the manager spoke. Where both exist the reader
- * wants the fuller one.
+ * The Friday piece is written after the press conference and quotes it at length; a section
+ * of Wednesday's running article is a paragraph filed as the manager spoke. So a club's own
+ * piece wins, and among running articles the later one does — and a running article left
+ * with no clubs of its own to name drops out rather than sitting there as a headline about
+ * nobody.
  */
-export function best(pressers: Presser[]): Presser[] {
-  const byClub = new Map<string, Presser>();
-  for (const presser of pressers) {
-    const held = byClub.get(presser.club);
-    if (!held
-      || (presser.own && !held.own)
-      || (presser.own === held.own && presser.published > held.published)) {
-      byClub.set(presser.club, presser);
-    }
+export function dedupe(pressers: Presser[]): Presser[] {
+  const claimed = new Set<string>();
+  const out: Presser[] = [];
+  for (const presser of [...pressers].sort((a, b) =>
+    Number(b.own) - Number(a.own) || b.published.localeCompare(a.published))) {
+    const clubs = presser.clubs.filter((club) => !claimed.has(club)).sort();
+    if (!clubs.length) continue;
+    for (const club of clubs) claimed.add(club);
+    out.push({ ...presser, clubs });
   }
-  return [...byClub.values()].sort((a, b) => a.club.localeCompare(b.club));
+  return out.sort((a, b) => b.published.localeCompare(a.published));
 }

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { best, clubsInArticle, liveBlogs, pressersFrom, type Presser } from "./pressers";
+import { clubsInArticle, dedupe, liveBlogs, pressersFrom, type Presser } from "./pressers";
 import type { Article } from "./articles";
 
 /** A real slice of Fantasy Football Scout's Wednesday article, saved 27 Aug. */
@@ -72,22 +72,36 @@ describe("which running articles are worth reading", () => {
   });
 });
 
-describe("one presser per club", () => {
+describe("a club is named once, on the fullest piece that speaks for it", () => {
   const of = (over: Partial<Presser>): Presser => ({
-    club: "ARS", gameweek: 2, title: "t", url: "u", source: "s",
+    clubs: ["ARS"], gameweek: 2, title: "t", url: "u", source: "s",
     published: "2026-08-26T12:00:00Z", own: false, ...over,
   });
 
-  it("prefers the club's own piece to a section of a running article", () => {
-    // The Friday piece is written after the press conference and quotes it at length; a
-    // Wednesday section is a paragraph filed as the manager spoke.
-    const kept = best([of({ url: "running" }), of({ url: "own", own: true, published: "2026-08-25T12:00:00Z" })]);
+  it("takes the club off the running article when it has its own piece", () => {
+    // The Friday piece quotes the press conference at length; the Wednesday section is a
+    // paragraph filed as the manager spoke.
+    const kept = dedupe([
+      of({ url: "running", clubs: ["ARS", "CHE"] }),
+      of({ url: "own", clubs: ["ARS"], own: true, published: "2026-08-25T12:00:00Z" }),
+    ]);
+    expect(kept.map((entry) => `${entry.url}:${entry.clubs.join("+")}`)).toEqual(["running:CHE", "own:ARS"]);
+  });
+
+  it("drops a running article with nobody left to name", () => {
+    const kept = dedupe([
+      of({ url: "running", clubs: ["ARS"] }),
+      of({ url: "own", clubs: ["ARS"], own: true }),
+    ]);
     expect(kept.map((entry) => entry.url)).toEqual(["own"]);
   });
 
-  it("prefers the later reading when neither is a club's own", () => {
-    const kept = best([of({ url: "wed" }), of({ url: "thu", published: "2026-08-27T12:00:00Z" })]);
-    expect(kept.map((entry) => entry.url)).toEqual(["thu"]);
+  it("prefers the later running article for a club in both", () => {
+    const kept = dedupe([
+      of({ url: "wed", clubs: ["ARS", "CHE"] }),
+      of({ url: "thu", clubs: ["ARS"], published: "2026-08-27T12:00:00Z" }),
+    ]);
+    expect(kept.map((entry) => `${entry.url}:${entry.clubs.join("+")}`)).toEqual(["thu:ARS", "wed:CHE"]);
   });
 });
 
@@ -98,7 +112,10 @@ describe("a press week, end to end", () => {
       article({ id: "ars", title: "Bruno G, Saka: Arsenal injury latest for FPL Gameweek 2", url: "https://x/ars", club: "ARS", gameweek: 2, published: "2026-08-27T09:00:00Z" }),
     ];
     const found = await pressersFrom(list, 2, teams, async () => page);
-    expect(found.map((entry) => `${entry.club}:${entry.own}`)).toEqual(["ARS:true", "BHA:false", "CHE:false", "CRY:false", "FUL:false"]);
+    // One row for the running article carrying the three clubs it still speaks for, and one
+    // for Arsenal's own piece — not the same headline four times.
+    expect(found.map((entry) => `${entry.own ? "own" : "running"}:${entry.clubs.join("+")}`))
+      .toEqual(["own:ARS", "running:BHA+CHE+CRY+FUL"]);
   });
 
   it("survives an article that cannot be fetched", async () => {
