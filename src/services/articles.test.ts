@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseFeed, selectArticles } from "../../worker/articles";
-import { pressersFor } from "./articles";
+import { pressersFor, type Article } from "./articles";
 
 /**
- * The real headlines Fantasy Football Scout published for Gameweek 1 on 21 Aug, run through
- * the whole path: the feed parser, the daily cap, and the per-club selection the page makes.
- * Nine clubs on one afternoon is exactly the case the cap used to eat.
+ * The real headlines Fantasy Football Scout published for Gameweek 1 on 21 Aug.
+ *
+ * The parser and the daily cap are tested against the same nine in `worker/articles.test.ts`,
+ * where the Cloudflare types live — a test in `src/` that imports Worker code drags it into
+ * the app's TypeScript project, which has no `KVNamespace` and no `cf` on a request, and the
+ * incremental build hid that locally until the deploy failed on it.
  */
 const HEADLINES = [
   "Bruno G, Saka, Timber: Arsenal injury latest for FPL Gameweek 1",
@@ -27,45 +29,33 @@ const feed = `<rss><channel>${HEADLINES.map((title, index) =>
   + `<pubDate>Fri, 21 Aug 2026 ${String(9 + index).padStart(2, "0")}:00:00 GMT</pubDate>`
   + "<description><![CDATA[lead]]></description></item>").join("")}</channel></rss>`;
 
-/** FPL's own names, which is where the matcher gets them. */
-const teams = new Map(Object.entries({
-  arsenal: "ARS", "man utd": "MUN", spurs: "TOT", chelsea: "CHE", everton: "EVE",
-  brighton: "BHA", liverpool: "LIV", newcastle: "NEW", "aston villa": "AVL",
-}));
+const article = (club: string, title: string, published: string, gameweek = 1): Article => ({
+  id: `${club}-${published}`, title, url: `https://x/${club}`, source: "Fantasy Football Scout",
+  published, excerpt: "", club, gameweek,
+});
 
-describe("a press day, end to end", () => {
-  const parsed = parseFeed(feed, "Fantasy Football Scout", teams);
-  const selected = selectArticles(parsed, Date.parse("2026-08-21T20:00:00Z"));
+const pieces = [
+  article("ARS", HEADLINES[0], "2026-08-21T09:00:00Z"),
+  article("MUN", HEADLINES[1], "2026-08-21T10:00:00Z"),
+  article("TOT", HEADLINES[2], "2026-08-21T11:00:00Z"),
+  article("CHE", HEADLINES[3], "2026-08-21T12:00:00Z"),
+];
 
-  it("tags every club piece and nothing else", () => {
-    expect(parsed.filter((article) => article.club)).toHaveLength(9);
-    expect(parsed.filter((article) => !article.club)).toHaveLength(2);
+describe("the pieces the page shows", () => {
+  it("gives one per club for the gameweek asked for", () => {
+    expect(pressersFor(pieces, 1).map((entry) => entry.club)).toEqual(["ARS", "CHE", "MUN", "TOT"]);
   });
 
-  it("carries all nine past a cap of five a day", () => {
-    // The cap is the whole reason these are recognised: it would have kept five of nine,
-    // and which four it dropped would have been an accident of publishing order.
-    expect(selected.filter((article) => article.club)).toHaveLength(9);
-    expect(selected.filter((article) => !article.club).length).toBeLessThanOrEqual(5);
-  });
-
-  it("gives the page one piece per club for the gameweek asked for", () => {
-    const pressers = pressersFor(selected, 1);
-    expect(pressers.map((article) => article.club)).toEqual(
-      ["ARS", "AVL", "BHA", "CHE", "EVE", "LIV", "MUN", "NEW", "TOT"],
-    );
-    // A gameweek nobody has written about yet is empty rather than falling back to an older
-    // one — last week's press conference is a record of a match already played.
-    expect(pressersFor(selected, 2)).toEqual([]);
+  it("is empty for a gameweek nobody has written about yet", () => {
+    // Rather than falling back to an older one: last week's press conference is a record of
+    // a match that has already been played.
+    expect(pressersFor(pieces, 2)).toEqual([]);
   });
 
   it("keeps only the latest piece when a club gets two", () => {
-    const twice = [...selected, {
-      ...selected.find((article) => article.club === "ARS")!,
-      id: "later", published: "2026-08-21T18:00:00Z", title: "Later: Arsenal injury latest for FPL Gameweek 1",
-    }];
-    const arsenal = pressersFor(twice, 1).filter((article) => article.club === "ARS");
+    const twice = [...pieces, article("ARS", "Later: Arsenal injury latest for FPL Gameweek 1", "2026-08-21T18:00:00Z")];
+    const arsenal = pressersFor(twice, 1).filter((entry) => entry.club === "ARS");
     expect(arsenal).toHaveLength(1);
-    expect(arsenal[0].id).toBe("later");
+    expect(arsenal[0].published).toBe("2026-08-21T18:00:00Z");
   });
 });
