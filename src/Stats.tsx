@@ -270,10 +270,6 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
                 ? (descending ? <ArrowDown /> : <ArrowUp />)
                 : <ArrowDown className="sort-idle" />}
             </button>
-            {/* How many rows the filters left, over the column they are rows of. It was a
-                pill in the filter row and looked like a control that had lost its purpose;
-                here it is a caption on the thing it counts. */}
-            <small className="head-count">{rows.length}</small>
           </span>
           {visibleColumns.map((column) => <span
             key={column.key}
@@ -339,8 +335,15 @@ export default function Stats({ data, language, autosubs }: { data: DashboardDat
       </div>
     </div>
 
-    {shown < rows.length && <div className="price-foot">
-      <button className="history-more" onClick={() => setShown((value) => value + PAGE_STEP)}>{t.showMore}</button>
+    {/* How far down the list the reader is, beside the button that takes him further.
+        Two figures rather than one: on its own, "614" answered a question nobody had, while
+        "30 / 614" answers the one he actually has — how much of this am I looking at. Both
+        move with the filters, and the second is the whole of what they left. */}
+    {rows.length > 0 && <div className="price-foot">
+      {shown < rows.length
+        ? <button className="history-more" onClick={() => setShown((value) => value + PAGE_STEP)}>{t.showMore}</button>
+        : <span />}
+      <span className="rows-shown"><b>{visible.length}</b> / {rows.length} {t.playersShown}</span>
     </div>}
 
     {openPicker === "gameweeks" && <Panel title={t.statsPeriod} onClose={() => setOpenPicker(null)}>

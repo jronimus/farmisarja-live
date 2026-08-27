@@ -2476,6 +2476,24 @@ footer a { color:#c4c6d8; }
 
 .price-empty { padding:26px 16px; color:var(--soft); text-align:center; font-size:13px; }
 
+/* How far down the list the reader is, beside the button that takes him further. It sits on
+   the page's own ground, so it takes `--page-ink` — see *The count nobody could read*. The
+   figure showing is the one in the display face; the total it is a part of stays quiet. */
+.rows-shown {
+  display:inline-flex;
+  align-items:baseline;
+  gap:5px;
+  margin-left:auto;
+  color:var(--page-ink);
+  font-size:10px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.rows-shown b { font:400 16px/1 "Archivo Black",sans-serif; letter-spacing:0; text-transform:none; }
+
 .price-foot { display:flex; flex-wrap:wrap; align-items:center; gap:12px; color:var(--page-ink); font-size:11px; font-weight:700; }
 .price-foot label { display:flex; align-items:center; gap:6px; }
 .price-foot .period-select { height:30px; }
@@ -4007,17 +4025,6 @@ input:focus-visible,
    *The count nobody could read*. The figure carries the display face the scores use and the
    word beside it steps back into the same small caps as a column head: the number is the
    answer and "pelaajaa" is only its unit. */
-.head-count {
-  padding-left:2px;
-  color:color-mix(in srgb,var(--soft) 55%,var(--text));
-  /* Inherited, not set. It is part of the heading it follows, and the heading is 9px on a
-     desktop and 8px on a phone — a fixed size made the count bigger than the word. */
-  font-size:inherit;
-  font-weight:900;
-  font-variant-numeric:tabular-nums;
-  letter-spacing:.02em;
-}
-
 .news-count {
   display:inline-flex;
   align-items:baseline;

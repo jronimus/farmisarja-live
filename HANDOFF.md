@@ -924,14 +924,24 @@ than by looking:
 
 Measured after: one distinct bottom across all seventeen, on the phone and at 1440.
 
-### The count belongs to the column, not to the filter row
+### The count went to the foot in the end, as two figures
 
-Two attempts said the same thing: as bare text between 38 px controls it read as something
-left behind, and as an outlined pill it read as a control that had lost its purpose. It is a
-caption on the thing it counts, so it now sits in the table's own **PELAAJA** head, directly
-after the word rather than pushed to the far edge of the cell, where it read as a stray
-figure. That also empties it out of the filter row, which is what let those rows come out
-even.
+Four homes before it landed. Bare text in the filter row read as something left behind; an
+outlined pill read as a control that had lost its purpose; pushed to the far edge of the
+**PELAAJA** head it read as a stray figure; and beside the word it was a fixed 10 px against
+a heading that is 9 on a desktop and 8 on a phone, so the count was larger than the word
+naming the column.
+
+It sits under the table now, right aligned against the **Näytä lisää** button, and reads
+`30 / 614`. The pair is the point: on its own "614" answers a question nobody had, while
+"30 / 614" answers the one a reader actually has — how much of this am I looking at. Both
+figures move with the filters, the second being the whole of what they left, and the row
+stays when the button goes because there is nothing more to show.
+
+**Not on the Rajaa button**, which was the other suggestion: that button already carries a
+count of how many *narrowings* are on. The player total is the result of everything,
+including the search and the gameweek picker, which are not in that panel at all — two
+numbers meaning different things on one control is worse than either alone.
 
 ### No line stops short of the edge
 
