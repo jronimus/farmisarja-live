@@ -99,11 +99,23 @@ const ALIASES: Record<string, string> = {
 
 const TEAM_NEWS = /^.*?:\s*(.+?)\s+injury latest for FPL Gameweek\s+(\d+)/i;
 
+/**
+ * FPL's short name for a club written out in full, wherever that spelling comes from.
+ *
+ * The one place either file resolves a club name, because they meet the same problem from
+ * two directions: a headline says *Man United* where FPL files *Man Utd*, and a press
+ * article's heading says *BRIGHTON AND HOVE ALBION* where FPL says *Brighton*. Keeping the
+ * aliases in two tables is how Brighton went missing from a press day that had it.
+ */
+export function clubFromName(name: string, shortByName: Map<string, string>): string | undefined {
+  const key = name.trim().toLowerCase();
+  return shortByName.get(key) ?? ALIASES[key];
+}
+
 export function teamNewsFor(title: string, shortByName: Map<string, string>): { club: string; gameweek: number } | undefined {
   const match = TEAM_NEWS.exec(title);
   if (!match) return undefined;
-  const name = match[1].trim().toLowerCase();
-  const club = shortByName.get(name) ?? ALIASES[name];
+  const club = clubFromName(match[1], shortByName);
   if (!club) return undefined;
   return { club, gameweek: Number(match[2]) };
 }

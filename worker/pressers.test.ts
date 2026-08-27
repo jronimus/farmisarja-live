@@ -8,8 +8,7 @@ const page = readFileSync(new URL("./fixtures/ffs-pressers.html", import.meta.ur
 
 /** FPL's own names, which is where the matcher gets them. */
 const teams = new Map(Object.entries({
-  "crystal palace": "CRY", chelsea: "CHE", brighton: "BHA", fulham: "FUL",
-  "brighton and hove albion": "BHA", arsenal: "ARS",
+  "crystal palace": "CRY", chelsea: "CHE", brighton: "BHA", fulham: "FUL", arsenal: "ARS",
 }));
 
 const article = (over: Partial<Article> = {}): Article => ({
@@ -37,6 +36,13 @@ describe("reading a press day's running article", () => {
 
   it("says nothing when the article has no such section yet", () => {
     expect(clubsInArticle("<h2>Something else</h2><h3>ARSENAL</h3>", teams)).toBeUndefined();
+  });
+
+  it("knows a club the article spells out and FPL does not", () => {
+    // The article writes BRIGHTON AND HOVE ALBION; FPL files it as Brighton. Brighton went
+    // missing from a live press day for exactly this, because the aliases lived in one file
+    // and this parser was in another.
+    expect(clubsInArticle(page, teams)!.clubs).toContain("BHA");
   });
 
   it("skips a heading that is not a club", () => {

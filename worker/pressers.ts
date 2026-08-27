@@ -1,4 +1,4 @@
-import type { Article } from "./articles";
+import { clubFromName, type Article } from "./articles";
 
 /**
  * Which clubs have had their press conference for the coming gameweek, and where to read it.
@@ -70,7 +70,7 @@ export function clubsInArticle(html: string, shortByName: Map<string, string>, f
     const from = section.index + section[0].length;
     const to = sections[index + 1]?.index ?? html.length;
     for (const heading of html.slice(from, to).matchAll(CLUB_HEADING)) {
-      const club = shortByName.get(text(heading[1]).toLowerCase());
+      const club = clubFromName(text(heading[1]), shortByName);
       if (club && !clubs.includes(club)) clubs.push(club);
     }
   }
