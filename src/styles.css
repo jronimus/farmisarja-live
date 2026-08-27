@@ -3024,6 +3024,7 @@ footer a { color:#c4c6d8; }
   cursor:pointer;
 }
 .head-help svg { width:12px; height:12px; }
+
 .head-help:hover { color:var(--text); }
 
 .stats-star button {
@@ -3239,6 +3240,12 @@ footer a { color:#c4c6d8; }
     font-size:8px;
     letter-spacing:.02em;
   }
+  /* The 24px target is a box around an 11px glyph. Bottom-aligned beside a heading that sits
+     on the cell's floor, the box's centred glyph floated seven pixels above the words;
+     sending it to the foot of its own box puts it on their line without shrinking the
+     target. Only here — the desktop head centres its contents, and there it already is. */
+  .head-stat .head-help { align-items:end; }
+  .head-stat .head-help svg { width:11px; height:11px; }
   .stats-headrow > .head-player { font-size:8px; letter-spacing:.02em; }
   /* Block rather than flex. As a flex container the label is an anonymous item, which will
      not shrink below its own max-content however the wrapping is set — so a long compound
@@ -4003,7 +4010,9 @@ input:focus-visible,
 .head-count {
   padding-left:2px;
   color:color-mix(in srgb,var(--soft) 55%,var(--text));
-  font-size:10px;
+  /* Inherited, not set. It is part of the heading it follows, and the heading is 9px on a
+     desktop and 8px on a phone — a fixed size made the count bigger than the word. */
+  font-size:inherit;
   font-weight:900;
   font-variant-numeric:tabular-nums;
   letter-spacing:.02em;
