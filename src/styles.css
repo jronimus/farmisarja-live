@@ -2748,8 +2748,17 @@ footer a { color:#c4c6d8; }
 .player-flag.flag-rumour { background:#7b3fe4; color:#fff; font-size:12px; }
 /* A report nobody has graded above `Low`. It is still on the shirt — the news page lists it
    and the two should not disagree — but it is one newspaper having a guess, and it says so
-   by being quiet rather than by being absent. */
-.player-flag.flag-quiet { background:color-mix(in srgb,#7b3fe4 30%,transparent); color:#efe6ff; }
+   by being lighter rather than by being absent.
+   The first attempt said it by being 30 % transparent, which measured **1.56:1** against the
+   card behind it with a near-white glyph on top: marked in the markup and invisible on the
+   screen, which is the same bug it was meant to fix. Outlined rather than washed out — the
+   same distinction the row count uses, where a fill means "you can press this" and a ring
+   means "this is only telling you something". */
+.player-flag.flag-quiet {
+  background:color-mix(in srgb,#7b3fe4 16%,#ffffff);
+  box-shadow:inset 0 0 0 1.5px #7b3fe4;
+  color:#43208a;
+}
 /* Left out of a published prediction: a red triangle, because it is a warning and not a
    label. The letters `XI` were tried first and read as *he is in the eleven*, which is the
    exact opposite of what the mark means. */
