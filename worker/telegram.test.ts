@@ -31,6 +31,18 @@ describe("deadline reminder timing", () => {
     expect(reminderIsDue(target, target)).toBe(true);
     expect(reminderIsDue(target - 2 * 60_000, target)).toBe(true);
   });
+
+  it("still sends when the tick that should have caught it never ran", () => {
+    // The five minute window this used to have meant a run of dropped ticks lost the
+    // reminder for good. Late is the point: sendOnce is what stops it repeating.
+    const target = 24 * 3_600_000;
+    expect(reminderIsDue(target - 90 * 60_000, target)).toBe(true);
+  });
+
+  it("stops at the deadline itself", () => {
+    expect(reminderIsDue(0, 2 * 3_600_000)).toBe(false);
+    expect(reminderIsDue(-60_000, 2 * 3_600_000)).toBe(false);
+  });
 });
 
 describe("deadline card Telegram notification", () => {
@@ -58,7 +70,22 @@ describe("deadline card Telegram notification", () => {
     await runTelegramSchedule(env);
 
     expect(fetchMock).toHaveBeenCalledTimes(6);
-    expect(env.TELEGRAM_STATE.put).toHaveBeenCalledWith("deadline-card:gw:1", expect.any(String));
+    expect(env.TELEGRAM_STATE.put).toHaveBeenCalledWith("deadline-card:gw:1", expect.any(String), expect.objectContaining({ expirationTtl: expect.any(Number) }));
+  });
+
+  it("reads the mark before the league, so a sent card costs one request a tick", async () => {
+    const pastDeadline = new Date(Date.now() - 60_000).toISOString();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json({ events: [{ id: 1, deadline_time: pastDeadline, is_current: true, is_next: false }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const env = testEnv({ TELEGRAM_NOTIFICATIONS_ENABLED: "true" });
+    await env.TELEGRAM_STATE.put("deadline-card:gw:1", "sent");
+    await env.TELEGRAM_STATE.put("postgame:gw:1", "sent");
+
+    await runTelegramSchedule(env);
+
+    // The bootstrap, and nothing else: no standings, no picks, no fixture list.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("formats the remaining deadline without seconds", () => {

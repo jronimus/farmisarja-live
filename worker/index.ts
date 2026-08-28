@@ -204,7 +204,12 @@ export default {
      * now take alternate minutes; each still has its own gate on top of that.
      */
     const minute = new Date(controller.scheduledTime).getUTCMinutes();
-    ctx.waitUntil(runTelegramSchedule(env as TelegramEnv));
+    // Guarded like the rest of them. It was the one task on the tick without a catch, so a
+    // throw here — an FPL 5xx around the deadline is the everyday one — was an unhandled
+    // rejection on the invocation and left no line in the log to find it by.
+    ctx.waitUntil(runTelegramSchedule(env as TelegramEnv).catch((error) => {
+      console.error(JSON.stringify({ event: "telegram_schedule_error", error: error instanceof Error ? error.message : String(error) }));
+    }));
     // Independent of the Telegram switch: the feed is the site's, not the chat's.
     ctx.waitUntil(updateFeed(env as EventsEnv).catch((error) => {
       console.error(JSON.stringify({ event: "feed_update_error", error: error instanceof Error ? error.message : String(error) }));

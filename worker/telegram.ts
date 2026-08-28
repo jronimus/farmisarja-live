@@ -180,27 +180,43 @@ async function picksAvailable(gameweek: number, entries: LeagueEntry[]): Promise
   return responses.every((response) => response.ok);
 }
 
+/**
+ * A gameweek id is not unique — GW3 comes round again next season — so the mark a send
+ * leaves behind is given a life a little longer than a season. Without it the first
+ * GW3 of 2027-28 would find last season's mark still standing and stay silent.
+ */
+const SENT_TTL = 300 * 86_400;
+
 async function sendOnce(env: TelegramEnv, key: string, task: () => Promise<void>): Promise<boolean> {
   if (await env.TELEGRAM_STATE.get(key)) return false;
   await task();
-  await env.TELEGRAM_STATE.put(key, new Date().toISOString());
+  await env.TELEGRAM_STATE.put(key, new Date().toISOString(), { expirationTtl: SENT_TTL });
   return true;
 }
 
+/**
+ * Due from the moment the target is crossed, with no window on the far side of it.
+ *
+ * There used to be five minutes here, so a reminder had to be caught by one of five ticks
+ * or it was lost for good — and a tick is not guaranteed: a cron invocation that runs out
+ * of budget takes every unfinished task on it down with it, silently. Sending it late is
+ * strictly better than not sending it, and the message carries the real time left rather
+ * than the round number it was scheduled on, so a late one does not lie about it. Nothing
+ * repeats: `sendOnce` still holds the mark.
+ */
 export function reminderIsDue(remaining: number, target: number): boolean {
-  return remaining <= target && remaining > target - 5 * 60_000;
+  return remaining <= target && remaining > 0;
 }
 
 async function checkDeadlineReminders(env: TelegramEnv, events: FplEvent[], now: number): Promise<void> {
   const event = nextDeadline(events, now);
   if (!event || !env.TELEGRAM_CHAT_ID) return;
   const remaining = new Date(event.deadline_time).getTime() - now;
-  for (const reminder of [{ hours: 24, label: "huomenna" }, { hours: 2, label: "2 tunnin päästä" }]) {
-    const target = reminder.hours * 3_600_000;
-    if (!reminderIsDue(remaining, target)) continue;
-    await sendOnce(env, `deadline:${event.id}:${reminder.hours}h`, () => sendLinkMessage(
+  for (const hours of [24, 2]) {
+    if (!reminderIsDue(remaining, hours * 3_600_000)) continue;
+    await sendOnce(env, `deadline:${event.id}:${hours}h`, () => sendLinkMessage(
       env, env.TELEGRAM_CHAT_ID!,
-      `${reminder.hours === 24 ? "⏰" : "🚨"} GW${event.id}-deadline ${reminder.label} — klo ${deadlineClock(event)}`,
+      `${hours === 24 ? "⏰" : "🚨"} GW${event.id}-deadlineen ${deadlineRemaining(event, now)} — klo ${deadlineClock(event)}`,
     ));
   }
 }
@@ -208,10 +224,15 @@ async function checkDeadlineReminders(env: TelegramEnv, events: FplEvent[], now:
 /** Once every manager's picks are readable, the deadline card can be drawn from them. */
 async function checkDeadlineCard(env: TelegramEnv, event: FplEvent, now: number): Promise<void> {
   if (!env.TELEGRAM_CHAT_ID || now < new Date(event.deadline_time).getTime()) return;
+  // The mark is read before the league is, not after: the card is sent once and the
+  // gameweek runs for another week, and reading a dozen managers' picks on every tick of
+  // that week is a dozen requests a minute spent to learn nothing.
+  const sentKey = `deadline-card:gw:${event.id}`;
+  if (await env.TELEGRAM_STATE.get(sentKey)) return;
   const league = await fpl<LeagueResponse>(`/leagues-classic/${env.FPL_LEAGUE_ID}/standings/?page_standings=1&page_new_entries=1`);
   const entries = league.standings.results.length ? league.standings.results : league.new_entries.results;
   if (!await picksAvailable(event.id, entries)) return;
-  await sendOnce(env, `deadline-card:gw:${event.id}`, () => sendCardPhoto(env, env.TELEGRAM_CHAT_ID!, "deadline"));
+  await sendOnce(env, sentKey, () => sendCardPhoto(env, env.TELEGRAM_CHAT_ID!, "deadline"));
 }
 
 /**
@@ -226,12 +247,30 @@ async function checkDeadlineCard(env: TelegramEnv, event: FplEvent, now: number)
  */
 async function checkPostGame(env: TelegramEnv, event: FplEvent): Promise<void> {
   if (!env.TELEGRAM_CHAT_ID) return;
+  // Before the fixture list, not after it: once the report is queued this is the rest of
+  // the gameweek's ticks reading a few hundred kilobytes to reach the same answer.
+  const sentKey = `postgame:gw:${event.id}`;
+  if (await env.TELEGRAM_STATE.get(sentKey)) return;
   const fixtures = (await fpl<Fixture[]>("/fixtures/")).filter((fixture) => fixture.event === event.id);
   // FPL can leave finished unset long after full time, so full time is what schedules the report.
   if (!fixtures.length || fixtures.some((fixture) => !fixture.finished && !fixture.finished_provisional)) return;
-  const sentKey = `postgame:gw:${event.id}`;
-  if (await env.TELEGRAM_STATE.get(sentKey)) return;
   await sendOnce(env, sentKey, () => queueAlbum(env, `album:gw:${event.id}`, env.TELEGRAM_CHAT_ID!));
+}
+
+/**
+ * The reminders are not held hostage by the cards.
+ *
+ * Everything below the reminders reads FPL again, draws a picture, or talks to Browser
+ * Rendering, and any of it can throw or run the invocation out of budget. When it did, the
+ * whole schedule went down with it and a deadline passed with nothing said. The reminders
+ * are the cheap part and they go first; each stage after them is fenced off on its own.
+ */
+async function stage(name: string, task: () => Promise<void>): Promise<void> {
+  try {
+    await task();
+  } catch (error) {
+    console.error(JSON.stringify({ event: "telegram_stage_error", stage: name, error: error instanceof Error ? error.message : String(error) }));
+  }
 }
 
 export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): Promise<void> {
@@ -240,8 +279,8 @@ export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): P
   await checkDeadlineReminders(env, bootstrap.events, now);
   const current = bootstrap.events.find((event) => event.is_current);
   if (!current) return;
-  await checkDeadlineCard(env, current, now);
-  await checkPostGame(env, current);
+  await stage("deadline_card", () => checkDeadlineCard(env, current, now));
+  await stage("postgame", () => checkPostGame(env, current));
   // One capture per tick keeps every invocation well inside its time budget.
   if (await advanceAlbum(env, "album:preview")) return;
   await advanceAlbum(env, `album:gw:${current.id}`);
