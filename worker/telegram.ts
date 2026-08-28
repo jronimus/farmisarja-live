@@ -42,8 +42,14 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Each card is drawn at its delivered size, so the viewport only needs to clear it.
- * Browser Rendering rate limits back to back calls, so a 429 is waited out rather than
- * thrown: three cards in a row will otherwise fail on the second one.
+ *
+ * A 429 is worth one short wait and no more. The backoff here used to climb 15, 30, 45,
+ * 60, 75 seconds — nearly four minutes inside one invocation — from when three cards were
+ * captured back to back. The album is spread over cron ticks now, one card each, so the
+ * retry already exists at a level above this one and waiting here only makes an invocation
+ * outlive the gap to the next tick. Two of them then hold the same browser open and both
+ * get the 429 the wait was meant to avoid, while `job.done` never advances and every tick
+ * starts the album from its first card again.
  */
 export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt = 0): Promise<Blob> {
   const response = await env.BROWSER.quickAction("screenshot", {
@@ -53,8 +59,8 @@ export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt
     gotoOptions: { waitUntil: "networkidle0", timeout: 45_000 },
     screenshotOptions: { type: "png" },
   });
-  if (response.status === 429 && attempt < 5) {
-    const delay = 15_000 * (attempt + 1);
+  if (response.status === 429 && attempt < 1) {
+    const delay = 10_000;
     console.log(JSON.stringify({ event: "card_rate_limited", kind, attempt, delay }));
     await wait(delay);
     return captureCard(env, kind, attempt + 1);
@@ -276,14 +282,24 @@ async function stage(name: string, task: () => Promise<void>): Promise<void> {
 export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): Promise<void> {
   if (env.TELEGRAM_NOTIFICATIONS_ENABLED !== "true") return;
   const bootstrap = await fpl<BootstrapResponse>("/bootstrap-static/");
-  await checkDeadlineReminders(env, bootstrap.events, now);
+  /**
+   * Fenced like the rest, though it runs first and is the cheap one.
+   *
+   * Being first is exactly why it needed this. A group whose id has gone stale, or a chat
+   * the bot may no longer post in, made `sendLinkMessage` throw here — and that took down
+   * every stage below it, including an album someone had asked for in a private chat. One
+   * unreachable chat should cost that chat its messages and nothing else.
+   */
+  await stage("reminders", () => checkDeadlineReminders(env, bootstrap.events, now));
   const current = bootstrap.events.find((event) => event.is_current);
   if (!current) return;
   await stage("deadline_card", () => checkDeadlineCard(env, current, now));
   await stage("postgame", () => checkPostGame(env, current));
   // One capture per tick keeps every invocation well inside its time budget.
-  if (await advanceAlbum(env, "album:preview")) return;
-  await advanceAlbum(env, `album:gw:${current.id}`);
+  let advanced = false;
+  await stage("album_preview", async () => { advanced = await advanceAlbum(env, "album:preview"); });
+  if (advanced) return;
+  await stage("album_gameweek", async () => { await advanceAlbum(env, `album:gw:${current.id}`); });
 }
 
 export async function handleTelegramWebhook(request: Request, env: TelegramEnv, ctx: ExecutionContext): Promise<Response> {

@@ -88,6 +88,32 @@ describe("deadline card Telegram notification", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps one unreachable chat from silencing the rest of the schedule", async () => {
+    const pastDeadline = new Date(Date.now() - 60_000).toISOString();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("bootstrap-static")) {
+        // Two hours out, so the reminder is due and its send is the thing that fails.
+        const deadline = new Date(Date.now() + 90 * 60_000).toISOString();
+        return Response.json({ events: [
+          { id: 1, deadline_time: pastDeadline, is_current: true, is_next: false },
+          { id: 2, deadline_time: deadline, is_current: false, is_next: true },
+        ] });
+      }
+      if (url.includes("api.telegram.org")) return new Response("chat not found", { status: 400 });
+      if (url.includes("standings")) return Response.json({ standings: { results: [] }, new_entries: { results: [] } });
+      return Response.json([]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const env = testEnv({ TELEGRAM_NOTIFICATIONS_ENABLED: "true" });
+    await env.TELEGRAM_STATE.put("album:preview", JSON.stringify({ chat: "private-chat", done: ["round", "total"] }));
+
+    await expect(runTelegramSchedule(env)).resolves.toBeUndefined();
+
+    // The reminder's send threw, and the album someone asked for in another chat still ran.
+    expect(env.BROWSER.quickAction).toHaveBeenCalled();
+  });
+
   it("formats the remaining deadline without seconds", () => {
     const now = Date.parse("2026-08-18T12:00:00Z");
     expect(deadlineRemaining({ id: 1, deadline_time: "2026-08-19T14:30:00Z", is_current: false, is_next: true }, now)).toBe("1 päivä 2 tuntia");
