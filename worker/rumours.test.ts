@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { absencesFromTeam, mergeAbsences, mergeRumours, rumoursFromTeam, type Rumour } from "./rumours";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { absencesFromTeam, mergeAbsences, mergeRumours, rumoursFromTeam, updateRumours, type Rumour, type RumoursEnv } from "./rumours";
 import { matchElement, normalise } from "./fotmob";
+import { CATALOG_VERSION, type Catalog } from "./catalog";
+
+afterEach(() => vi.unstubAllGlobals());
 
 const elements = [
   // Two Martínezes, one at Villa and one at United, which is the case a surname alone
@@ -109,5 +112,56 @@ describe("transfer rumours", () => {
     const city = { element: 3, name: "Jack Grealish", club: "MCI", reason: "injury", expectedReturn: "" };
     const gunners = { element: 9, name: "Someone", club: "ARS", reason: "injury", expectedReturn: "" };
     expect(mergeAbsences([city, gunners], [], ["ARS"])).toEqual([city]);
+  });
+});
+
+describe("reading somebody else's site four clubs at a time", () => {
+  const catalog: Catalog = {
+    version: CATALOG_VERSION, builtAt: "2026-09-01T00:00:00Z", events: [],
+    teams: [{ id: 2, short_name: "AVL", name: "Aston Villa" }],
+    elements: [{ id: 1, web_name: "Martinez", first_name: "Emiliano", second_name: "Martínez Romero", team: 2, element_type: 1 }],
+  };
+
+  function env() {
+    const state = new Map<string, string>();
+    return {
+      TELEGRAM_STATE: {
+        get: vi.fn(async (key: string, type?: string) => {
+          const value = state.get(key) ?? null;
+          return value !== null && type === "json" ? JSON.parse(value) : value;
+        }),
+        put: vi.fn(async (key: string, value: string) => { state.set(key, value); }),
+      },
+    } as unknown as RumoursEnv;
+  }
+
+  it("asks about four clubs a turn and walks the league in five", async () => {
+    const asked: number[][] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const id = Number(new URL(String(input)).searchParams.get("id"));
+      asked[asked.length - 1].push(id);
+      return Response.json({});
+    }));
+    const store = env();
+
+    // Five turns, each a little later than the gate, which is the rotation's own rhythm.
+    for (let turn = 0; turn < 5; turn += 1) {
+      asked.push([]);
+      await updateRumours(store, catalog, Date.parse("2026-09-01T12:00:00Z") + turn * 10 * 60_000);
+    }
+
+    // Ten clubs at once was thirteen milliseconds of parsing and the tick died every time.
+    expect(asked.map((turnAsked) => turnAsked.length)).toEqual([4, 4, 4, 4, 4]);
+    // Twenty distinct clubs, nobody asked twice, nobody missed.
+    expect(new Set(asked.flat()).size).toBe(20);
+  });
+
+  it("never reads the bootstrap: the squad arrives in the catalog", async () => {
+    const fetchMock = vi.fn(async () => Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateRumours(env(), catalog, Date.parse("2026-09-01T12:00:00Z"));
+
+    expect(fetchMock.mock.calls.every(([input]) => !String(input).includes("bootstrap-static"))).toBe(true);
   });
 });

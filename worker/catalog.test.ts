@@ -20,7 +20,7 @@ const bootstrap = {
     { id: 2, deadline_time: "2026-08-28T17:30:00Z", is_current: true, is_next: false, finished: false, ranked_count: 10_500_000 },
   ],
   teams: [{ id: 1, short_name: "ARS", name: "Arsenal", strength: 5, pulse_id: 1 }],
-  elements: [{ id: 7, web_name: "Saka", team: 1, element_type: 3, now_cost: 100, selected_by_percent: "40.0" }],
+  elements: [{ id: 7, web_name: "Saka", first_name: "Bukayo", second_name: "Saka", team: 1, element_type: 3, now_cost: 100, selected_by_percent: "40.0" }],
 };
 
 const catalogAt = (builtAt: string, deadline = "2026-08-28T17:30:00Z"): Catalog => ({
@@ -66,7 +66,8 @@ describe("building the catalog", () => {
     await refreshCatalog(env, Date.parse("2026-08-25T12:00:00Z"));
 
     const stored = await readCatalog(env);
-    expect(stored?.elements).toEqual([{ id: 7, web_name: "Saka", team: 1, element_type: 3 }]);
+    // The filed names ride along for `fotmob.ts`; `now_cost` and the rest are dropped.
+    expect(stored?.elements).toEqual([{ id: 7, web_name: "Saka", first_name: "Bukayo", second_name: "Saka", team: 1, element_type: 3 }]);
     expect(stored?.teams).toEqual([{ id: 1, short_name: "ARS", name: "Arsenal" }]);
     expect(stored?.events[1]).toEqual({
       id: 2, deadline_time: "2026-08-28T17:30:00Z", is_current: true, is_next: false, finished: false, ranked_count: 10_500_000,

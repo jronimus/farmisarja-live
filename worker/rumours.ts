@@ -1,3 +1,5 @@
+import type { Catalog } from "./catalog";
+
 import { CLUBS, matchElement, type Element } from "./fotmob";
 
 /**
@@ -14,8 +16,8 @@ import { CLUBS, matchElement, type Element } from "./fotmob";
  * it** and a graded `probability` — `Imminent`, `High` or `Low`. That is somebody else's
  * judgement, attributed and dated, rather than an inference of ours dressed up as data.
  *
- * This is an undocumented endpoint on somebody else's site, so it is read gently — half the
- * league every half hour, which is a full refresh hourly and about 5 MB a request — the
+ * This is an undocumented endpoint on somebody else's site, so it is read gently — four
+ * clubs a turn, about 2 MB a request, and the whole league inside a couple of hours — the
  * reporting outlet is always named on the page, and the page links to the report rather
  * than restating it. If it ever stops answering, the stored list simply ages out.
  */
@@ -63,20 +65,32 @@ export interface RumoursEnv {
 
 interface StoredRumours {
   checkAfter: string;
-  /** Which half of the league goes next, so a tick reads ten clubs and not twenty. */
-  half: number;
+  /** Which batch of clubs goes next, so a turn reads four of them and not twenty. */
+  cursor: number;
   rumours: Rumour[];
   absences?: Absence[];
 }
 
 const RUMOURS_KEY = "rumours:list";
 
-/** Half an hour a half, so the whole league is an hour old at worst. */
-const CHECK_MS = 30 * 60_000;
+/**
+ * Four clubs a turn, and a gate short enough that the next turn the rotation offers is
+ * allowed to take the next four.
+ *
+ * It used to read ten clubs at once and that is the single job that would not fit in the
+ * tick's ten milliseconds of CPU: five megabytes of FotMob is about thirteen milliseconds of
+ * parsing on its own, so the invocation was killed every time this came due, silently, and
+ * the rumours simply stopped moving. Four is about five milliseconds with the bootstrap no
+ * longer read here at all, which leaves room for the rest of the tick.
+ *
+ * Five batches at a turn every quarter of an hour or so is a full league in a bit over an
+ * hour, which is where it was before — arrived at by taking smaller bites more often rather
+ * than a bite too big to swallow.
+ */
+const BATCH = 4;
+const CHECK_MS = 5 * 60_000;
 /** A rumour nobody has repeated in a fortnight has been overtaken by events. */
 const MAX_AGE_MS = 14 * 86_400_000;
-
-interface Bootstrap { elements: Element[]; teams: Array<{ id: number; short_name: string }> }
 
 interface FotMobRumour {
   name: string;
@@ -149,8 +163,8 @@ export function rumoursFromTeam(
  * The stored list after a batch: the fresh reports, the ones from the clubs this tick did
  * not read, and nothing a fortnight old.
  *
- * Merging by club rather than wholesale is what lets a tick read half the league: a club
- * that was not asked keeps what it last said instead of vanishing for half an hour.
+ * Merging by club rather than wholesale is what lets a turn read four clubs: one that was
+ * not asked keeps what it last said instead of vanishing until its next turn comes round.
  */
 /** The unavailable list off the same payload, matched onto FPL where it can be. */
 export function absencesFromTeam(
@@ -190,19 +204,18 @@ export async function readRumours(env: RumoursEnv): Promise<StoredRumours | null
   return await env.TELEGRAM_STATE.get<StoredRumours>(RUMOURS_KEY, "json");
 }
 
-export async function updateRumours(env: RumoursEnv, now = Date.now()): Promise<{ written: boolean; count: number }> {
+export async function updateRumours(env: RumoursEnv, catalog: Catalog, now = Date.now()): Promise<{ written: boolean; count: number }> {
   const stored = await readRumours(env);
   if (stored?.checkAfter && Date.parse(stored.checkAfter) > now) return { written: false, count: 0 };
 
-  const bootstrap = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", {
-    headers: { Accept: "application/json", "User-Agent": "Farmisarja-Live/0.1" },
-    cf: { cacheEverything: true, cacheTtl: 300 },
-  }).then((response) => response.json() as Promise<Bootstrap>);
-  const teamByShort = new Map(bootstrap.teams.map((team) => [team.short_name, team.id]));
+  // The squad and the clubs come from the catalog. Reading the bootstrap here cost four of
+  // the ten milliseconds before a single club had been asked about.
+  const teamByShort = new Map(catalog.teams.map((team) => [team.short_name, team.id]));
 
   const ids = Object.keys(CLUBS).map(Number);
-  const half = (stored?.half ?? 0) % 2;
-  const batch = ids.slice(half * 10, half * 10 + 10);
+  const batches = Math.ceil(ids.length / BATCH);
+  const cursor = (stored?.cursor ?? 0) % batches;
+  const batch = ids.slice(cursor * BATCH, cursor * BATCH + BATCH);
 
   const results = await Promise.all(batch.map(async (clubId) => {
     try {
@@ -213,8 +226,8 @@ export async function updateRumours(env: RumoursEnv, now = Date.now()): Promise<
       if (!response.ok) throw new Error(`FotMob ${clubId} ${response.status}`);
       const payload = await response.json() as Parameters<typeof rumoursFromTeam>[0] & Parameters<typeof absencesFromTeam>[0];
       return {
-        rumours: rumoursFromTeam(payload, bootstrap.elements, teamByShort),
-        absences: absencesFromTeam(payload, clubId, bootstrap.elements, teamByShort),
+        rumours: rumoursFromTeam(payload, catalog.elements, teamByShort),
+        absences: absencesFromTeam(payload, clubId, catalog.elements, teamByShort),
       };
     } catch (error) {
       console.error(JSON.stringify({ event: "rumour_fetch_error", club: clubId, error: error instanceof Error ? error.message : String(error) }));
@@ -229,7 +242,7 @@ export async function updateRumours(env: RumoursEnv, now = Date.now()): Promise<
 
   await env.TELEGRAM_STATE.put(RUMOURS_KEY, JSON.stringify({
     checkAfter: new Date(now + CHECK_MS).toISOString(),
-    half: half + 1,
+    cursor: cursor + 1,
     rumours,
     absences,
   } satisfies StoredRumours));

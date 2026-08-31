@@ -32,8 +32,20 @@ export interface CatalogEvent {
 
 export interface CatalogTeam { id: number; short_name: string; name: string }
 
-/** Only what names a player and places him: the feed's lines and the line-up matcher. */
-export interface CatalogElement { id: number; web_name: string; team: number; element_type: number }
+/**
+ * Only what names a player and places him: the feed's lines, and the matcher in `fotmob.ts`
+ * that has to recognise him under somebody else's spelling. The two filed names are here so
+ * the rumour reader does not have to parse 1.6 MB to get them — they cost about sixteen
+ * kilobytes and save four milliseconds every time that job takes a turn.
+ */
+export interface CatalogElement {
+  id: number;
+  web_name: string;
+  first_name: string;
+  second_name: string;
+  team: number;
+  element_type: number;
+}
 
 export interface Catalog {
   version: number;
@@ -48,12 +60,12 @@ export interface CatalogEnv { TELEGRAM_STATE: KVNamespace }
 interface Bootstrap {
   events: Array<{ id: number; deadline_time: string; is_current: boolean; is_next: boolean; finished: boolean; ranked_count: number }>;
   teams: Array<{ id: number; short_name: string; name: string }>;
-  elements: Array<{ id: number; web_name: string; team: number; element_type: number }>;
+  elements: Array<{ id: number; web_name: string; first_name: string; second_name: string; team: number; element_type: number }>;
 }
 
 const CATALOG_KEY = "catalog:v1";
 /** Bumped when a field is added, so a stored catalog without it is rebuilt rather than read. */
-export const CATALOG_VERSION = 2;
+export const CATALOG_VERSION = 3;
 
 /** The ordinary refresh. Squad names and fixtures do not move faster than this. */
 const FRESH_MS = 30 * 60_000;
@@ -118,6 +130,8 @@ export async function refreshCatalog(env: CatalogEnv, now = Date.now()): Promise
     elements: bootstrap.elements.map((element) => ({
       id: element.id,
       web_name: element.web_name,
+      first_name: element.first_name,
+      second_name: element.second_name,
       team: element.team,
       element_type: element.element_type,
     })),
