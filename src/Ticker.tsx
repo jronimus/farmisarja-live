@@ -130,7 +130,12 @@ export default function Ticker({ data, language, autosubs, demo }: { data: Dashb
       }
     };
     read();
-    const timer = window.setInterval(read, 60_000);
+    // Twenty seconds, against a feed the Worker rewrites every two minutes. Reading three
+    // times per write sounds wasteful and is not: the response carries fifteen seconds of
+    // edge cache, so however many people are watching, the Worker itself is asked about four
+    // times a minute. What it buys is the tail — a line written at 20:15:00 used to be able
+    // to sit unread until 20:16:00, and now the wait is a third of that.
+    const timer = window.setInterval(read, 20_000);
     window.addEventListener("focus", read);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", read); };
   }, [data.gameweek, data.feed]);

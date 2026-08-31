@@ -203,10 +203,13 @@ export default {
       const gameweek = Number(url.searchParams.get("gw"));
       if (!Number.isInteger(gameweek) || gameweek < 1) return json({ error: "gw is required" }, request, env, 400);
       const feed = await readFeed(env as EventsEnv, gameweek);
-      // The cron writes at most every two minutes, so a short cache costs the feed nothing
-      // and keeps a page left open all evening off the KV read budget.
+      // The cron writes at most every two minutes, and the cache is what keeps a page left
+      // open all evening off the KV read budget: the Worker is asked about four times a
+      // minute however many people are watching. Fifteen seconds rather than thirty because
+      // it was half a minute of the ticker's own lateness, and the reads it costs are
+      // bounded by the cache rather than by the audience.
       return new Response(JSON.stringify({ gameweek, events: feed?.events ?? [] }), {
-        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=30" },
+        headers: { ...corsHeaders(request, env), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=15" },
       });
     }
     if (url.pathname === "/price-history") {
