@@ -14,6 +14,22 @@ The one thing worth watching is the next deadline: **GW3 closes 4 Sep 17:30 UTC*
 24-hour reminder is due 3 Sep 17:30 UTC and the two-hour one at 15:30 UTC on the 4th. Those
 two messages are the proof that what follows actually holds.
 
+### One thing left unmeasured, 31 Aug
+
+The rumour reader was cut from ten clubs a turn to four and taken off the bootstrap on the
+night of the 31st, because it was the last job that could not fit in a tick on its own —
+about seventeen milliseconds against ten. The arithmetic says it now costs about five, and
+the tests hold the batch size, but **no rumours turn has been watched live since the
+change**. It takes a turn at minutes 14, 15, 20, 21, 44, 45, 50 and 51 past the hour:
+
+```
+npx wrangler tail --format json
+```
+
+Look for `rumours_updated` and the `cpuTime` on that cron event. Anything under about seven
+is right; a return of `exceededCpu` means four clubs is still too many and the next step is
+three, not a bigger gate.
+
 ### The outage of 28–30 Aug, and what it cost
 
 Worth reading before touching `worker/index.ts`, because every rule in it was bought here.
