@@ -77,7 +77,20 @@ export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt
 interface AlbumJob {
   chat: string;
   done: ShareCardKind[];
+  /**
+   * Which of the two messages have already landed.
+   *
+   * The report goes out as a photo and then a pair, and on 31 Aug the pair failed after the
+   * photo had already been delivered. Nothing was written down until both had succeeded, so
+   * the whole turn was lost — the captured card, the fact that the photo had gone — and the
+   * next turn captured again and sent the same photo to the group a second time. It would
+   * have done that every six minutes for as long as the pair kept failing. A message that
+   * has landed is now recorded the moment it lands, and a retry sends only what is left.
+   */
+  sent?: AlbumStage[];
 }
+
+type AlbumStage = "photo" | "group";
 
 const ALBUM_KINDS: ShareCardKind[] = ["round", "total", "awards"];
 const ALBUM_TTL = 3 * 3600;
@@ -94,10 +107,11 @@ export async function queueAlbum(env: TelegramEnv, key: string, chat: string): P
   await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
 }
 
-async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob, fresh?: { kind: ShareCardKind; bytes: ArrayBuffer }): Promise<void> {
+async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+  const sent = new Set<AlbumStage>(job.sent ?? []);
   const part = async (kind: ShareCardKind): Promise<Blob> => {
-    const bytes = fresh && fresh.kind === kind ? fresh.bytes : await env.TELEGRAM_STATE.get(`${key}:${kind}`, "arrayBuffer");
+    const bytes = await env.TELEGRAM_STATE.get(`${key}:${kind}`, "arrayBuffer");
     if (!bytes) throw new Error(`Album part missing: ${kind}`);
     return new Blob([bytes], { type: "image/png" });
   };
@@ -105,19 +119,30 @@ async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob, fre
     const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, { method: "POST", body });
     if (!response.ok) throw new Error(`Telegram ${method} failed: ${response.status} ${await response.text()}`);
   };
+  // Written down before the next message is attempted, never after both.
+  const mark = async (stage: AlbumStage) => {
+    sent.add(stage);
+    await env.TELEGRAM_STATE.put(key, JSON.stringify({ ...job, sent: [...sent] } satisfies AlbumJob), { expirationTtl: ALBUM_TTL });
+  };
 
-  const first = new FormData();
-  first.set("chat_id", job.chat);
-  first.set("photo", await part("round"), "round.png");
-  first.set("reply_markup", JSON.stringify(button(env)));
-  await post("sendPhoto", first);
+  if (!sent.has("photo")) {
+    const first = new FormData();
+    first.set("chat_id", job.chat);
+    first.set("photo", await part("round"), "round.png");
+    first.set("reply_markup", JSON.stringify(button(env)));
+    await post("sendPhoto", first);
+    await mark("photo");
+  }
 
-  const second = new FormData();
-  second.set("chat_id", job.chat);
-  const pair: ShareCardKind[] = ["total", "awards"];
-  for (const [index, kind] of pair.entries()) second.set(`file${index}`, await part(kind), `${kind}.png`);
-  second.set("media", JSON.stringify(pair.map((_, index) => ({ type: "photo", media: `attach://file${index}` }))));
-  await post("sendMediaGroup", second);
+  if (!sent.has("group")) {
+    const second = new FormData();
+    second.set("chat_id", job.chat);
+    const pair: ShareCardKind[] = ["total", "awards"];
+    for (const [index, kind] of pair.entries()) second.set(`file${index}`, await part(kind), `${kind}.png`);
+    second.set("media", JSON.stringify(pair.map((_, index) => ({ type: "photo", media: `attach://file${index}` }))));
+    await post("sendMediaGroup", second);
+    await mark("group");
+  }
 
   await Promise.all([
     env.TELEGRAM_STATE.delete(key),
@@ -132,22 +157,21 @@ export async function advanceAlbum(env: TelegramEnv, key: string): Promise<boole
   const job = JSON.parse(stored) as AlbumJob;
   const next = ALBUM_KINDS.find((kind) => !job.done.includes(kind));
   if (next) {
+    // A capture is banked and the turn ends there. The last card used to be sent in the
+    // same breath as it was taken, which is how a failed send threw away a nine second
+    // screenshot along with the record of what had already gone out.
     const bytes = await (await captureCard(env, next)).arrayBuffer();
     job.done.push(next);
-    console.log(JSON.stringify({ event: "album_card_ready", key, kind: next, done: job.done.length }));
-    if (job.done.length === ALBUM_KINDS.length) {
-      await sendQueuedAlbum(env, key, job, { kind: next, bytes });
-      console.log(JSON.stringify({ event: "album_sent", key }));
-      return true;
-    }
     await env.TELEGRAM_STATE.put(`${key}:${next}`, bytes, { expirationTtl: ALBUM_TTL });
     await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
+    console.log(JSON.stringify({ event: "album_card_ready", key, kind: next, done: job.done.length }));
     return true;
   }
   await sendQueuedAlbum(env, key, job);
   console.log(JSON.stringify({ event: "album_sent", key }));
   return true;
 }
+
 /** One card, the link button, and no caption: the card already says what it is. */
 async function sendCardPhoto(env: TelegramEnv, chatId: number | string, kind: ShareCardKind): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");

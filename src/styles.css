@@ -340,11 +340,18 @@ main::before {
   color:#fff !important;
   box-shadow:none !important;
 }
-.award-target.award-green { background:#087044 !important; }
-.award-target.award-gold { background:#8a5b00 !important; }
-.award-target.award-red { background:#a92d49 !important; }
-.award-target.award-blue { background:#345f91 !important; }
-.award-target.award-purple { background:#5944b4 !important; }
+/* Level 0 is "leads, but not by enough to be worth saying". The shape rule above already
+   honours that; these have to as well. Without the guard a level 0 award kept its colour and
+   lost the padding, the rounding and the white text that go with it, so the figure sat in a
+   tight block of purple with the ordinary dark text still on top — which reads as a piece of
+   text somebody has selected with the mouse, not as an honour. Every August it shows: seven
+   squads inside £0.4m of each other means the value lead is a rounding error, which is
+   exactly what level 0 is for. */
+.award-target:not(.award-level-0).award-green { background:#087044 !important; }
+.award-target:not(.award-level-0).award-gold { background:#8a5b00 !important; }
+.award-target:not(.award-level-0).award-red { background:#a92d49 !important; }
+.award-target:not(.award-level-0).award-blue { background:#345f91 !important; }
+.award-target:not(.award-level-0).award-purple { background:#5944b4 !important; }
 .award-target.award-level-2 { filter:saturate(1.12) brightness(.92); }
 .award-target.award-level-3 { filter:saturate(1.25) brightness(.82); }
 .captain-cell,.team-value-cell,.bench-points-cell,.points-cell { gap:4px; }

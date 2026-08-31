@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { deadlineRemaining, reminderIsDue, runDeadlineReminders, runTelegramJobs, type TelegramEnv } from "./telegram";
+import { advanceAlbum, deadlineRemaining, reminderIsDue, runDeadlineReminders, runTelegramJobs, type TelegramEnv } from "./telegram";
 import type { CatalogEvent } from "./catalog";
 
 /** What the tick now hands the chat: the gameweek list, already parsed, out of the catalog. */
@@ -17,6 +17,7 @@ function testEnv(overrides: Record<string, unknown> = {}) {
     TELEGRAM_STATE: {
       get: vi.fn(async (key: string) => state.get(key) ?? null),
       put: vi.fn(async (key: string, value: string) => { state.set(key, value); }),
+      delete: vi.fn(async (key: string) => { state.delete(key); }),
     },
     BROWSER: {
       quickAction: vi.fn(async () => {
@@ -120,5 +121,48 @@ describe("deadline card Telegram notification", () => {
   it("formats the remaining deadline without seconds", () => {
     const now = Date.parse("2026-08-18T12:00:00Z");
     expect(deadlineRemaining(events({ id: 1, deadline_time: "2026-08-19T14:30:00Z" })[0], now)).toBe("1 päivä 2 tuntia");
+  });
+});
+
+describe("the post-game report, when Telegram takes the first message and refuses the second", () => {
+  const banked = async (env: TelegramEnv) => {
+    await env.TELEGRAM_STATE.put("album:gw:2", JSON.stringify({ chat: "group", done: ["round", "total", "awards"] }));
+    for (const kind of ["round", "total", "awards"]) await env.TELEGRAM_STATE.put(`album:gw:2:${kind}`, "png-bytes");
+  };
+  const method = (input: RequestInfo | URL) => String(input).split("/").pop();
+
+  it("does not send the photo a second time when the pair has to be retried", async () => {
+    const env = testEnv({ TELEGRAM_NOTIFICATIONS_ENABLED: "true" });
+    await banked(env);
+
+    // The failure that actually happened: the photo lands, the pair does not.
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
+      method(input) === "sendMediaGroup" ? new Response("Too Many Requests", { status: 429 }) : Response.json({ ok: true })));
+    await expect(advanceAlbum(env, "album:gw:2")).rejects.toThrow(/sendMediaGroup/);
+
+    // The photo that landed is written down, so the retry cannot repeat it.
+    const stored = JSON.parse(await env.TELEGRAM_STATE.get("album:gw:2") as unknown as string);
+    expect(stored.sent).toEqual(["photo"]);
+
+    const second = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", second);
+    await advanceAlbum(env, "album:gw:2");
+
+    expect(second.mock.calls.map(([input]) => method(input))).toEqual(["sendMediaGroup"]);
+    expect(await env.TELEGRAM_STATE.get("album:gw:2")).toBeNull();
+  });
+
+  it("banks a capture before anything is sent", async () => {
+    const env = testEnv({ TELEGRAM_NOTIFICATIONS_ENABLED: "true" });
+    await env.TELEGRAM_STATE.put("album:gw:2", JSON.stringify({ chat: "group", done: ["round", "total"] }));
+    const fetchMock = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await advanceAlbum(env, "album:gw:2");
+
+    // The last card used to be taken and sent in one breath, so a refused send threw the
+    // screenshot away with it.
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(JSON.parse(await env.TELEGRAM_STATE.get("album:gw:2") as unknown as string).done).toHaveLength(3);
   });
 });
