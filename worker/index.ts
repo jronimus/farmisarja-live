@@ -1,6 +1,6 @@
 import { captureCard, handleTelegramWebhook, runDeadlineReminders, runTelegramJobs, type ShareCardKind, type TelegramEnv } from "./telegram";
 import { readCatalog, refreshCatalog, refreshDue, type Catalog, type CatalogEnv } from "./catalog";
-import { BEAT_EVERY, checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
+import { BEAT_EVERY, beatAge, checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
 import { advanceSample, computeCurve, type LiveRankEnv } from "./liveRank";
 import { readFeed, updateFeed, type EventsEnv } from "./events";
 import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } from "./priceHistory";
@@ -176,7 +176,17 @@ export default {
       }
     }
     if (request.method !== "GET") return json({ error: "Method not allowed" }, request, env, 405);
-    if (url.pathname === "/health") return json({ ok: true, leagueId: env.FPL_LEAGUE_ID }, request, env);
+    if (url.pathname === "/health") {
+      // How long since a tick last reached its end. This is the outage of 28-30 August made
+      // askable: it ran for three days behind a route that answered `ok: true` throughout,
+      // because nothing here knew whether the cron was alive.
+      const age = await beatAge(env as HealthEnv);
+      return json({
+        ok: true,
+        leagueId: env.FPL_LEAGUE_ID,
+        cron: age === null ? "no beat yet" : { lastTickMinutesAgo: Math.round(age / 60_000), stalled: age >= 25 * 60_000 },
+      }, request, env);
+    }
     if (url.pathname === "/rank") {
       const gameweek = Number(url.searchParams.get("gw"));
       if (!Number.isInteger(gameweek) || gameweek < 1) return json({ error: "gw is required" }, request, env, 400);

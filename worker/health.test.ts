@@ -5,7 +5,7 @@ function testEnv(overrides: Record<string, unknown> = {}) {
   const state = new Map<string, string>();
   return {
     TELEGRAM_BOT_TOKEN: "test-token",
-    TELEGRAM_CHAT_ID: "test-chat",
+    TELEGRAM_ALERT_CHAT_ID: "private-chat",
     TELEGRAM_STATE: {
       get: vi.fn(async (key: string, type?: string) => {
         const value = state.get(key) ?? null;
@@ -75,6 +75,30 @@ describe("the cron watchdog", () => {
     await checkHeartbeat(env, NOW);
 
     expect(env.TELEGRAM_STATE.put).toHaveBeenCalledWith("health:alert", expect.any(String), expect.anything());
+  });
+
+  it("never says a word in the league group", async () => {
+    // The group is eleven other people. An outage is the maintainer's problem, and with no
+    // alert chat configured the watchdog logs it and tells nobody.
+    const env = testEnv({ TELEGRAM_ALERT_CHAT_ID: undefined, TELEGRAM_CHAT_ID: "-1001048034441" });
+    const fetchMock = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await writeHeartbeat(env, NOW - 30 * 60_000);
+
+    expect(await checkHeartbeat(env, NOW)).toMatchObject({ alerted: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends only to the chat named for alerts", async () => {
+    const env = testEnv();
+    const fetchMock = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await writeHeartbeat(env, NOW - 30 * 60_000);
+
+    await checkHeartbeat(env, NOW);
+
+    const [, init] = telegramCalls(fetchMock)[0];
+    expect(JSON.parse(String((init as RequestInit).body)).chat_id).toBe("private-chat");
   });
 
   it("does not cry outage over a Worker that has only just been deployed", async () => {

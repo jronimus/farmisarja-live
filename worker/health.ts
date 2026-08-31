@@ -15,8 +15,17 @@
 
 export interface HealthEnv {
   TELEGRAM_STATE: KVNamespace;
-  TELEGRAM_CHAT_ID?: string;
   TELEGRAM_BOT_TOKEN?: string;
+  /**
+   * Where an alert goes, and the only place it can go.
+   *
+   * Deliberately not `TELEGRAM_CHAT_ID`: that is the league group, and an outage is the
+   * maintainer's problem, not eleven other people's. There is no fallback — with this
+   * unset the watchdog logs and says nothing to anybody, which is the right failure for a
+   * setting whose whole purpose is choosing an audience. Set it to a private chat id, which
+   * the bot answers with when sent `/id` there.
+   */
+  TELEGRAM_ALERT_CHAT_ID?: string;
 }
 
 interface Heartbeat { at: string }
@@ -59,13 +68,15 @@ export async function checkHeartbeat(env: HealthEnv, now = Date.now()): Promise<
   if (await env.TELEGRAM_STATE.get(ALERT_KEY)) return { alerted: false, age };
 
   const minutes = Math.round(age / 60_000);
+  // The log line stands whether or not there is anywhere to send it. `/health` reports the
+  // same staleness to anyone who asks, so the outage is visible without a chat at all.
   console.error(JSON.stringify({ event: "cron_stalled", minutes }));
-  if (env.TELEGRAM_CHAT_ID && env.TELEGRAM_BOT_TOKEN) {
+  if (env.TELEGRAM_ALERT_CHAT_ID && env.TELEGRAM_BOT_TOKEN) {
     await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        chat_id: env.TELEGRAM_CHAT_ID,
+        chat_id: env.TELEGRAM_ALERT_CHAT_ID,
         text: `⚠️ Farmisarja: ajastin ei ole päässyt loppuun ${minutes} minuuttiin. Ticker ja muistutukset voivat olla jäljessä.`,
         disable_web_page_preview: true,
       }),
