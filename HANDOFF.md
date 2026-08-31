@@ -81,9 +81,20 @@ dozen parallel tasks racing through one budget:
 Every stage is fenced on its own. Measured after deploying: 5–7 ms on an ordinary tick.
 
 `worker/health.ts` is the part that turns three days into one evening. A beat every ten
-minutes, read at the start of every tick before anything can kill it, and the chat is told
-when nothing has finished for twenty-five minutes — once an hour, with the mark written even
-when the chat cannot be reached.
+minutes, read at the start of every tick before anything can kill it, and an alert when
+nothing has finished for twenty-five minutes — once an hour, with the mark written even when
+the chat cannot be reached.
+
+The alert goes to **`TELEGRAM_ALERT_CHAT_ID`**, a Worker secret holding a private chat id,
+and there is no fallback to `TELEGRAM_CHAT_ID`. That is deliberate and a test enforces it:
+`TELEGRAM_CHAT_ID` is the league group, and an outage is the maintainer's problem rather
+than something to wake eleven other people over. With the secret unset the watchdog logs and
+tells nobody. To point it somewhere else, send the bot `/id` in the chat you want and
+`wrangler secret put TELEGRAM_ALERT_CHAT_ID`.
+
+`GET /health` answers the same question without any chat at all: `lastTickMinutesAgo` and
+`stalled`. The route returned a flat `ok: true` right through the three days the cron was
+dead.
 
 **The rule this leaves behind: anything added to the tick has to name which of the three
 places it goes, and adding a second heavy job to one tick is the bug this whole section is
