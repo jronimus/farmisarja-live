@@ -113,10 +113,12 @@ Each of these has its own section further down; this is the map.
 
 ### Loose ends, none of them blocking
 
-- **`matchElement` paired "Eric da Silva Moreira" with Morato**, two different Forest players
-  who share `da` and `silva`. `worker/mentions.ts` solved the same problem properly for
-  articles — refuse unless it resolves to exactly one man — and `worker/fotmob.ts` has not
-  been given the same treatment.
+- ~~**`matchElement` paired "Eric da Silva Moreira" with Morato.**~~ Closed 31 Aug. The
+  known name — FPL's `web_name` — must now appear in full in the name being matched, and two
+  men who fit equally well are refused rather than coin-tossed. Measured against the live
+  store before deploying: 116 rumours and absences, 115 of them matched, **not one match
+  changed**. The tightening costs nothing real and only refuses what was wrong, which was the
+  bet worth checking before shipping it.
 - **The article tags are sparse and that is mostly correct.** Four of eighteen carry one, and
   the other fourteen are *Transfer Tips*, *Team Reveal*, *Watchlist* — pieces that name
   nobody. Only the headline and the lead are read, deliberately: an FPL article's body names

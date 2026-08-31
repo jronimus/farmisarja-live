@@ -35,13 +35,38 @@ export function normalise(name: string): string {
 }
 
 /**
- * Which FPL player a rumour is about.
+ * Which FPL player a rumour is about, or nobody.
  *
  * The two sites do not spell anybody the same way. FotMob says `Emiliano Martínez`, FPL
  * files him as `Emiliano` / `Martínez Romero` with a web name of `Martinez`, and there is a
  * second Martínez at another club. So the club comes first — a rumour is always attached to
- * one — and inside it the match is on shared name parts, with the forename breaking a tie.
- * Nothing matches across clubs, which is what keeps the two Martínezes apart.
+ * one — and inside it the match is on shared name parts.
+ *
+ * ### Why the best guess is not good enough
+ *
+ * This used to return whichever player in the club shared the most parts of the name, and
+ * one shared part was enough to win. FotMob's `Eric da Silva Moreira` therefore landed on
+ * Forest's Morato, whom FPL files as Felipe Rodrigues **da Silva**: one part, `silva`,
+ * nobody else in the squad had it, so he won. The right answer was nobody — Eric da Silva
+ * Moreira is not in FPL at all — and that is the answer this could never give.
+ *
+ * It matters most exactly where it is used. A transfer rumour is very often about somebody
+ * FPL has never listed: a youth player, or a name from another league. Those are the cases
+ * where the correct reply is silence, and a matcher that always names its best guess pins
+ * the report to an innocent bystander's row on the page.
+ *
+ * ### So the known name has to be there, in full
+ *
+ * `web_name` is the name FPL knows a player by, and it is the name FotMob writes too — both
+ * sites lead with what a reader would call him. Every part of it must appear in the name
+ * being matched: `Martinez` inside `Emiliano Martínez`, `Enzo` inside `Enzo Fernández`,
+ * `Williams` inside `Neco Williams` once the `N.` is dropped for being too short to mean
+ * anything. `Morato` is not inside `Eric da Silva Moreira`, so that match is refused, and a
+ * stray `silva` from the middle of a filed name can no longer carry one on its own.
+ *
+ * The remaining parts still count, but only to separate two players who both cleared that
+ * bar — and if they clear it equally, nobody is named. `mentions.ts` reached the same rule
+ * from the other direction, for article tags: refuse unless it resolves to exactly one man.
  */
 export function matchElement(name: string, clubId: number, elements: Element[], teamByShort: Map<string, number>): number | null {
   const short = CLUBS[clubId];
@@ -51,18 +76,28 @@ export function matchElement(name: string, clubId: number, elements: Element[], 
   if (!parts.size) return null;
 
   let best: { id: number; score: number } | null = null;
+  let tied = false;
   for (const element of elements) {
     if (element.team !== team) continue;
+    const known = normalise(element.web_name).split(" ").filter((part) => part.length >= 3);
+    // The name he is known by, all of it. Everything below is only ever a tie-break.
+    if (!known.length || !known.every((part) => parts.has(part))) continue;
+
     const own = new Set([
       ...normalise(`${element.first_name} ${element.second_name}`).split(" "),
-      ...normalise(element.web_name).split(" "),
+      ...known,
     ].filter((part) => part.length >= 3));
     let score = 0;
     for (const part of parts) if (own.has(part)) score += 1;
-    if (!score) continue;
-    // A surname alone is one part; a forename and a surname together are two, and that is
-    // what separates the right Rodrigo from the other one at the same club.
-    if (!best || score > best.score) best = { id: element.id, score };
+
+    if (!best || score > best.score) {
+      best = { id: element.id, score };
+      tied = false;
+    } else if (score === best.score) {
+      tied = true;
+    }
   }
-  return best ? best.id : null;
+  // Two men the name fits equally well is not a match, it is a coin toss with a reader's
+  // page as the stake.
+  return best && !tied ? best.id : null;
 }
