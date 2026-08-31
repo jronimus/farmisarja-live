@@ -1,4 +1,6 @@
-import { captureCard, handleTelegramWebhook, runTelegramSchedule, type ShareCardKind, type TelegramEnv } from "./telegram";
+import { captureCard, handleTelegramWebhook, runDeadlineReminders, runTelegramJobs, type ShareCardKind, type TelegramEnv } from "./telegram";
+import { readCatalog, refreshCatalog, refreshDue, type Catalog, type CatalogEnv } from "./catalog";
+import { BEAT_EVERY, checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
 import { advanceSample, computeCurve, type LiveRankEnv } from "./liveRank";
 import { readFeed, updateFeed, type EventsEnv } from "./events";
 import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } from "./priceHistory";
@@ -67,6 +69,93 @@ async function proxy(request: Request, env: Env, path: string, ttl: number): Pro
   headers.set("Cache-Control", `public, max-age=${ttl}`);
   headers.set("X-Farmisarja-Cache-Ttl", String(ttl));
   return new Response(upstream.body, { status: upstream.status, headers });
+}
+
+
+/**
+ * The background jobs, one per odd minute, in the order they take their turn.
+ *
+ * Each already returns after a single KV read on a turn it is not due — the `checkAfter`
+ * gate every one of them keeps — so a turn spent on a job with nothing to do is cheap. What
+ * the rotation buys is the guarantee that two of them can never land on the same tick, which
+ * is how a quiet Tuesday could still put four bootstrap parses into one invocation.
+ *
+ * Telegram appears four times because it is the one with something to do most often: a card
+ * of an album per turn, and the deadline card to notice. Its turn comes round every eight
+ * minutes or so; everything else waits about half an hour, which is well inside its own gate.
+ */
+const ROTATION: Array<{ name: string; run: (env: Env, catalog: Catalog, now: number) => Promise<unknown> }> = [
+  { name: "telegram", run: (env, catalog, now) => runTelegramJobs(env as TelegramEnv, catalog.events, now) },
+  { name: "transfers", run: (env, _catalog, now) => updateTransfers(env as TransfersEnv, now) },
+  { name: "rank", run: (env, catalog, now) => advanceSample(env as LiveRankEnv, catalog, now) },
+  { name: "telegram", run: (env, catalog, now) => runTelegramJobs(env as TelegramEnv, catalog.events, now) },
+  { name: "lineups", run: (env, _catalog, now) => updateLineups(env as LineupsEnv, now) },
+  { name: "articles", run: (env, _catalog, now) => updateArticles(env as ArticlesEnv, now) },
+  { name: "telegram", run: (env, catalog, now) => runTelegramJobs(env as TelegramEnv, catalog.events, now) },
+  { name: "rumours", run: (env, _catalog, now) => updateRumours(env as RumoursEnv, now) },
+  { name: "prices", run: (env, _catalog, now) => updatePriceHistory(env as PriceHistoryEnv, now) },
+  { name: "telegram", run: (env, catalog, now) => runTelegramJobs(env as TelegramEnv, catalog.events, now) },
+  { name: "appearances", run: (env, _catalog, now) => updateAppearances(env as AppearancesEnv, now) },
+  { name: "history", run: (env, _catalog, now) => updateFplHistory(env as FplHistoryEnv, now) },
+  { name: "telegram", run: (env, catalog, now) => runTelegramJobs(env as TelegramEnv, catalog.events, now) },
+  { name: "insights", run: (env, _catalog, now) => updateInsights(env as InsightsEnv, now) },
+];
+
+/**
+ * The three hours after a deadline, when the rank sample has a hundred and twenty pages to
+ * read and a reason to hurry.
+ *
+ * It needs about fifty turns to finish and takes them at twenty requests each; a turn every
+ * half hour from the rotation would have it still reading on Saturday evening. So for one
+ * window a week it takes every odd minute instead, and outside that window it goes back to
+ * the rotation like everything else — which is enough to finish a sample that some outage
+ * left half-read.
+ */
+function rankHasPriority(catalog: Catalog, now: number): boolean {
+  const current = catalog.events.find((event) => event.is_current);
+  if (!current) return false;
+  const deadline = Date.parse(current.deadline_time);
+  return now >= deadline && now < deadline + 3 * 3_600_000;
+}
+
+/** A failure costs its own stage and nothing below it. */
+async function stage(name: string, task: () => Promise<unknown>): Promise<void> {
+  try {
+    await task();
+  } catch (error) {
+    console.error(JSON.stringify({ event: "tick_stage_error", stage: name, error: error instanceof Error ? error.message : String(error) }));
+  }
+}
+
+async function tick(env: Env, scheduledTime: number): Promise<void> {
+  const now = scheduledTime;
+  const minute = new Date(now).getUTCMinutes();
+
+  // Before anything that could kill the invocation, so an outage is reported by the ticks
+  // that are still dying rather than by the first one that recovers.
+  await stage("watchdog", () => checkHeartbeat(env as HealthEnv, now));
+
+  const catalog = await readCatalog(env as CatalogEnv);
+  // The cheapest thing on the tick and the one with a deadline of its own.
+  if (catalog) await stage("reminders", () => runDeadlineReminders(env as TelegramEnv, catalog.events, now));
+
+  // One heavy job, and only one. A stale catalog outranks the rest: everything above reads
+  // it, and until it exists there is nothing for the feed or the reminders to work from.
+  if (refreshDue(catalog, now)) {
+    await stage("catalog", () => refreshCatalog(env as CatalogEnv, now));
+  } else if (catalog && minute % 2 === 0) {
+    // The feed on even minutes, which is the two-minute cadence it was always documented to
+    // have — it used to attempt every minute and land on whichever ticks happened to survive.
+    await stage("feed", () => updateFeed(env as EventsEnv, catalog, now));
+  } else if (catalog && rankHasPriority(catalog, now)) {
+    await stage("rank", () => advanceSample(env as LiveRankEnv, catalog, now));
+  } else if (catalog) {
+    const job = ROTATION[Math.floor(minute / 2) % ROTATION.length];
+    await stage(job.name, () => job.run(env, catalog, now));
+  }
+
+  // Last, and only from a tick that got this far.
+  if (minute % BEAT_EVERY === 0) await stage("heartbeat", () => writeHeartbeat(env as HealthEnv, now));
 }
 
 export default {
@@ -192,70 +281,28 @@ export default {
       return json({ error: "FPL service temporarily unavailable" }, request, env, 502);
     }
   },
+  /**
+   * One tick, one budget.
+   *
+   * A cron invocation on this plan has ten milliseconds of CPU, and the whole of 28–30
+   * August was spent discovering what happens when the tick asks for more: Cloudflare kills
+   * it where it stands, with no exception and no log, and whichever tasks had not finished
+   * simply did not happen. Deadline reminders were never sent, the deadline card was
+   * fourteen hours late and the ticker stopped mid-afternoon — one cause, three symptoms.
+   *
+   * So the tick is now ordered by what it can afford to lose, and it runs in sequence rather
+   * than as a dozen parallel tasks racing each other through the same budget:
+   *
+   *   1. the watchdog and the reminders, which together cost a KV read and some arithmetic
+   *      and therefore always happen;
+   *   2. exactly one heavy job — the catalog when it is stale, the feed on even minutes,
+   *      otherwise whichever background job the rotation has reached;
+   *   3. the heartbeat, written last, because a mark of a finished tick has to be written
+   *      by a tick that finished.
+   *
+   * Every stage is fenced on its own, so a failure costs its own stage and nothing below it.
+   */
   async scheduled(controller, env, ctx): Promise<void> {
-    /**
-     * The minute, used to keep the two heavy readers apart.
-     *
-     * A cron invocation has one budget for all of it, and the two FotMob passes are the
-     * expensive ones — ten team payloads at half a megabyte each for the rumours, a date
-     * listing and a handful of match pages for the line-ups. Landing both on the same tick
-     * put the invocation over its limit and it died before writing anything, silently,
-     * which is exactly how the line-up store sat empty with no error to show for it. They
-     * now take alternate minutes; each still has its own gate on top of that.
-     */
-    const minute = new Date(controller.scheduledTime).getUTCMinutes();
-    // Guarded like the rest of them. It was the one task on the tick without a catch, so a
-    // throw here — an FPL 5xx around the deadline is the everyday one — was an unhandled
-    // rejection on the invocation and left no line in the log to find it by.
-    ctx.waitUntil(runTelegramSchedule(env as TelegramEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "telegram_schedule_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // Independent of the Telegram switch: the feed is the site's, not the chat's.
-    ctx.waitUntil(updateFeed(env as EventsEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "feed_update_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // The sample is built once a gameweek; scoring it happens on request, not on a tick.
-    // Guarded on its own, so a failure here leaves the feed and the reminders alone.
-    ctx.waitUntil(advanceSample(env as LiveRankEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "rank_sample_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // Prices move once a day, and this returns after one KV read on every tick that is not
-    // near a change. Guarded on its own like the rest.
-    ctx.waitUntil(updatePriceHistory(env as PriceHistoryEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "price_history_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // Twenty minutes behind its own gate, so this is a KV read on 19 ticks out of 20.
-    ctx.waitUntil(updateArticles(env as ArticlesEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "articles_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // Half the league every half hour, and a KV read on every other tick.
-    if (minute % 2 === 0) ctx.waitUntil(updateRumours(env as RumoursEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "rumours_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // The transfer wire is 29 kB, so it can be read on every tick — it is the one source
-    // here that is minutes old rather than an hour, and the gate inside it is five minutes.
-    ctx.waitUntil(updateTransfers(env as TransfersEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "transfers_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // The fixtures close to kick-off, every quarter of an hour, on the odd minutes.
-    if (minute % 2 === 1) ctx.waitUntil(updateLineups(env as LineupsEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "lineups_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // Where FPL's own season totals stand, written down once a gameweek. It is the only
-    // way to have a per-gameweek FPL figure at all: the game publishes no window but the
-    // season, so a week of it is one snapshot less the one before.
-    if (minute % 5 === 3) ctx.waitUntil(updateFplHistory(env as FplHistoryEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "fpl_history_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // Who has played since, on the same hourly gate: minutes settle within the hour after a
-    // match and nothing here moves faster than that.
-    if (minute % 5 === 2) ctx.waitUntil(updateAppearances(env as AppearancesEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "appearances_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
-    // The dataset rebuilds three times a day; reading it hourly, on a minute of its own,
-    // is already more often than it can change.
-    if (minute % 5 === 4) ctx.waitUntil(updateInsights(env as InsightsEnv).catch((error) => {
-      console.error(JSON.stringify({ event: "insights_error", error: error instanceof Error ? error.message : String(error) }));
-    }));
+    ctx.waitUntil(tick(env, controller.scheduledTime));
   },
 } satisfies ExportedHandler<Env>;

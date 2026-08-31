@@ -1,3 +1,5 @@
+import type { Catalog } from "./catalog";
+
 /**
  * A live overall rank, which FPL does not publish and cannot be derived from what it does.
  *
@@ -143,9 +145,16 @@ export function plannedPages(ranked: number, count = SAMPLE_PAGES, perPage = PER
  * Take one tick's worth of the sample. Pages first, because each one produces the entries
  * the rest of the budget is spent on.
  */
-export async function advanceSample(env: LiveRankEnv, now = Date.now()): Promise<{ fetched: number; entries: number; done: boolean }> {
-  const bootstrap = await fpl<{ events: Array<{ id: number; is_current: boolean; ranked_count: number; deadline_time: string }> }>("/bootstrap-static/");
-  const event = bootstrap.events.find((entry) => entry.is_current);
+/**
+ * The gameweek comes from the catalog rather than from a bootstrap of its own.
+ *
+ * This was the third of the three unconditional 1.6 MB parses on every tick, and the worst
+ * placed of them: it happened *before* the two gates below, so the tick paid four
+ * milliseconds to discover that the sample was already complete and there was nothing to do
+ * — which is what it discovers on all but a few dozen ticks a week.
+ */
+export async function advanceSample(env: LiveRankEnv, catalog: Catalog, now = Date.now()): Promise<{ fetched: number; entries: number; done: boolean }> {
+  const event = catalog.events.find((entry) => entry.is_current);
   if (!event || !event.ranked_count) return { fetched: 0, entries: 0, done: false };
   // Picks answer 404 until the deadline has passed. Starting before it would drain the
   // queue against errors and leave an empty sample marked complete for the whole gameweek.

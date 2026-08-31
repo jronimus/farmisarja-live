@@ -1,3 +1,5 @@
+import type { Catalog } from "./catalog";
+
 /**
  * The live event feed.
  *
@@ -49,12 +51,6 @@ interface Fixture {
   team_h_score: number | null; team_a_score: number | null;
   minutes: number; started: boolean; finished: boolean; finished_provisional: boolean;
 }
-interface Bootstrap {
-  events: Array<{ id: number; is_current: boolean }>;
-  elements: Array<{ id: number; web_name: string; team: number; element_type: number }>;
-  teams: Array<{ id: number; short_name: string; name: string }>;
-}
-
 export interface EventsEnv {
   TELEGRAM_STATE: KVNamespace;
 }
@@ -269,9 +265,17 @@ export function repairEvents(
   }
 }
 
-export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ written: boolean; added: number }> {
-  const bootstrap = await fpl<Bootstrap>("/bootstrap-static/");
-  const event = bootstrap.events.find((entry) => entry.is_current);
+/**
+ * The gameweek list, the squads and the clubs arrive already narrowed, from `catalog.ts`.
+ *
+ * This used to open with a 1.6 MB parse of its own on every tick — four milliseconds of a
+ * ten millisecond budget, for three fields per player — and it was one of the three that
+ * together put the invocation over the limit and killed it before it could write. Fixtures
+ * and the live payload are still read here: they are a tenth the size and they are the two
+ * things that actually change minute to minute.
+ */
+export async function updateFeed(env: EventsEnv, catalog: Catalog, now = Date.now()): Promise<{ written: boolean; added: number }> {
+  const event = catalog.events.find((entry) => entry.is_current);
   if (!event) return { written: false, added: 0 };
 
   const fixtures = (await fpl<Fixture[]>("/fixtures/")).filter((fixture) => fixture.event === event.id);
@@ -279,9 +283,9 @@ export async function updateFeed(env: EventsEnv, now = Date.now()): Promise<{ wr
   if (!isLive(fixtures, stored?.lastLiveAt, now)) return { written: false, added: 0 };
 
   const live = await fpl<{ elements: LiveElement[] }>(`/event/${event.id}/live/`);
-  const teamById = new Map(bootstrap.teams.map((team) => [team.id, team.short_name]));
-  const teamNameById = new Map(bootstrap.teams.map((team) => [team.id, team.name]));
-  const elementById = new Map(bootstrap.elements.map((element) => [element.id, element]));
+  const teamById = new Map(catalog.teams.map((team) => [team.id, team.short_name]));
+  const teamNameById = new Map(catalog.teams.map((team) => [team.id, team.name]));
+  const elementById = new Map(catalog.elements.map((element) => [element.id, element]));
   const fixtureById = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
 
   const previous = stored?.snapshot ?? {};

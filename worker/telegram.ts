@@ -1,5 +1,5 @@
-interface FplEvent { id: number; deadline_time: string; is_current: boolean; is_next: boolean; }
-interface BootstrapResponse { events: FplEvent[]; }
+import { readCatalog, type CatalogEvent } from "./catalog";
+
 interface LeagueEntry { entry: number; }
 interface LeagueResponse { standings: { results: LeagueEntry[] }; new_entries: { results: LeagueEntry[] }; }
 interface Fixture { event: number | null; finished: boolean; finished_provisional: boolean; }
@@ -159,11 +159,11 @@ async function sendCardPhoto(env: TelegramEnv, chatId: number | string, kind: Sh
   if (!response.ok) throw new Error(`Telegram sendPhoto failed: ${response.status} ${await response.text()}`);
 }
 
-function nextDeadline(events: FplEvent[], now: number): FplEvent | undefined {
+function nextDeadline(events: CatalogEvent[], now: number): CatalogEvent | undefined {
   return events.filter((event) => new Date(event.deadline_time).getTime() > now).sort((a, b) => a.id - b.id)[0];
 }
 
-export function deadlineRemaining(event: FplEvent, now: number): string {
+export function deadlineRemaining(event: CatalogEvent, now: number): string {
   const minutes = Math.max(0, Math.ceil((new Date(event.deadline_time).getTime() - now) / 60_000));
   const days = Math.floor(minutes / 1440);
   const hours = Math.floor((minutes % 1440) / 60);
@@ -173,7 +173,7 @@ export function deadlineRemaining(event: FplEvent, now: number): string {
   return `${rest} minuuttia`;
 }
 
-const deadlineClock = (event: FplEvent) => new Intl.DateTimeFormat("fi-FI", {
+const deadlineClock = (event: CatalogEvent) => new Intl.DateTimeFormat("fi-FI", {
   timeZone: "Europe/Helsinki", hour: "2-digit", minute: "2-digit",
 }).format(new Date(event.deadline_time));
 
@@ -214,7 +214,7 @@ export function reminderIsDue(remaining: number, target: number): boolean {
   return remaining <= target && remaining > 0;
 }
 
-async function checkDeadlineReminders(env: TelegramEnv, events: FplEvent[], now: number): Promise<void> {
+async function checkDeadlineReminders(env: TelegramEnv, events: CatalogEvent[], now: number): Promise<void> {
   const event = nextDeadline(events, now);
   if (!event || !env.TELEGRAM_CHAT_ID) return;
   const remaining = new Date(event.deadline_time).getTime() - now;
@@ -228,7 +228,7 @@ async function checkDeadlineReminders(env: TelegramEnv, events: FplEvent[], now:
 }
 
 /** Once every manager's picks are readable, the deadline card can be drawn from them. */
-async function checkDeadlineCard(env: TelegramEnv, event: FplEvent, now: number): Promise<void> {
+async function checkDeadlineCard(env: TelegramEnv, event: CatalogEvent, now: number): Promise<void> {
   if (!env.TELEGRAM_CHAT_ID || now < new Date(event.deadline_time).getTime()) return;
   // The mark is read before the league is, not after: the card is sent once and the
   // gameweek runs for another week, and reading a dozen managers' picks on every tick of
@@ -251,7 +251,7 @@ async function checkDeadlineCard(env: TelegramEnv, event: FplEvent, now: number)
  * Rendering's free plan allows one request per ten seconds, so a few minutes pass between
  * this and the message regardless.
  */
-async function checkPostGame(env: TelegramEnv, event: FplEvent): Promise<void> {
+async function checkPostGame(env: TelegramEnv, event: CatalogEvent): Promise<void> {
   if (!env.TELEGRAM_CHAT_ID) return;
   // Before the fixture list, not after it: once the report is queued this is the rest of
   // the gameweek's ticks reading a few hundred kilobytes to reach the same answer.
@@ -279,23 +279,31 @@ async function stage(name: string, task: () => Promise<void>): Promise<void> {
   }
 }
 
-export async function runTelegramSchedule(env: TelegramEnv, now = Date.now()): Promise<void> {
+/**
+ * The reminders, and nothing else, on every single tick.
+ *
+ * They are separated from the rest of the schedule because they are the part with a
+ * deadline of their own and the part that costs nothing: the gameweek list arrives already
+ * parsed from the catalog, so this is a comparison of two numbers and, twice a week, one
+ * message. Everything expensive the chat does now waits its turn in the rotation instead of
+ * sharing an invocation with this.
+ */
+export async function runDeadlineReminders(env: TelegramEnv, events: CatalogEvent[], now = Date.now()): Promise<void> {
   if (env.TELEGRAM_NOTIFICATIONS_ENABLED !== "true") return;
-  const bootstrap = await fpl<BootstrapResponse>("/bootstrap-static/");
-  /**
-   * Fenced like the rest, though it runs first and is the cheap one.
-   *
-   * Being first is exactly why it needed this. A group whose id has gone stale, or a chat
-   * the bot may no longer post in, made `sendLinkMessage` throw here — and that took down
-   * every stage below it, including an album someone had asked for in a private chat. One
-   * unreachable chat should cost that chat its messages and nothing else.
-   */
-  await stage("reminders", () => checkDeadlineReminders(env, bootstrap.events, now));
-  const current = bootstrap.events.find((event) => event.is_current);
+  await stage("reminders", () => checkDeadlineReminders(env, events, now));
+}
+
+/**
+ * The chat's expensive half: the deadline card, the post-game album, and the capture of one
+ * album card per turn. Given a tick to itself by the rotation in `index.ts`.
+ */
+export async function runTelegramJobs(env: TelegramEnv, events: CatalogEvent[], now = Date.now()): Promise<void> {
+  if (env.TELEGRAM_NOTIFICATIONS_ENABLED !== "true") return;
+  const current = events.find((event) => event.is_current);
   if (!current) return;
   await stage("deadline_card", () => checkDeadlineCard(env, current, now));
   await stage("postgame", () => checkPostGame(env, current));
-  // One capture per tick keeps every invocation well inside its time budget.
+  // One capture per turn keeps every invocation well inside its time budget.
   let advanced = false;
   await stage("album_preview", async () => { advanced = await advanceAlbum(env, "album:preview"); });
   if (advanced) return;
@@ -324,8 +332,11 @@ export async function handleTelegramWebhook(request: Request, env: TelegramEnv, 
     })());
   } else if (command === "/deadline") {
     ctx.waitUntil((async () => {
-      const bootstrap = await fpl<BootstrapResponse>("/bootstrap-static/");
-      const event = nextDeadline(bootstrap.events, Date.now());
+      // From the catalog, not the bootstrap: this reply is a fetch invocation and has the
+      // same ten milliseconds to live in as a tick does. It used to parse 1.6 MB to read
+      // one timestamp out of it.
+      const catalog = await readCatalog(env);
+      const event = catalog && nextDeadline(catalog.events, Date.now());
       await sendLinkMessage(env, chatId, event ? `⏰ GW${event.id}-deadlineen ${deadlineRemaining(event, Date.now())}` : "Seuraavaa deadlinea ei ole vielä julkaistu.");
     })());
   }
