@@ -9,15 +9,19 @@
  * `exceededCpu` in the analytics. Deadline reminders were never sent, the deadline card
  * arrived fourteen hours late and the ticker froze mid-afternoon, all from the one cause.
  *
- * So the bootstrap is read on one tick in ten, narrowed to the four fields per player that
- * anything hot wants, and left in KV. What comes back out is about thirty kilobytes and
- * parses in a fifth of a millisecond. Everything that used to reach for the bootstrap on
+ * So the bootstrap is read on one tick in ten, narrowed to the handful of fields per player
+ * that anything else wants, and left in KV. What comes back out is about seventy kilobytes
+ * and parses in a fifth of a millisecond. Everything that used to reach for the bootstrap on
  * every tick now reads this instead, and the tick has room to do its job.
  *
- * The gated readers — prices, articles, rumours, transfers, line-ups, history, appearances,
- * insights — still fetch the bootstrap themselves. They already return after one KV read on
- * the ticks they are not due, they want fields nobody else does, and they now get a tick to
- * themselves. There is nothing to gain by routing them through here.
+ * The rumour reader was added to that list afterwards, for the same reason arrived at from
+ * the other end: it was the one job still too big for a tick on its own, and four of its
+ * milliseconds were this parse. It is why the two filed names are carried here.
+ *
+ * The rest of the gated readers — prices, articles, transfers, line-ups, history,
+ * appearances, insights — still fetch the bootstrap themselves. They return after one KV
+ * read on the ticks they are not due, several want fields nobody else does, and each now
+ * gets a tick to itself. Route one through here when it proves too heavy, not before.
  */
 
 export interface CatalogEvent {
