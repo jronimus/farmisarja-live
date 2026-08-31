@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { eventsForPlayer, isLive, repairEvents } from "./events";
-import type { FeedEvent } from "./events";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { eventsForPlayer, isLive, readFeed, repairEvents, updateFeed } from "./events";
+import type { EventsEnv, FeedEvent } from "./events";
+import { CATALOG_VERSION, type Catalog } from "./catalog";
 
 // goals, assists, own goals, yellow, red, pen saved, pen missed, bonus, defcon, saves, points
 const counters = (over: Partial<Record<number, number>> = {}) => {
@@ -162,5 +163,84 @@ describe("live feed", () => {
     // Which leaves the ordinary diff to report three going to two, worth minus one.
     expect(eventsForPlayer(snapshot[7], [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 4]))
       .toEqual([{ kind: "bonus", value: 2, previous: 3, stat: "bonus" }]);
+  });
+});
+/** What the tick hands the feed now, in place of the 1.6 MB parse it used to do itself. */
+const catalog: Catalog = {
+  version: CATALOG_VERSION,
+  builtAt: "2026-08-31T18:00:00Z",
+  events: [{ id: 2, deadline_time: "2026-08-28T17:30:00Z", is_current: true, is_next: false, finished: false, ranked_count: 0 }],
+  teams: [{ id: 1, short_name: "ARS", name: "Arsenal" }, { id: 2, short_name: "CHE", name: "Chelsea" }],
+  elements: [{ id: 7, web_name: "Saka", team: 1, element_type: 3 }],
+};
+
+const liveElement = (goals: number, points: number) => ({
+  id: 7,
+  stats: {
+    minutes: 45, goals_scored: goals, assists: 0, own_goals: 0, yellow_cards: 0, red_cards: 0,
+    penalties_saved: 0, penalties_missed: 0, bonus: 0, defensive_contribution: 0, saves: 0, total_points: points,
+  },
+  explain: [{ fixture: 11, stats: [{ identifier: "minutes", points: 1 }, { identifier: "goals_scored", points: goals * 5 }] }],
+});
+
+function feedEnv() {
+  const state = new Map<string, string>();
+  return {
+    TELEGRAM_STATE: {
+      get: vi.fn(async (key: string, type?: string) => {
+        const value = state.get(key) ?? null;
+        return value !== null && type === "json" ? JSON.parse(value) : value;
+      }),
+      put: vi.fn(async (key: string, value: string) => { state.set(key, value); }),
+    },
+  } as unknown as EventsEnv;
+}
+
+function stubFpl(elements: Array<ReturnType<typeof liveElement>>) {
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("bootstrap-static")) throw new Error("the feed must not read the bootstrap");
+    if (url.includes("/fixtures/")) {
+      return Response.json([{
+        id: 11, event: 2, kickoff_time: "2026-08-31T19:00:00Z", team_h: 1, team_a: 2,
+        team_h_score: 1, team_a_score: 0, minutes: 45, started: true, finished: false, finished_provisional: false,
+      }]);
+    }
+    return Response.json({ elements });
+  }));
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("the feed, off the bootstrap and on the catalog", () => {
+  it("names the player and his club from the catalog, without ever parsing a bootstrap", async () => {
+    const env = feedEnv();
+    const now = Date.parse("2026-08-31T19:30:00Z");
+    stubFpl([liveElement(0, 1)]);
+
+    // The first write of a gameweek seeds in silence: there is nothing to diff against yet.
+    const seeded = await updateFeed(env, catalog, now);
+    expect(seeded).toEqual({ written: true, added: 0 });
+
+    stubFpl([liveElement(1, 6)]);
+    const scored = await updateFeed(env, catalog, now + 120_000);
+
+    expect(scored.added).toBe(1);
+    const stored = await readFeed(env, 2);
+    expect(stored?.events[0]).toMatchObject({
+      player: "Saka", club: "ARS", clubName: "Arsenal", kind: "goal", value: 1, pointsDelta: 5,
+      fixture: { home: "ARS", away: "CHE", homeScore: 1, awayScore: 0 },
+    });
+  });
+
+  it("writes nothing at all when there is no football on", async () => {
+    const env = feedEnv();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/fixtures/")) return Response.json([]);
+      return Response.json({ elements: [] });
+    }));
+
+    expect(await updateFeed(env, catalog, Date.parse("2026-08-31T09:00:00Z"))).toEqual({ written: false, added: 0 });
+    expect(env.TELEGRAM_STATE.put).not.toHaveBeenCalled();
   });
 });

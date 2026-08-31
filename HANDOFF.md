@@ -1,18 +1,93 @@
 # Farmisarja Live — handoff
 
-Updated: 2026-08-26
+Updated: 2026-08-31
 
 Source of truth for continuing the project in a new conversation. Read it completely
 before making changes.
 
 ## Next up — start here in a new conversation
 
-**Everything is shipped.** `main` is at `ec404a9`, the Pages action is green, the live page
-serves the validated build and the Worker carries every route below. There is no work in
-flight and nothing half-finished.
+**Everything is shipped.** `main` carries the cron rebuild of 31 Aug and the Worker is
+deployed with it. There is no work in flight.
 
-The GW1 snapshot is taken and permanent — `/fpl-stats` answers `gameweeks: [1]` with 614
-players. It went in about forty hours before the GW2 deadline closed that window for good.
+The one thing worth watching is the next deadline: **GW3 closes 4 Sep 17:30 UTC**, so the
+24-hour reminder is due 3 Sep 17:30 UTC and the two-hour one at 15:30 UTC on the 4th. Those
+two messages are the proof that what follows actually holds.
+
+### The outage of 28–30 Aug, and what it cost
+
+Worth reading before touching `worker/index.ts`, because every rule in it was bought here.
+
+Three symptoms, reported as three problems: no 24-hour and no two-hour reminder for GW2, a
+deadline card fourteen and a half hours late, and a ticker that froze mid-afternoon on the
+Sunday and never came back.
+
+One cause. **Every cron invocation was being killed for exceeding its CPU budget, at every
+hour of the day, since the 24th.** A Worker killed that way raises no exception and writes
+no log, so every stage's own error handling had nothing to report and the failure was
+completely silent. It shows up in exactly one place, which is where it was eventually
+found:
+
+```
+2026-08-30T03:00:00Z {"exceededResources":54}
+2026-08-30T04:00:00Z {"exceededResources":55}
+```
+
+Sixty an hour, around the clock — one per tick. `wrangler tail` says it plainly:
+`outcome: exceededCpu, cpuTime: 10ms`.
+
+The budget on this plan is ten milliseconds of CPU per invocation. Three tasks parsed FPL's
+1.6 MB `bootstrap-static` independently on every single tick — the Telegram schedule, the
+feed, and the rank sample, the last of them *before* its own gates, so it spent four
+milliseconds to discover there was nothing to do. Twelve milliseconds of a ten millisecond
+budget, gone before any of them had started. Whichever task happened to be furthest along
+when the axe fell got its work done; everything else simply did not happen, differently
+every minute. That is the whole of the randomness in the three symptoms.
+
+The eight gated readers — prices, articles, rumours, transfers, line-ups, history,
+appearances, insights — were never the problem. Every one of them reads its `checkAfter`
+gate from KV **before** it fetches anything, and returns. That pattern is why they survived,
+and it is the pattern to keep.
+
+Evidence for any future round of this, in the order it was useful:
+
+| what to ask | how |
+| --- | --- |
+| is the cron dying, and since when | GraphQL `workersInvocationsAdaptive`, group by `datetimeHour` and `status` |
+| what is it dying of | `npx wrangler tail --format json`, read `outcome` and `cpuTime` on the cron events |
+| did a stage ever run | the KV mark it leaves — `deadline:2:24h` was simply absent |
+| what did a payload cost | fetch it and time `JSON.parse`: bootstrap 4.2 ms, live 1.0 ms, fixtures 0.4 ms |
+
+### The shape the cron has now
+
+`worker/catalog.ts` reads the bootstrap on one tick in ten and leaves in KV the four fields
+per player that anything hot actually wants. **42 kB instead of 1.6 MB, a fifth of a
+millisecond instead of four.** It rebuilds every three minutes in the window around a
+deadline — `is_current` turns over there and the deadline card waits on it — and every half
+hour otherwise. Nothing on a hot path may parse the bootstrap again; `worker/events.test.ts`
+fails the feed if it tries.
+
+A tick is ordered by what it can afford to lose, and runs **in sequence** rather than as a
+dozen parallel tasks racing through one budget:
+
+1. the watchdog and the deadline reminders, which together cost a KV read and some
+   arithmetic, and therefore always happen;
+2. **exactly one** heavy job — a stale catalog first, else the feed on even minutes, else the
+   rank sample if it is inside its three hours after a deadline, else whichever background
+   job the rotation has reached;
+3. the heartbeat, written last, because a mark of a finished tick has to be written by a
+   tick that finished.
+
+Every stage is fenced on its own. Measured after deploying: 5–7 ms on an ordinary tick.
+
+`worker/health.ts` is the part that turns three days into one evening. A beat every ten
+minutes, read at the start of every tick before anything can kill it, and the chat is told
+when nothing has finished for twenty-five minutes — once an hour, with the mark written even
+when the chat cannot be reached.
+
+**The rule this leaves behind: anything added to the tick has to name which of the three
+places it goes, and adding a second heavy job to one tick is the bug this whole section is
+about.**
 
 ### What was built on 27 Aug, after the seven jobs
 
