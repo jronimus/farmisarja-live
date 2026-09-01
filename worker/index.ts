@@ -1,5 +1,5 @@
 import { captureCard, handleTelegramWebhook, runDeadlineReminders, runTelegramJobs, type ShareCardKind, type TelegramEnv } from "./telegram";
-import { readCatalog, refreshCatalog, refreshDue, type Catalog, type CatalogEnv } from "./catalog";
+import { footballOn, gameweekSettled, readCatalog, refreshCatalog, refreshDue, type Catalog, type CatalogEnv } from "./catalog";
 import { BEAT_EVERY, beatAge, checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
 import { advanceSample, computeCurve, type LiveRankEnv } from "./liveRank";
 import { readFeed, updateFeed, type EventsEnv } from "./events";
@@ -119,6 +119,34 @@ function rankHasPriority(catalog: Catalog, now: number): boolean {
   return now >= deadline && now < deadline + 3 * 3_600_000;
 }
 
+/**
+ * The two readers that go quiet while a match is on.
+ *
+ * Nobody wants a transfer rumour at 17:20 on a Saturday, and these are the two most
+ * expensive turns on the rotation — a rumour sweep measured 58 ms and an articles turn
+ * 1106. Spending that during the ninety minutes when the ticker wants every other tick is
+ * the exact shape of the thing that drains the CPU allowance and gets the cheap ticks killed
+ * along with the dear ones. They resume the moment the football stops, and their own gates
+ * mean nothing is lost by waiting — only deferred.
+ */
+const QUIET_DURING_FOOTBALL = new Set(["rumours", "articles"]);
+
+/**
+ * How often the feed is worth writing, given what is happening.
+ *
+ * This is the whole of the priorities the schedule is built around, in one function. During
+ * a match the ticker is the point of the site and takes every other minute. Between the last
+ * whistle and FPL confirming the gameweek there is still bonus moving, but slowly, so an
+ * hourly look is enough. Once FPL says the gameweek is `finished` nothing can change until
+ * the next one starts, and the cheapest work is the work not done: no fetch, no parse, no
+ * write, for three or four days a week.
+ */
+export function feedDue(catalog: Catalog, now: number, minute: number): boolean {
+  if (gameweekSettled(catalog)) return false;
+  if (footballOn(catalog, now)) return minute % 2 === 0;
+  return minute === 30;
+}
+
 /** A failure costs its own stage and nothing below it. */
 async function stage(name: string, task: () => Promise<unknown>): Promise<void> {
   try {
@@ -159,15 +187,17 @@ async function tick(env: Env, scheduledTime: number): Promise<void> {
    */
   if (!catalog || (refreshDue(catalog, now) && minute % 10 === 5)) {
     await stage("catalog", () => refreshCatalog(env as CatalogEnv, now));
-  } else if (catalog && minute % 2 === 0) {
-    // The feed on even minutes, which is the two-minute cadence it was always documented to
-    // have — it used to attempt every minute and land on whichever ticks happened to survive.
+  } else if (catalog && feedDue(catalog, now, minute)) {
     await stage("feed", () => updateFeed(env as EventsEnv, catalog, now));
   } else if (catalog && rankHasPriority(catalog, now)) {
     await stage("rank", () => advanceSample(env as LiveRankEnv, catalog, now));
-  } else if (catalog) {
+  } else if (catalog && minute % 2 === 1) {
+    // The rotation keeps the odd minutes it always had, so a quiet gameweek does not hand it
+    // twice as many turns as it was sized for.
     const job = ROTATION[Math.floor(minute / 2) % ROTATION.length];
-    await stage(job.name, () => job.run(env, catalog, now));
+    if (!(QUIET_DURING_FOOTBALL.has(job.name) && footballOn(catalog, now))) {
+      await stage(job.name, () => job.run(env, catalog, now));
+    }
   }
 
   // Last, and only from a tick that got this far.

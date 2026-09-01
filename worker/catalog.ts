@@ -37,6 +37,16 @@ export interface CatalogEvent {
 export interface CatalogTeam { id: number; short_name: string; name: string }
 
 /**
+ * When the current gameweek's matches kick off, so any tick can tell whether football is on
+ * without fetching a fixture list to find out.
+ *
+ * This is what lets the schedule have states rather than one fixed rhythm: the ticker is
+ * worth every other minute while a match is running and worth nothing at four in the
+ * morning, and the news is worth the opposite.
+ */
+export interface CatalogFixture { event: number; kickoff: string }
+
+/**
  * Only what names a player and places him: the feed's lines, and the matcher in `fotmob.ts`
  * that has to recognise him under somebody else's spelling. The two filed names are here so
  * the rumour reader does not have to parse 1.6 MB to get them — they cost about sixteen
@@ -57,9 +67,13 @@ export interface Catalog {
   events: CatalogEvent[];
   teams: CatalogTeam[];
   elements: CatalogElement[];
+  /** Only the current gameweek's and the next one's; the rest is history. */
+  fixtures: CatalogFixture[];
 }
 
 export interface CatalogEnv { TELEGRAM_STATE: KVNamespace }
+
+interface FixtureRow { event: number | null; kickoff_time: string | null }
 
 interface Bootstrap {
   events: Array<{ id: number; deadline_time: string; is_current: boolean; is_next: boolean; finished: boolean; ranked_count: number }>;
@@ -69,7 +83,7 @@ interface Bootstrap {
 
 const CATALOG_KEY = "catalog:v1";
 /** Bumped when a field is added, so a stored catalog without it is rebuilt rather than read. */
-export const CATALOG_VERSION = 3;
+export const CATALOG_VERSION = 4;
 
 /** The ordinary refresh. Squad names and fixtures do not move faster than this. */
 const FRESH_MS = 30 * 60_000;
@@ -119,6 +133,18 @@ export async function refreshCatalog(env: CatalogEnv, now = Date.now()): Promise
   if (!response.ok) throw new Error(`FPL bootstrap-static ${response.status}`);
   const bootstrap = await response.json() as Bootstrap;
 
+  // The kickoff times ride along. A tenth of the bootstrap's size, and every tick after this
+  // one gets to ask whether football is on for the price of a comparison.
+  const wanted = new Set(bootstrap.events.filter((event) => event.is_current || event.is_next).map((event) => event.id));
+  const fixtureResponse = await fetch("https://fantasy.premierleague.com/api/fixtures/", {
+    headers: { Accept: "application/json", "User-Agent": "Farmisarja-Live/0.1" },
+    cf: { cacheEverything: true, cacheTtl: 60 },
+  });
+  if (!fixtureResponse.ok) throw new Error(`FPL fixtures ${fixtureResponse.status}`);
+  const fixtures = (await fixtureResponse.json() as FixtureRow[])
+    .filter((fixture) => fixture.event !== null && wanted.has(fixture.event) && fixture.kickoff_time)
+    .map((fixture) => ({ event: fixture.event as number, kickoff: fixture.kickoff_time as string }));
+
   const catalog: Catalog = {
     version: CATALOG_VERSION,
     builtAt: new Date(now).toISOString(),
@@ -139,6 +165,7 @@ export async function refreshCatalog(env: CatalogEnv, now = Date.now()): Promise
       team: element.team,
       element_type: element.element_type,
     })),
+    fixtures,
   };
   // Serialised once. The log line used to call for its own copy just to count the bytes,
   // which is a third of a millisecond spent on a number nobody reads twice.
@@ -146,4 +173,33 @@ export async function refreshCatalog(env: CatalogEnv, now = Date.now()): Promise
   await env.TELEGRAM_STATE.put(CATALOG_KEY, body);
   console.log(JSON.stringify({ event: "catalog_built", players: catalog.elements.length, bytes: body.length }));
   return { written: true };
+}
+
+/**
+ * How long a kickoff is worth treating as football. A match is about two hours with the
+ * half; the extra hour covers a long stoppage and the bonus points settling afterwards,
+ * which is the tail the ticker still has something to say during.
+ */
+const MATCH_LEAD_MS = 15 * 60_000;
+const MATCH_LENGTH_MS = 3 * 3_600_000;
+
+/** Whether a match is being played right now, or is about to be. */
+export function footballOn(catalog: Catalog, now: number): boolean {
+  return catalog.fixtures.some((fixture) => {
+    const kickoff = Date.parse(fixture.kickoff);
+    return now >= kickoff - MATCH_LEAD_MS && now <= kickoff + MATCH_LENGTH_MS;
+  });
+}
+
+/**
+ * Whether FPL has confirmed the gameweek and there is nothing left to watch.
+ *
+ * `finished` is FPL's own word for it and it comes well after the last whistle — bonus is
+ * recalculated, appeals are settled, and the flag turns over some hours later. Until it
+ * does there is still something that can move, which is why this is the signal rather than
+ * the fixture list being played out.
+ */
+export function gameweekSettled(catalog: Catalog): boolean {
+  const current = catalog.events.find((event) => event.is_current);
+  return Boolean(current?.finished);
 }

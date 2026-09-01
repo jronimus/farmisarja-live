@@ -40,6 +40,35 @@ So the rule for this cron is not "every tick must be under ten milliseconds". It
 Which is exactly what the one-heavy-job-per-tick rotation buys, and why the catalog rebuild
 is attempted six times an hour rather than whenever it happens to be stale.
 
+### The schedule has states now, 1 Sep
+
+Frequency is the lever, because the allowance is about the *average*. So the tick stopped
+having one fixed rhythm and started asking what is actually happening. These are the owner's
+priorities, and they are in `feedDue` and `QUIET_DURING_FOOTBALL` in `worker/index.ts`:
+
+| when | the feed | news — rumours, articles | prices |
+| --- | --- | --- | --- |
+| a match is on | every other minute | **nothing** | its own gate |
+| after the whistle, before FPL confirms | once an hour, on minute 30 | as usual | as usual |
+| FPL has confirmed the gameweek | **nothing at all** | as usual | as usual |
+
+`catalog.ts` carries the current and next gameweek's kickoff times for this — a few hundred
+bytes — so any tick can answer "is football on" with a comparison instead of a fixture
+fetch. `footballOn` counts the quarter hour before a kickoff and three hours after it, which
+covers the match, a long stoppage and the bonus settling behind it. `gameweekSettled` waits
+for FPL's own `finished`, not for the last whistle: on 1 Sep a gameweek whose final match
+ended the previous evening was still unconfirmed at lunchtime, and bonus can move until it
+is.
+
+What this buys, in the two places it matters:
+
+- **A quiet Tuesday costs almost nothing.** Every even minute used to fetch and parse the
+  fixture list to discover there was no football. Those ticks now measure 1 ms.
+- **During a match nothing expensive competes with the ticker.** A rumour sweep is 58 ms and
+  an articles turn was measured at 1106; spending either at 17:20 on a Saturday is the exact
+  shape of the thing that drains the allowance and gets the cheap ticks killed with the dear
+  ones. Both wait, and their own gates mean nothing is lost — only deferred.
+
 ### The morning it proved the point, 1 Sep
 
 The watchdog fired at 13:45 local, correctly, and it was the first time anything had told
