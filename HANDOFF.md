@@ -14,21 +14,55 @@ The one thing worth watching is the next deadline: **GW3 closes 4 Sep 17:30 UTC*
 24-hour reminder is due 3 Sep 17:30 UTC and the two-hour one at 15:30 UTC on the 4th. Those
 two messages are the proof that what follows actually holds.
 
-### One thing left unmeasured, 31 Aug
+### What the CPU limit actually is, 1 Sep — read this before tuning anything
 
-The rumour reader was cut from ten clubs a turn to four and taken off the bootstrap on the
-night of the 31st, because it was the last job that could not fit in a tick on its own —
-about seventeen milliseconds against ten. The arithmetic says it now costs about five, and
-the tests hold the batch size, but **no rumours turn has been watched live since the
-change**. It takes a turn at minutes 14, 15, 20, 21, 44, 45, 50 and 51 past the hour:
+The rebuild of 31 Aug was done believing the budget was a flat ten milliseconds of CPU per
+invocation. **It is not**, and the difference matters for every decision about what may go on
+a tick. Measured on 1 Sep, all `outcome: ok`:
 
-```
-npx wrangler tail --format json
-```
+| tick | cpuTime |
+| --- | --- |
+| ordinary | 2–5 ms |
+| catalog rebuild | 21 ms |
+| rumours, four clubs | 58 ms |
+| articles | 1106 ms |
 
-Look for `rumours_updated` and the `cpuTime` on that cron event. Anything under about seven
-is right; a return of `exceededCpu` means four clubs is still too many and the next step is
-three, not a bigger gate.
+A single heavy invocation is usually allowed. What is not allowed is heavy work **sustained
+every minute**: the allowance refills, and once a run of expensive ticks has drained it,
+everything gets killed at exactly 10 ms — including the cheap ticks that would have been fine
+on their own. That is why `exceededCpu` appeared on ticks doing almost nothing during both
+outages, which never made sense under the flat-limit reading.
+
+So the rule for this cron is not "every tick must be under ten milliseconds". It is:
+
+> **Keep the average low. A spike is fine; a spike every minute is an outage.**
+
+Which is exactly what the one-heavy-job-per-tick rotation buys, and why the catalog rebuild
+is attempted six times an hour rather than whenever it happens to be stale.
+
+### The morning it proved the point, 1 Sep
+
+The watchdog fired at 13:45 local, correctly, and it was the first time anything had told
+anybody about an outage while it was happening rather than days later.
+
+A stale catalog used to take priority on *every* tick. The rebuild costs about twenty
+milliseconds; when one attempt was killed it wrote nothing, so the next tick found the same
+stale catalog and tried again, and the minute after that. Sustained heavy work every minute
+is precisely the thing the allowance does not forgive, so within half an hour every tick was
+dying at 10 ms — the feed, the rotation and the heartbeat along with it, since the beat is
+written last. Forty minutes of nothing, caused by a job that only needed to be late.
+
+The fix is that being stale no longer commands the tick. The rebuild is attempted on the six
+minutes an hour ending in 5 — minutes that would have gone to the rotation anyway, never the
+feed's — and the other fifty-four ticks run normally on the catalog they already have.
+Nothing above it cares whether that catalog is half an hour old or two: deadline times do not
+move and squads do not change mid-afternoon. Only a *missing* catalog still takes priority,
+which is the one case where there is nothing else to do anyway.
+
+The general shape of the bug is worth keeping in mind, because it is not really about
+catalogs: **a job that fails, holds priority, and retries immediately will starve everything
+below it.** Anything given priority on the tick needs an answer to "and what if it keeps
+failing?"
 
 ### The outage of 28–30 Aug, and what it cost
 

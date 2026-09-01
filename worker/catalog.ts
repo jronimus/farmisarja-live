@@ -140,7 +140,10 @@ export async function refreshCatalog(env: CatalogEnv, now = Date.now()): Promise
       element_type: element.element_type,
     })),
   };
-  await env.TELEGRAM_STATE.put(CATALOG_KEY, JSON.stringify(catalog));
-  console.log(JSON.stringify({ event: "catalog_built", players: catalog.elements.length, bytes: JSON.stringify(catalog).length }));
+  // Serialised once. The log line used to call for its own copy just to count the bytes,
+  // which is a third of a millisecond spent on a number nobody reads twice.
+  const body = JSON.stringify(catalog);
+  await env.TELEGRAM_STATE.put(CATALOG_KEY, body);
+  console.log(JSON.stringify({ event: "catalog_built", players: catalog.elements.length, bytes: body.length }));
   return { written: true };
 }

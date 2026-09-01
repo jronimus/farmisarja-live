@@ -140,9 +140,24 @@ async function tick(env: Env, scheduledTime: number): Promise<void> {
   // The cheapest thing on the tick and the one with a deadline of its own.
   if (catalog) await stage("reminders", () => runDeadlineReminders(env as TelegramEnv, catalog.events, now));
 
-  // One heavy job, and only one. A stale catalog outranks the rest: everything above reads
-  // it, and until it exists there is nothing for the feed or the reminders to work from.
-  if (refreshDue(catalog, now)) {
+  /**
+   * One heavy job, and only one.
+   *
+   * The rebuild is the heaviest of them — fetching, decompressing and parsing 1.6 MB is
+   * fifteen to twenty milliseconds against a budget of ten, and whether it survives is down
+   * to whatever burst Cloudflare feels like allowing that minute. On 1 Sep it did not, and
+   * because a stale catalog put the rebuild first on *every* tick, the retry took the whole
+   * schedule down with it: no feed, no rotation, and no heartbeat either, since the beat is
+   * written last. Forty minutes of nothing, from a job that only had to be late.
+   *
+   * So a stale catalog no longer commands the tick. It is attempted on six ticks an hour,
+   * on minutes that would have gone to the rotation anyway, and the other fifty-four run
+   * normally on the catalog they have. Nothing above cares that it is an hour old rather
+   * than half: deadline times do not move and squads do not change mid-afternoon. Only an
+   * absent catalog still takes priority, and that is the one case where there is genuinely
+   * nothing else to do.
+   */
+  if (!catalog || (refreshDue(catalog, now) && minute % 10 === 5)) {
     await stage("catalog", () => refreshCatalog(env as CatalogEnv, now));
   } else if (catalog && minute % 2 === 0) {
     // The feed on even minutes, which is the two-minute cadence it was always documented to
