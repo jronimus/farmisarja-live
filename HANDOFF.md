@@ -69,6 +69,30 @@ What this buys, in the two places it matters:
   shape of the thing that drains the allowance and gets the cheap ticks killed with the dear
   ones. Both wait, and their own gates mean nothing is lost — only deferred.
 
+### The same bug twice, 4 Sep — and the rule it leaves
+
+GW3's deadline passed at 17:30 and the card had still not gone out an hour later. The
+reminders had both worked, on their own, from the catalog — the first gameweek this project
+has got right end to end.
+
+The card was starved. The rank sample owns the three hours after a deadline, it sat above the
+rotation in the same `else if` chain, and it never yielded — so the chat, which is what sends
+the card, could not get a turn until the window closed. Three hours after the picks it draws
+became readable.
+
+That is the **second** instance of one shape of bug in four days. On 1 Sep a stale catalog
+held priority and retried forever; here the rank sample held priority and never stood aside.
+Both were written as "this matters most right now", and both were right about that and wrong
+about what it costs everything else.
+
+> **Anything given priority on the tick needs an answer to two questions: what if it keeps
+> failing, and what does not happen while it runs?** A branch that can hold the tick for
+> hours has to yield some of them on purpose.
+
+The sample now gives one tick in ten to the chat and keeps fifty-four an hour, which is more
+than the fifty turns it needs. The card went out eleven seconds into the first yielded tick
+after deploying.
+
 ### The morning it proved the point, 1 Sep
 
 The watchdog fired at 13:45 local, correctly, and it was the first time anything had told

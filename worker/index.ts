@@ -190,7 +190,25 @@ async function tick(env: Env, scheduledTime: number): Promise<void> {
   } else if (catalog && feedDue(catalog, now, minute)) {
     await stage("feed", () => updateFeed(env as EventsEnv, catalog, now));
   } else if (catalog && rankHasPriority(catalog, now)) {
-    await stage("rank", () => advanceSample(env as LiveRankEnv, catalog, now));
+    /**
+     * The sample has the window, but it yields one tick in ten to the chat.
+     *
+     * It used to take every tick in the three hours after a deadline, and the deadline card
+     * is sent by the chat's turn on the rotation — so the card could not be attempted until
+     * the window closed, three hours after the picks it draws became readable. On 4 Sep it
+     * had gone an hour past the deadline with nobody having looked. That is the same shape
+     * as the catalog loop of 1 Sep: a job with priority and no yield starves everything
+     * underneath it, and the rest of the schedule has no way to say so.
+     *
+     * Six ticks an hour is enough for the card to go out within ten minutes of the picks
+     * appearing, and the sample still keeps fifty-four, which is more than the fifty turns
+     * it needs.
+     */
+    if (minute % 10 === 1) {
+      await stage("telegram", () => runTelegramJobs(env as TelegramEnv, catalog.events, now));
+    } else {
+      await stage("rank", () => advanceSample(env as LiveRankEnv, catalog, now));
+    }
   } else if (catalog && minute % 2 === 1) {
     // The rotation keeps the odd minutes it always had, so a quiet gameweek does not hand it
     // twice as many turns as it was sized for.
