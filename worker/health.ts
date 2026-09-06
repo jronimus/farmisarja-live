@@ -62,28 +62,46 @@ export async function beatAge(env: HealthEnv, now = Date.now()): Promise<number 
  * namespace that has just been emptied, and the next tick writes one. Only an old beat is
  * news.
  */
+/**
+ * One message, then quiet for an hour.
+ *
+ * Shared by the watchdog and the overdue check because both have the same duty of care: say
+ * it once, say it only to the maintainer, and write the mark whether or not the chat could
+ * be reached — an unreachable chat should cost one alert, not one a minute for as long as
+ * the trouble lasts.
+ */
+export async function alertOnce(env: HealthEnv, key: string, text: string, now: number): Promise<boolean> {
+  if (await env.TELEGRAM_STATE.get(key)) return false;
+  if (env.TELEGRAM_ALERT_CHAT_ID && env.TELEGRAM_BOT_TOKEN) {
+    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: env.TELEGRAM_ALERT_CHAT_ID, text, disable_web_page_preview: true }),
+    });
+  }
+  await env.TELEGRAM_STATE.put(key, new Date(now).toISOString(), { expirationTtl: ALERT_TTL });
+  return true;
+}
+
+/**
+ * Read first, before anything that can kill the tick.
+ *
+ * A missing beat is not an outage: it is a Worker that has just been deployed, or a
+ * namespace that has just been emptied, and the next tick writes one. Only an old beat is
+ * news.
+ */
 export async function checkHeartbeat(env: HealthEnv, now = Date.now()): Promise<{ alerted: boolean; age: number | null }> {
   const age = await beatAge(env, now);
   if (age === null || age < STALE_MS) return { alerted: false, age };
-  if (await env.TELEGRAM_STATE.get(ALERT_KEY)) return { alerted: false, age };
 
   const minutes = Math.round(age / 60_000);
   // The log line stands whether or not there is anywhere to send it. `/health` reports the
   // same staleness to anyone who asks, so the outage is visible without a chat at all.
   console.error(JSON.stringify({ event: "cron_stalled", minutes }));
-  if (env.TELEGRAM_ALERT_CHAT_ID && env.TELEGRAM_BOT_TOKEN) {
-    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: env.TELEGRAM_ALERT_CHAT_ID,
-        text: `⚠️ Farmisarja: ajastin ei ole päässyt loppuun ${minutes} minuuttiin. Ticker ja muistutukset voivat olla jäljessä.`,
-        disable_web_page_preview: true,
-      }),
-    });
-  }
-  // The mark is written whether or not the chat could be reached, so an unreachable chat
-  // costs one alert and not a message a minute for as long as the outage lasts.
-  await env.TELEGRAM_STATE.put(ALERT_KEY, new Date(now).toISOString(), { expirationTtl: ALERT_TTL });
-  return { alerted: true, age };
+  const alerted = await alertOnce(
+    env, ALERT_KEY,
+    `⚠️ Farmisarja: ajastin ei ole päässyt loppuun ${minutes} minuuttiin. Ticker ja muistutukset voivat olla jäljessä.`,
+    now,
+  );
+  return { alerted, age };
 }

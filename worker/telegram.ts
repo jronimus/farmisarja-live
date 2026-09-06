@@ -102,9 +102,38 @@ const ALBUM_TTL = 3 * 3600;
  * The job is therefore spread across cron ticks, one card each, with the PNGs parked
  * in KV until the set is complete.
  */
+export const ALBUM_PENDING_KEY = "album:pending";
+
+/**
+ * A tiny key saying an album is being assembled, so a tick can find that out for the price
+ * of one small read rather than by loading a job it may have no business touching.
+ *
+ * It exists because the report used to take half an hour of wall clock to arrive: three
+ * captures and a send, each waiting seven or eight minutes for the chat's next turn on the
+ * rotation. Half an hour after the final whistle looks broken even when it is not, and the
+ * owner had no way to tell the difference. With this the tick can hand the album consecutive
+ * turns and the report lands in about four minutes.
+ */
 export async function queueAlbum(env: TelegramEnv, key: string, chat: string): Promise<void> {
   const job: AlbumJob = { chat, done: [] };
   await env.TELEGRAM_STATE.put(key, JSON.stringify(job), { expirationTtl: ALBUM_TTL });
+  await env.TELEGRAM_STATE.put(ALBUM_PENDING_KEY, JSON.stringify({ key, at: new Date().toISOString() }), { expirationTtl: ALBUM_TTL });
+}
+
+/**
+ * Whether an album is worth giving the tick to, which is a different question from whether
+ * one exists.
+ *
+ * Bounded to half an hour on purpose. An album that cannot finish would otherwise hold every
+ * turn it is offered for the three hours of its own TTL, and starving the rest of the
+ * schedule is the failure this project has now shipped twice: a catalog that retried for
+ * ever on 1 Sep, a rank sample that never yielded on 4 Sep. Priority is a loan, not a right.
+ */
+const ALBUM_PRIORITY_MS = 30 * 60_000;
+
+export async function albumHasPriority(env: TelegramEnv, now = Date.now()): Promise<boolean> {
+  const pending = await env.TELEGRAM_STATE.get<{ key: string; at: string }>(ALBUM_PENDING_KEY, "json");
+  return Boolean(pending && now - Date.parse(pending.at) < ALBUM_PRIORITY_MS);
 }
 
 async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob): Promise<void> {
@@ -146,6 +175,7 @@ async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob): Pr
 
   await Promise.all([
     env.TELEGRAM_STATE.delete(key),
+    env.TELEGRAM_STATE.delete(ALBUM_PENDING_KEY),
     ...ALBUM_KINDS.map((kind) => env.TELEGRAM_STATE.delete(`${key}:${kind}`)),
   ]);
 }

@@ -1,4 +1,5 @@
-import { captureCard, handleTelegramWebhook, runDeadlineReminders, runTelegramJobs, type ShareCardKind, type TelegramEnv } from "./telegram";
+import { albumHasPriority, captureCard, handleTelegramWebhook, runDeadlineReminders, runTelegramJobs, type ShareCardKind, type TelegramEnv } from "./telegram";
+import { checkExpectations, overdue, type ExpectationsEnv } from "./expectations";
 import { footballOn, gameweekSettled, readCatalog, refreshCatalog, refreshDue, type Catalog, type CatalogEnv } from "./catalog";
 import { BEAT_EVERY, beatAge, checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
 import { advanceSample, computeCurve, type LiveRankEnv } from "./liveRank";
@@ -189,6 +190,9 @@ async function tick(env: Env, scheduledTime: number): Promise<void> {
     await stage("catalog", () => refreshCatalog(env as CatalogEnv, now));
   } else if (catalog && feedDue(catalog, now, minute)) {
     await stage("feed", () => updateFeed(env as EventsEnv, catalog, now));
+  } else if (catalog && minute % 2 === 1 && await albumHasPriority(env as TelegramEnv, now)) {
+    // A report being assembled gets consecutive turns instead of one every eight minutes.
+    await stage("album", () => runTelegramJobs(env as TelegramEnv, catalog.events, now));
   } else if (catalog && rankHasPriority(catalog, now)) {
     /**
      * The sample has the window, but it yields one tick in ten to the chat.
@@ -218,6 +222,17 @@ async function tick(env: Env, scheduledTime: number): Promise<void> {
     }
   }
 
+  /**
+   * Whether the schedule did what it owed. Twelve ticks an hour, reading only the marks that
+   * have actually fallen due, which on most of them is none at all.
+   *
+   * This is the part that stops the owner being the monitoring. Every gap so far — a card
+   * that could not get a turn, reminders that never went, an album stopped halfway — happened
+   * while the ticks were healthy and the heartbeat was current, so nothing but a person
+   * noticed. Now the schedule checks its own receipts.
+   */
+  if (catalog && minute % 5 === 3) await stage("expectations", () => checkExpectations(env as ExpectationsEnv, catalog, now));
+
   // Last, and only from a tick that got this far.
   if (minute % BEAT_EVERY === 0) await stage("heartbeat", () => writeHeartbeat(env as HealthEnv, now));
 }
@@ -245,10 +260,13 @@ export default {
       // askable: it ran for three days behind a route that answered `ok: true` throughout,
       // because nothing here knew whether the cron was alive.
       const age = await beatAge(env as HealthEnv);
+      const catalog = await readCatalog(env as CatalogEnv);
       return json({
         ok: true,
         leagueId: env.FPL_LEAGUE_ID,
         cron: age === null ? "no beat yet" : { lastTickMinutesAgo: Math.round(age / 60_000), stalled: age >= 25 * 60_000 },
+        // What the schedule owes and has not delivered, in the same words the chat gets.
+        overdue: catalog ? await overdue(env as ExpectationsEnv, catalog) : "no catalog",
       }, request, env);
     }
     if (url.pathname === "/rank") {

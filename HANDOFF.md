@@ -69,6 +69,44 @@ What this buys, in the two places it matters:
   shape of the thing that drains the allowance and gets the cheap ticks killed with the dear
   ones. Both wait, and their own gates mean nothing is lost — only deferred.
 
+### The owner stopped being the monitoring, 6 Sep
+
+Read this before adding anything that sends, posts or publishes.
+
+By 6 Sep the pattern was not the bugs, it was **how they were found**. Every one of them —
+reminders that never went, a card starved for three hours, an album stopped halfway, a report
+that merely looked stuck — was found by the owner noticing that something had not arrived and
+asking about it. In every case the cron was healthy, the heartbeat was current, and
+`/health` said `ok`. The watchdog answers "is it running", and running was never the problem.
+
+`worker/expectations.ts` answers the other question: **did it do what it owed?** Everything
+the schedule sends already leaves a mark in KV, and every mark has a time by which it should
+exist, so the marks can simply be checked:
+
+| what | mark | late when |
+| --- | --- | --- |
+| 24h and 2h reminders | `deadline:{gw}:{24,2}h` | 30 min after the target, kept owed for a day |
+| deadline card | `deadline-card:gw:{gw}` | 1 h after the deadline |
+| post-game report queued | `postgame:gw:{gw}` | 4 h after the last kickoff |
+| album finished | `album:gw:{gw}` **still present** | 6 h after the last kickoff |
+
+Anything overdue is named once an hour in the maintainer's private chat, and `/health` lists
+the same thing under `overdue` for anyone who would rather look than be told. It runs twelve
+ticks an hour and reads only the marks that have actually fallen due, which on a quiet day is
+none.
+
+**The rule, and it is the important part of this whole file: if the schedule owes somebody
+something, it gets a line in `expectationsFor` the same day it is written.** An output with
+no expectation is a new way to fail silently, and the last fortnight was made of those.
+
+The album also stopped being slow while this was being done. It needed three captures and a
+send, each waiting seven or eight minutes for the chat's turn on the rotation — half an hour
+after the final whistle, which looks broken even when it is not, and there was no way for
+anyone to tell the difference. `album:pending` is a tiny key that lets a tick see there is one
+in flight and hand it consecutive turns, so the report lands in about four minutes. It is
+bounded to half an hour of priority, because starving the rest of the schedule is the bug this
+project has now shipped twice and it is not shipping it a third time.
+
 ### The same bug twice, 4 Sep — and the rule it leaves
 
 GW3's deadline passed at 17:30 and the card had still not gone out an hour later. The
