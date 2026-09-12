@@ -34,14 +34,17 @@ An additional standalone Worker `tsc` pass reports two existing inferred-return-
 errors in `worker/events.ts:332,342` (`previous`); Worker bundling succeeds and no errors
 were reported in the changed capture or alert modules.
 
+Published as `c70be10`; GitHub Pages run `34721105699` succeeded. Worker version
+`d38fee5d-7399-478b-9a89-8b18f19a3e73` is deployed with the minute cron. A local verification
+Worker using the real remote Browser Run binding captured the deployed deadline card in
+5.6 seconds (HTTP 200, 1080x1350 PNG, 2,451,860 bytes), visually checked. The image is
+`artifacts/cards/cloudflare-deadline-verified.png`. This check had no Telegram bindings and
+sent no message. GW4's sent receipt remains absent, as intended. The next deadline itself
+has not yet occurred; the future scheduled send is covered by regression tests.
+
 The older notes below are historical; their hourly overdue-alert policy is superseded.
 
-**Everything is shipped.** `main` carries the cron rebuild of 31 Aug and the Worker is
-deployed with it. There is no work in flight.
-
-The one thing worth watching is the next deadline: **GW3 closes 4 Sep 17:30 UTC**, so the
-24-hour reminder is due 3 Sep 17:30 UTC and the two-hour one at 15:30 UTC on the 4th. Those
-two messages are the proof that what follows actually holds.
+**The GW4 correction is shipped.** No retrospective card or `/kortit` preview was sent.
 
 ### What the CPU limit actually is, 1 Sep — read this before tuning anything
 
