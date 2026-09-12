@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { advanceAlbum, deadlineRemaining, reminderIsDue, runDeadlineReminders, runTelegramJobs, type TelegramEnv } from "./telegram";
+import { advanceAlbum, captureCard, DEADLINE_CARD_WINDOW_MS, deadlineRemaining, reminderIsDue, runDeadlineReminders, runTelegramJobs, type TelegramEnv } from "./telegram";
 import type { CatalogEvent } from "./catalog";
 
 /** What the tick now hands the chat: the gameweek list, already parsed, out of the catalog. */
@@ -52,6 +52,46 @@ describe("deadline reminder timing", () => {
 });
 
 describe("deadline card Telegram notification", () => {
+  it("waits for a ready card of the requested gameweek without waiting for network silence", async () => {
+    const env = testEnv();
+    await captureCard(env, "deadline", 0, 5);
+    expect(env.BROWSER.quickAction).toHaveBeenCalledWith("screenshot", expect.objectContaining({
+      selector: '.sc-card[data-ready="true"][data-gameweek="5"]',
+      gotoOptions: { waitUntil: "domcontentloaded", timeout: 15_000 },
+      waitForSelector: { selector: '.sc-card[data-ready="true"][data-gameweek="5"]', visible: true, timeout: 25_000 },
+    }));
+  });
+
+  it("does not fetch or send an expired deadline card, even without a sent receipt", async () => {
+    const env = testEnv({ TELEGRAM_NOTIFICATIONS_ENABLED: "true" });
+    await env.TELEGRAM_STATE.put("postgame:gw:4", "sent");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const deadline = Date.parse("2026-09-12T12:30:00Z");
+    await runTelegramJobs(env, events({ id: 4, deadline_time: new Date(deadline).toISOString(), is_current: true }), deadline + DEADLINE_CARD_WINDOW_MS);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(env.BROWSER.quickAction).not.toHaveBeenCalled();
+    expect(await env.TELEGRAM_STATE.get("deadline-card:gw:4")).toBeNull();
+  });
+
+  it("retries a failed capture on the next turn and sends only once after recovery", async () => {
+    const env = testEnv({ TELEGRAM_NOTIFICATIONS_ENABLED: "true" });
+    await env.TELEGRAM_STATE.put("postgame:gw:5", "sent");
+    vi.mocked(env.BROWSER.quickAction).mockResolvedValueOnce(new Response("timeout", { status: 422 }));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("standings")) return Response.json({ standings: { results: [{ entry: 11 }] } });
+      return Response.json({ ok: true });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const deadline = Date.parse("2026-09-19T10:00:00Z");
+    const list = events({ id: 5, deadline_time: new Date(deadline).toISOString(), is_current: true });
+    await runTelegramJobs(env, list, deadline + 60_000);
+    expect(await env.TELEGRAM_STATE.get("deadline-card:gw:5")).toBeNull();
+    await runTelegramJobs(env, list, deadline + 11 * 60_000);
+    await runTelegramJobs(env, list, deadline + 21 * 60_000);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("sendPhoto"))).toHaveLength(1);
+    expect(await env.TELEGRAM_STATE.get("deadline-card:gw:5")).not.toBeNull();
+  });
   it("does not call external services while notifications are disabled", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

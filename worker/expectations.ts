@@ -10,8 +10,8 @@
  *
  * That is the wrong way round, and this is the fix for it. Everything the schedule owes the
  * chat leaves a mark in KV when it is done, and every one of those marks has a time by which
- * it should exist. So the marks can simply be checked. Anything overdue is named, once an
- * hour, in the maintainer's own chat — and `/health` says the same thing to anyone who asks.
+ * it should exist. Each missed output is named once in the maintainer's own chat, while
+ * `/health` keeps showing unresolved gaps without repeatedly messaging about them.
  *
  * The rule this is meant to enforce, for whatever gets added next: **if the schedule owes
  * somebody something, it belongs in `expectationsFor` on the same day it is written.** A new
@@ -21,6 +21,7 @@
 
 import type { Catalog } from "./catalog";
 import { alertOnce, type HealthEnv } from "./health";
+import { DEADLINE_CARD_WINDOW_MS } from "./telegram";
 
 export interface ExpectationsEnv extends HealthEnv {}
 
@@ -31,6 +32,8 @@ export interface Expectation {
   mark: string;
   /** When it stops being "not yet" and starts being "late". */
   dueAt: number;
+  /** Keep failures visible in health after notifications stop being useful. */
+  notifyUntil?: number;
   /**
    * Inverted: the mark is a job in flight, and what is wrong is that it is *still there*.
    * A half-sent album leaves its job behind, which is exactly the shape of the 31 Aug bug.
@@ -83,6 +86,7 @@ export function expectationsFor(catalog: Catalog, now: number): Expectation[] {
     name: `GW${current.id} deadline-kortti`,
     mark: `deadline-card:gw:${current.id}`,
     dueAt: Date.parse(current.deadline_time) + CARD_GRACE_MS,
+    notifyUntil: Date.parse(current.deadline_time) + DEADLINE_CARD_WINDOW_MS,
   });
 
   const last = lastKickoff(catalog, current.id);
@@ -119,8 +123,8 @@ export async function overdue(env: ExpectationsEnv, catalog: Catalog, now = Date
 /**
  * The whole point: the schedule notices its own gaps and says so, before anybody has to ask.
  *
- * Once an hour at most, and only ever to the maintainer's chat — the league group has no use
- * for this and eleven people cannot act on it.
+ * Each output gets one alert, with its due timestamp distinguishing next season.
+ * The hourly gate limits new alerts and failed retries, never repeats a delivered alert.
  */
 export async function checkExpectations(
   env: ExpectationsEnv,
@@ -131,10 +135,22 @@ export async function checkExpectations(
   if (!late.length) return { alerted: false, late };
 
   console.error(JSON.stringify({ event: "expectations_overdue", late }));
+  if (!env.TELEGRAM_ALERT_CHAT_ID || !env.TELEGRAM_BOT_TOKEN) return { alerted: false, late };
+  const notifiedKey = "health:overdue:notified";
+  const notified = await env.TELEGRAM_STATE.get<string[]>(notifiedKey, "json") ?? [];
+  const unseen = expectationsFor(catalog, now).filter((entry) =>
+    late.includes(entry.name) && now < (entry.notifyUntil ?? Infinity)
+    && !notified.includes(`${entry.mark}:${entry.dueAt}`));
+  if (!unseen.length) return { alerted: false, late };
   const alerted = await alertOnce(
     env, "health:overdue",
-    `⚠️ Farmisarja: nämä olisi pitänyt jo tapahtua — ${late.join(", ")}. Ajastin pyörii, joten vika on näissä eikä siinä.`,
+    `⚠️ Farmisarja: lähetys viivästyy — ${unseen.map((entry) => entry.name).join(", ")}. Tästä puutteesta ilmoitetaan vain kerran.`,
     now,
   );
+  if (alerted) {
+    await env.TELEGRAM_STATE.put(notifiedKey,
+      JSON.stringify([...notified, ...unseen.map((entry) => `${entry.mark}:${entry.dueAt}`)].slice(-128)),
+      { expirationTtl: 300 * 86_400 });
+  }
   return { alerted, late };
 }

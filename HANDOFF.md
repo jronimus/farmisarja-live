@@ -1,11 +1,40 @@
 # Farmisarja Live — handoff
 
-Updated: 2026-08-31
+Updated: 2026-09-13
 
 Source of truth for continuing the project in a new conversation. Read it completely
 before making changes.
 
 ## Next up — start here in a new conversation
+
+### GW4 deadline capture and repeated alerts, 13 Sep
+
+The GW4 deadline card never arrived. Production tail reproduced the cause on the
+12 Sep 21:43 UTC tick: Browser Run returned 422 / code 6002, with
+`Navigation timeout of 45000 ms exceeded`. The tick itself finished with `outcome: ok`
+and 6 ms CPU. This was a screenshot navigation failure, not scheduler starvation.
+
+Capture now waits for DOMContentLoaded and an explicit ready card selector instead of
+`networkidle0`. The page marks a card ready after its fonts and images load; incomplete
+FPL data and roster-only models cannot render a card. Scheduled deadline captures also
+require the expected gameweek. Deadline cards expire three hours after the deadline, so
+GW4 must not be sent retrospectively. Expiry does not forge a sent receipt.
+
+Overdue alerts now remember each notified output and its due time for the season. The
+hourly gate limits new alerts/retries only; it never repeats the same delivered alert.
+Expired deadline cards remain visible in `/health`, but produce no more notifications.
+Failed Telegram alert delivery is rate limited without being marked as notified.
+
+Validation: 221 tests, forced frontend typecheck, build and Worker dry-run passed.
+`scripts/check-card-capture.mjs` checks all four live cards while network polling continues,
+then verifies that an unavailable FPL live endpoint cannot produce a card. The local
+deadline card became ready in 3.3 seconds. The existing overflow suite passed all 56
+page/width combinations, 14 picker menus and 7 statistics headers.
+An additional standalone Worker `tsc` pass reports two existing inferred-return-type
+errors in `worker/events.ts:332,342` (`previous`); Worker bundling succeeds and no errors
+were reported in the changed capture or alert modules.
+
+The older notes below are historical; their hourly overdue-alert policy is superseded.
 
 **Everything is shipped.** `main` carries the cron rebuild of 31 Aug and the Worker is
 deployed with it. There is no work in flight.

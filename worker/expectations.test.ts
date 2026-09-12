@@ -32,6 +32,7 @@ function testEnv(marks: string[] = []) {
         return value !== null && type === "json" ? JSON.parse(value) : value;
       }),
       put: vi.fn(async (key: string, value: string) => { state.set(key, value); }),
+      delete: vi.fn(async (key: string) => { state.delete(key); }),
     },
   } as unknown as ExpectationsEnv;
 }
@@ -99,7 +100,7 @@ describe("what the schedule owes", () => {
 });
 
 describe("telling somebody", () => {
-  it("says it once an hour, in the maintainer's chat and nowhere else", async () => {
+  it("says it once per output even after the hourly gate expires", async () => {
     const env = testEnv(remindersSent);
     const fetchMock = vi.fn(async () => Response.json({ ok: true }));
     vi.stubGlobal("fetch", fetchMock);
@@ -109,11 +110,47 @@ describe("telling somebody", () => {
 
     expect(first.alerted).toBe(true);
     expect(second.alerted).toBe(false);
+    await env.TELEGRAM_STATE.delete("health:overdue");
+    const third = await checkExpectations(env, catalog, at("2026-09-04T19:40:00Z"));
+    expect(third.alerted).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const body = JSON.parse(String(init.body));
     expect(body.chat_id).toBe("private-chat");
     expect(body.text).toContain("GW3 deadline-kortti");
+  });
+
+  it("still alerts for a different missing output after a previous alert", async () => {
+    const env = testEnv(remindersSent);
+    const fetchMock = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await checkExpectations(env, catalog, at("2026-09-04T18:35:00Z"));
+    await env.TELEGRAM_STATE.delete("health:overdue");
+    expect((await checkExpectations(env, catalog, at("2026-09-06T20:00:00Z"))).alerted).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const body = JSON.parse(String((fetchMock.mock.calls[1] as unknown as [string, RequestInit])[1].body));
+    expect(body.text).toContain("loppuraportti");
+    expect(body.text).not.toContain("deadline-kortti");
+  });
+
+  it("keeps an expired card visible in health without sending obsolete alerts", async () => {
+    const env = testEnv(remindersSent);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await checkExpectations(env, catalog, at("2026-09-04T23:00:00Z")))
+      .toEqual({ alerted: false, late: ["GW3 deadline-kortti"] });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not mark a rejected Telegram alert as notified and retries after the gate", async () => {
+    const env = testEnv(remindersSent);
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response("unavailable", { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await checkExpectations(env, catalog, at("2026-09-04T18:35:00Z"))).alerted).toBe(false);
+    expect(await env.TELEGRAM_STATE.get("health:overdue:notified")).toBeNull();
+    await env.TELEGRAM_STATE.delete("health:overdue");
+    expect((await checkExpectations(env, catalog, at("2026-09-04T19:40:00Z"))).alerted).toBe(true);
   });
 
   it("says nothing at all when everything has been delivered", async () => {

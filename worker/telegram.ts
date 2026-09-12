@@ -51,19 +51,22 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * get the 429 the wait was meant to avoid, while `job.done` never advances and every tick
  * starts the album from its first card again.
  */
-export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt = 0): Promise<Blob> {
+export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt = 0, gameweek?: number): Promise<Blob> {
+  const selector = `.sc-card[data-ready="true"]${gameweek === undefined ? "" : `[data-gameweek="${gameweek}"]`}`;
   const response = await env.BROWSER.quickAction("screenshot", {
     url: `${env.PUBLIC_SITE_URL}?card=${kind}`,
-    selector: ".sc-card",
+    selector,
     viewport: { width: 1160, height: 1440, deviceScaleFactor: 1 },
-    gotoOptions: { waitUntil: "networkidle0", timeout: 45_000 },
+    // The dashboard polls live data: network silence is not a readiness signal.
+    gotoOptions: { waitUntil: "domcontentloaded", timeout: 15_000 },
+    waitForSelector: { selector, visible: true, timeout: 25_000 },
     screenshotOptions: { type: "png" },
   });
   if (response.status === 429 && attempt < 1) {
     const delay = 10_000;
     console.log(JSON.stringify({ event: "card_rate_limited", kind, attempt, delay }));
     await wait(delay);
-    return captureCard(env, kind, attempt + 1);
+    return captureCard(env, kind, attempt + 1, gameweek);
   }
   if (!response.ok) throw new Error(`Card screenshot failed: ${kind} ${response.status} ${await response.text()}`);
   return response.blob();
@@ -203,12 +206,12 @@ export async function advanceAlbum(env: TelegramEnv, key: string): Promise<boole
 }
 
 /** One card, the link button, and no caption: the card already says what it is. */
-async function sendCardPhoto(env: TelegramEnv, chatId: number | string, kind: ShareCardKind): Promise<void> {
+async function sendCardPhoto(env: TelegramEnv, chatId: number | string, kind: ShareCardKind, gameweek?: number): Promise<void> {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
   const form = new FormData();
   form.set("chat_id", String(chatId));
   form.set("reply_markup", JSON.stringify(button(env)));
-  form.set("photo", await captureCard(env, kind), `${kind}.png`);
+  form.set("photo", await captureCard(env, kind, 0, gameweek), `${kind}.png`);
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: form });
   if (!response.ok) throw new Error(`Telegram sendPhoto failed: ${response.status} ${await response.text()}`);
 }
@@ -233,11 +236,15 @@ const deadlineClock = (event: CatalogEvent) => new Intl.DateTimeFormat("fi-FI", 
 
 async function picksAvailable(gameweek: number, entries: LeagueEntry[]): Promise<boolean> {
   if (!entries.length) return false;
-  const responses = await Promise.all(entries.map(({ entry }) => fetch(
-    `https://fantasy.premierleague.com/api/entry/${entry}/event/${gameweek}/picks/`,
-    { headers: { Accept: "application/json", "User-Agent": "Farmisarja-Live/0.1" } },
-  )));
-  return responses.every((response) => response.ok);
+  const ready = await Promise.all(entries.map(async ({ entry }) => {
+    const response = await fetch(
+      `https://fantasy.premierleague.com/api/entry/${entry}/event/${gameweek}/picks/`,
+      { headers: { Accept: "application/json", "User-Agent": "Farmisarja-Live/0.1" } },
+    );
+    await response.body?.cancel();
+    return response.ok;
+  }));
+  return ready.every(Boolean);
 }
 
 /**
@@ -281,9 +288,13 @@ async function checkDeadlineReminders(env: TelegramEnv, events: CatalogEvent[], 
   }
 }
 
+/** After this window the decisions card is no longer a useful notification. */
+export const DEADLINE_CARD_WINDOW_MS = 3 * 3_600_000;
+
 /** Once every manager's picks are readable, the deadline card can be drawn from them. */
 async function checkDeadlineCard(env: TelegramEnv, event: CatalogEvent, now: number): Promise<void> {
-  if (!env.TELEGRAM_CHAT_ID || now < new Date(event.deadline_time).getTime()) return;
+  const age = now - Date.parse(event.deadline_time);
+  if (!env.TELEGRAM_CHAT_ID || age < 0 || age >= DEADLINE_CARD_WINDOW_MS) return;
   // The mark is read before the league is, not after: the card is sent once and the
   // gameweek runs for another week, and reading a dozen managers' picks on every tick of
   // that week is a dozen requests a minute spent to learn nothing.
@@ -292,7 +303,7 @@ async function checkDeadlineCard(env: TelegramEnv, event: CatalogEvent, now: num
   const league = await fpl<LeagueResponse>(`/leagues-classic/${env.FPL_LEAGUE_ID}/standings/?page_standings=1&page_new_entries=1`);
   const entries = league.standings.results.length ? league.standings.results : league.new_entries.results;
   if (!await picksAvailable(event.id, entries)) return;
-  await sendOnce(env, sentKey, () => sendCardPhoto(env, env.TELEGRAM_CHAT_ID!, "deadline"));
+  await sendOnce(env, sentKey, () => sendCardPhoto(env, env.TELEGRAM_CHAT_ID!, "deadline", event.id));
 }
 
 /**

@@ -72,14 +72,16 @@ export async function beatAge(env: HealthEnv, now = Date.now()): Promise<number 
  */
 export async function alertOnce(env: HealthEnv, key: string, text: string, now: number): Promise<boolean> {
   if (await env.TELEGRAM_STATE.get(key)) return false;
+  // A failed delivery needs a retry gate but must never count as a sent receipt.
+  await env.TELEGRAM_STATE.put(key, new Date(now).toISOString(), { expirationTtl: ALERT_TTL });
   if (env.TELEGRAM_ALERT_CHAT_ID && env.TELEGRAM_BOT_TOKEN) {
-    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: env.TELEGRAM_ALERT_CHAT_ID, text, disable_web_page_preview: true }),
     });
+    if (!response.ok) return false;
   }
-  await env.TELEGRAM_STATE.put(key, new Date(now).toISOString(), { expirationTtl: ALERT_TTL });
   return true;
 }
 

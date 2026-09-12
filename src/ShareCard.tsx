@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { buildAwards } from "./services/awards";
 import type { Award } from "./services/awards";
 import type { DashboardData, ManagerRow } from "./types";
@@ -40,7 +41,19 @@ function Shell({ title, gameweek, state, plate, children }: {
   plate: string;
   children: React.ReactNode;
 }) {
-  return <div className="sc-card">
+  const card = useRef<HTMLDivElement>(null);
+  const [readyFor, setReadyFor] = useState<string | null>(null);
+  const renderKey = `${gameweek}:${plate}`;
+  useEffect(() => {
+    let active = true;
+    const images = Array.from(card.current?.querySelectorAll("img") ?? []);
+    // A loaded data model alone is not enough: capture only after artwork and fonts exist.
+    Promise.all([document.fonts.ready, ...images.map((image) => image.decode())])
+      .then(() => { if (active) setReadyFor(renderKey); })
+      .catch(() => { /* A missing image must fail capture, not produce a broken card. */ });
+    return () => { active = false; };
+  }, [renderKey]);
+  return <div ref={card} className="sc-card" data-gameweek={gameweek} data-ready={readyFor === renderKey}>
     <img className="sc-plate" src={plate} alt="" />
     <div className="sc-head">
       <div className="sc-title">{title}</div>

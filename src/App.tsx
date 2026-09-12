@@ -1004,7 +1004,7 @@ export default function App() {
   // until it settles the fixture, so the stored gameweek total is short by whatever a
   // substitute has already scored. The table has read the corrected list since 24 Aug; the
   // cards never did, and went out all of GW1 without autosubs counted.
-  if (cardKind) return liveReady && !liveError ? <ShareCard data={{ ...data, managers: liveManagers }} kind={cardKind} /> : <div className="sc-stage" />;
+  if (cardKind) return liveReady && !liveError && !data.dataPending && !data.rosterOnly && liveManagers.length > 0 ? <ShareCard data={{ ...data, managers: liveManagers }} kind={cardKind} /> : <div className="sc-stage" />;
 
   // Names the sorted column for the compact phone card, which shows that figure and no
   // other. Absent at rest, so "no sort chosen" is a selector the CSS can test for.
