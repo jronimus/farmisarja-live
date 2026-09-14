@@ -1,7 +1,7 @@
 import { albumHasPriority, captureCard, handleTelegramWebhook, runDeadlineReminders, runTelegramJobs, type ShareCardKind, type TelegramEnv } from "./telegram";
 import { checkExpectations, overdue, type ExpectationsEnv } from "./expectations";
 import { footballOn, gameweekSettled, readCatalog, refreshCatalog, refreshDue, type Catalog, type CatalogEnv } from "./catalog";
-import { BEAT_EVERY, beatAge, checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
+import { heartbeatDue, beatAge, checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
 import { advanceSample, computeCurve, type LiveRankEnv } from "./liveRank";
 import { readFeed, updateFeed, type EventsEnv } from "./events";
 import { allChanges, readHistory, updatePriceHistory, type PriceHistoryEnv } from "./priceHistory";
@@ -130,7 +130,7 @@ function rankHasPriority(catalog: Catalog, now: number): boolean {
  * along with the dear ones. They resume the moment the football stops, and their own gates
  * mean nothing is lost by waiting — only deferred.
  */
-const QUIET_DURING_FOOTBALL = new Set(["rumours", "articles"]);
+const QUIET_DURING_FOOTBALL = new Set(["rumours", "articles", "appearances", "history", "insights", "transfers"]);
 
 /**
  * How often the feed is worth writing, given what is happening.
@@ -163,7 +163,8 @@ async function tick(env: Env, scheduledTime: number): Promise<void> {
 
   // Before anything that could kill the invocation, so an outage is reported by the ticks
   // that are still dying rather than by the first one that recovers.
-  await stage("watchdog", () => checkHeartbeat(env as HealthEnv, now));
+  let heartbeatAge: number | null = null;
+  await stage("watchdog", async () => { heartbeatAge = (await checkHeartbeat(env as HealthEnv, now)).age; });
 
   const catalog = await readCatalog(env as CatalogEnv);
   // The cheapest thing on the tick and the one with a deadline of its own.
@@ -234,7 +235,9 @@ async function tick(env: Env, scheduledTime: number): Promise<void> {
   if (catalog && minute % 5 === 3) await stage("expectations", () => checkExpectations(env as ExpectationsEnv, catalog, now));
 
   // Last, and only from a tick that got this far.
-  if (minute % BEAT_EVERY === 0) await stage("heartbeat", () => writeHeartbeat(env as HealthEnv, now));
+  // Any completed tick can renew an old beat. Fixed even-minute slots made a failing
+  // feed look like a stopped scheduler even while the odd-minute Telegram jobs ran.
+  if (heartbeatDue(heartbeatAge)) await stage("heartbeat", () => writeHeartbeat(env as HealthEnv, now));
 }
 
 export default {
@@ -249,7 +252,7 @@ export default {
       if (!kind) return json({ error: `card must be one of ${CARD_KINDS.join(", ")}` }, request, env, 400);
       try {
         const screenshot = await captureCard(telegramEnv, kind);
-        return new Response(screenshot, { headers: { "Content-Type": "image/png", "Cache-Control": "no-store" } });
+        return new Response(screenshot, { headers: { "Content-Type": screenshot.type, "Cache-Control": "no-store" } });
       } catch (error) {
         return json({ error: error instanceof Error ? error.message : String(error) }, request, env, 502);
       }

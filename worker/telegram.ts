@@ -60,7 +60,9 @@ export async function captureCard(env: TelegramEnv, kind: ShareCardKind, attempt
     // The dashboard polls live data: network silence is not a readiness signal.
     gotoOptions: { waitUntil: "domcontentloaded", timeout: 15_000 },
     waitForSelector: { selector, visible: true, timeout: 25_000 },
-    screenshotOptions: { type: "png" },
+    // Grainy card artwork produces multi-megabyte PNGs. JPEG keeps multipart sends
+    // and KV transfers comfortably below the CPU cost of those lossless images.
+    screenshotOptions: { type: "jpeg", quality: 90 },
   });
   if (response.status === 429 && attempt < 1) {
     const delay = 10_000;
@@ -139,13 +141,14 @@ export async function albumHasPriority(env: TelegramEnv, now = Date.now()): Prom
   return Boolean(pending && now - Date.parse(pending.at) < ALBUM_PRIORITY_MS);
 }
 
-async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob): Promise<void> {
+async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob): Promise<boolean> {
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
   const sent = new Set<AlbumStage>(job.sent ?? []);
   const part = async (kind: ShareCardKind): Promise<Blob> => {
     const bytes = await env.TELEGRAM_STATE.get(`${key}:${kind}`, "arrayBuffer");
     if (!bytes) throw new Error(`Album part missing: ${kind}`);
-    return new Blob([bytes], { type: "image/png" });
+    const signature = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
+    return new Blob([bytes], { type: signature[0] === 0xff && signature[1] === 0xd8 ? "image/jpeg" : "image/png" });
   };
   const post = async (method: string, body: FormData) => {
     const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, { method: "POST", body });
@@ -160,27 +163,35 @@ async function sendQueuedAlbum(env: TelegramEnv, key: string, job: AlbumJob): Pr
   if (!sent.has("photo")) {
     const first = new FormData();
     first.set("chat_id", job.chat);
-    first.set("photo", await part("round"), "round.png");
+    const photo = await part("round");
+    first.set("photo", photo, `round.${photo.type === "image/jpeg" ? "jpg" : "png"}`);
     first.set("reply_markup", JSON.stringify(button(env)));
     await post("sendPhoto", first);
     await mark("photo");
+    // Multipart encoding a PNG uses CPU too. Give the pair a separate invocation.
+    return false;
   }
 
   if (!sent.has("group")) {
     const second = new FormData();
     second.set("chat_id", job.chat);
     const pair: ShareCardKind[] = ["total", "awards"];
-    for (const [index, kind] of pair.entries()) second.set(`file${index}`, await part(kind), `${kind}.png`);
+    for (const [index, kind] of pair.entries()) {
+      const photo = await part(kind);
+      second.set(`file${index}`, photo, `${kind}.${photo.type === "image/jpeg" ? "jpg" : "png"}`);
+    }
     second.set("media", JSON.stringify(pair.map((_, index) => ({ type: "photo", media: `attach://file${index}` }))));
     await post("sendMediaGroup", second);
     await mark("group");
   }
 
+  await env.TELEGRAM_STATE.put(`${key}:delivered`, new Date().toISOString(), { expirationTtl: SENT_TTL });
   await Promise.all([
     env.TELEGRAM_STATE.delete(key),
     env.TELEGRAM_STATE.delete(ALBUM_PENDING_KEY),
     ...ALBUM_KINDS.map((kind) => env.TELEGRAM_STATE.delete(`${key}:${kind}`)),
   ]);
+  return true;
 }
 
 /** Does one unit of work for a queued album and reports whether anything happened. */
@@ -200,8 +211,8 @@ export async function advanceAlbum(env: TelegramEnv, key: string): Promise<boole
     console.log(JSON.stringify({ event: "album_card_ready", key, kind: next, done: job.done.length }));
     return true;
   }
-  await sendQueuedAlbum(env, key, job);
-  console.log(JSON.stringify({ event: "album_sent", key }));
+  const finished = await sendQueuedAlbum(env, key, job);
+  console.log(JSON.stringify({ event: finished ? "album_sent" : "album_photo_sent", key }));
   return true;
 }
 
@@ -211,7 +222,8 @@ async function sendCardPhoto(env: TelegramEnv, chatId: number | string, kind: Sh
   const form = new FormData();
   form.set("chat_id", String(chatId));
   form.set("reply_markup", JSON.stringify(button(env)));
-  form.set("photo", await captureCard(env, kind, 0, gameweek), `${kind}.png`);
+  const photo = await captureCard(env, kind, 0, gameweek);
+  form.set("photo", photo, `${kind}.${photo.type === "image/jpeg" ? "jpg" : "png"}`);
   const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendPhoto`, { method: "POST", body: form });
   if (!response.ok) throw new Error(`Telegram sendPhoto failed: ${response.status} ${await response.text()}`);
 }
@@ -322,7 +334,7 @@ async function checkPostGame(env: TelegramEnv, event: CatalogEvent): Promise<voi
   // the gameweek's ticks reading a few hundred kilobytes to reach the same answer.
   const sentKey = `postgame:gw:${event.id}`;
   if (await env.TELEGRAM_STATE.get(sentKey)) return;
-  const fixtures = (await fpl<Fixture[]>("/fixtures/")).filter((fixture) => fixture.event === event.id);
+  const fixtures = (await fpl<Fixture[]>(`/fixtures/?event=${event.id}`)).filter((fixture) => fixture.event === event.id);
   // FPL can leave finished unset long after full time, so full time is what schedules the report.
   if (!fixtures.length || fixtures.some((fixture) => !fixture.finished && !fixture.finished_provisional)) return;
   await sendOnce(env, sentKey, () => queueAlbum(env, `album:gw:${event.id}`, env.TELEGRAM_CHAT_ID!));

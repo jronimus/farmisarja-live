@@ -178,6 +178,8 @@ describe("the post-game report, when Telegram takes the first message and refuse
     // The failure that actually happened: the photo lands, the pair does not.
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) =>
       method(input) === "sendMediaGroup" ? new Response("Too Many Requests", { status: 429 }) : Response.json({ ok: true })));
+    await advanceAlbum(env, "album:gw:2");
+    expect(vi.mocked(fetch).mock.calls.map(([input]) => method(input))).toEqual(["sendPhoto"]);
     await expect(advanceAlbum(env, "album:gw:2")).rejects.toThrow(/sendMediaGroup/);
 
     // The photo that landed is written down, so the retry cannot repeat it.
@@ -190,6 +192,28 @@ describe("the post-game report, when Telegram takes the first message and refuse
 
     expect(second.mock.calls.map(([input]) => method(input))).toEqual(["sendMediaGroup"]);
     expect(await env.TELEGRAM_STATE.get("album:gw:2")).toBeNull();
+    expect(await env.TELEGRAM_STATE.get("album:gw:2:delivered")).not.toBeNull();
+  });
+
+  it("uploads JPEG parts with their real MIME type and keeps older PNG parts readable", async () => {
+    const env = testEnv();
+    await banked(env);
+    const get = vi.mocked(env.TELEGRAM_STATE.get).getMockImplementation()!;
+    vi.mocked(env.TELEGRAM_STATE.get).mockImplementation(async (key: string, type?: unknown) => {
+      if (type === "arrayBuffer") return new Uint8Array(key.endsWith(":total") ? [137, 80, 78, 71] : [255, 216, 255]).buffer;
+      return get(key);
+    });
+    const calls: FormData[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: unknown, init: RequestInit) => {
+      calls.push(init.body as FormData);
+      return Response.json({ ok: true });
+    }));
+    await advanceAlbum(env, "album:gw:2");
+    expect((calls[0].get("photo") as Blob).type).toBe("image/jpeg");
+    expect(await env.TELEGRAM_STATE.get("album:gw:2:delivered")).toBeNull();
+    await advanceAlbum(env, "album:gw:2");
+    expect((calls[1].get("file0") as Blob).type).toBe("image/png");
+    expect((calls[1].get("file1") as Blob).type).toBe("image/jpeg");
   });
 
   it("banks a capture before anything is sent", async () => {

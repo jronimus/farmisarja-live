@@ -146,7 +146,7 @@ export function eventsForPlayer(
   previous: number[] | undefined,
   current: number[],
   position?: number,
-): Array<{ kind: EventKind; value: number; stat: (typeof WATCHED)[number] }> {
+): Array<{ kind: EventKind; value: number; previous: number; stat: (typeof WATCHED)[number] }> {
   const before = previous ?? WATCHED.map(() => 0);
   const out: Array<{ kind: EventKind; value: number; previous: number; stat: (typeof WATCHED)[number] }> = [];
   WATCHED.forEach((stat, index) => {
@@ -278,7 +278,7 @@ export async function updateFeed(env: EventsEnv, catalog: Catalog, now = Date.no
   const event = catalog.events.find((entry) => entry.is_current);
   if (!event) return { written: false, added: 0 };
 
-  const fixtures = (await fpl<Fixture[]>("/fixtures/")).filter((fixture) => fixture.event === event.id);
+  const fixtures = (await fpl<Fixture[]>(`/fixtures/?event=${event.id}`)).filter((fixture) => fixture.event === event.id);
   const stored = await readFeed(env, event.id);
   if (!isLive(fixtures, stored?.lastLiveAt, now)) return { written: false, added: 0 };
 
@@ -304,10 +304,18 @@ export async function updateFeed(env: EventsEnv, catalog: Catalog, now = Date.no
     const current = counters(element.stats);
     // Players who have not appeared stay out of the snapshot; absent reads as all zeroes.
     if (element.stats.minutes === 0 && current.every((value) => value === 0)) continue;
+    const before = previous[element.id];
+    // On the last match of a gameweek almost every player's counters are unchanged.
+    // Reuse their scored snapshot instead of walking hundreds of finished explain lists.
+    if (before && previousPoints[element.id] && (stored?.repair ?? 0) >= REPAIR_VERSION
+      && current.every((value, index) => value === before[index])) {
+      snapshot[element.id] = before;
+      points[element.id] = previousPoints[element.id];
+      continue;
+    }
     const currentPoints = pointsFor(element);
     snapshot[element.id] = current;
     points[element.id] = currentPoints;
-    const before = previous[element.id];
     if (!before && bootstrapping) continue;
 
     const meta = elementById.get(element.id);

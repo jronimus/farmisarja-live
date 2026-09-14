@@ -35,6 +35,9 @@ const ALERT_KEY = "health:alert";
 
 /** One beat every ten minutes: often enough to place an outage, cheap against the day's writes. */
 export const BEAT_EVERY = 10;
+export function heartbeatDue(age: number | null): boolean {
+  return age === null || age >= BEAT_EVERY * 60_000;
+}
 /**
  * Two missed beats before anybody is told. A single one can be an ordinary skipped tick —
  * Cloudflare does not promise the minute — and waking the chat for that would teach

@@ -1,11 +1,36 @@
 # Farmisarja Live — handoff
 
-Updated: 2026-09-13
+Updated: 2026-09-14
 
 Source of truth for continuing the project in a new conversation. Read it completely
 before making changes.
 
 ## Next up — start here in a new conversation
+
+### GW4 final match: CPU failures and report delivery, 14 Sep
+
+At 19:45 UTC the watchdog warned about an old heartbeat. GraphQL showed repeated
+`exceededResources`, and tail confirmed `exceededCpu` (12–15 ms) on feed ticks. Some
+odd-minute jobs still completed, but fixed ten-minute heartbeat slots always coincided
+with feed work, so the warning overstated scheduler downtime. Completed ticks now renew
+the heartbeat when it is ten minutes old, regardless of wall-clock minute.
+
+Feed and report checks request only `/fixtures/?event=N` (25 kB versus 209 kB for all
+380 fixtures). The feed reuses unchanged players' scored snapshots. Nonessential
+background readers (including appearances, measured at 32 ms during the match) now wait
+until football stops, alongside articles and rumours. Telegram keeps its existing turns.
+
+Cards are JPEG quality 90; all three actual Cloudflare captures were checked without
+messaging Telegram: round 364,472 bytes / 4.7 s, total 354,300 bytes / 2.5 s, awards
+388,511 bytes / 2.0 s. The first photo and the remaining pair are sent on separate ticks.
+Old PNG parts remain readable. `${albumKey}:delivered` records successful delivery of
+both messages before cleanup; it must be absent while either message is still pending.
+
+223 tests, frontend build, Worker dry-run and standalone Worker typecheck pass. The
+previous `eventsForPlayer` return-type errors are fixed. Initial recovery at 19:52 UTC
+added six ticker events and renewed the heartbeat; the first tick's CPU was 21 ms,
+so this is evidence of recovery, not proof that free-plan CPU failures are impossible.
+Do not call the report delivered until `album:gw:4:delivered` exists.
 
 ### GW4 deadline capture and repeated alerts, 13 Sep
 

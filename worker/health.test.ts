@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
+import { heartbeatDue, checkHeartbeat, writeHeartbeat, type HealthEnv } from "./health";
 
 function testEnv(overrides: Record<string, unknown> = {}) {
   const state = new Map<string, string>();
@@ -24,6 +24,12 @@ const telegramCalls = (mock: ReturnType<typeof vi.fn>) =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the cron watchdog", () => {
+  it("lets the next successful tick renew a missed beat without waiting for a clock slot", () => {
+    expect(heartbeatDue(null)).toBe(true);
+    expect(heartbeatDue(9 * 60_000)).toBe(false);
+    expect(heartbeatDue(10 * 60_000)).toBe(true);
+    expect(heartbeatDue(27 * 60_000)).toBe(true);
+  });
   it("says nothing while the ticks are finishing", async () => {
     const env = testEnv();
     const fetchMock = vi.fn(async () => Response.json({ ok: true }));

@@ -201,6 +201,7 @@ function stubFpl(elements: Array<ReturnType<typeof liveElement>>) {
     const url = String(input);
     if (url.includes("bootstrap-static")) throw new Error("the feed must not read the bootstrap");
     if (url.includes("/fixtures/")) {
+      expect(new URL(url).searchParams.get("event")).toBe("2");
       return Response.json([{
         id: 11, event: 2, kickoff_time: "2026-08-31T19:00:00Z", team_h: 1, team_a: 2,
         team_h_score: 1, team_a_score: 0, minutes: 45, started: true, finished: false, finished_provisional: false,
@@ -221,6 +222,9 @@ describe("the feed, off the bootstrap and on the catalog", () => {
     // The first write of a gameweek seeds in silence: there is nothing to diff against yet.
     const seeded = await updateFeed(env, catalog, now);
     expect(seeded).toEqual({ written: true, added: 0 });
+
+    const unchanged = await updateFeed(env, catalog, now + 60_000);
+    expect(unchanged).toEqual({ written: true, added: 0 });
 
     stubFpl([liveElement(1, 6)]);
     const scored = await updateFeed(env, catalog, now + 120_000);
