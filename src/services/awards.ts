@@ -1,4 +1,5 @@
 import type { DashboardData, ManagerRow, SquadPlayer } from "../types";
+import { provisionalAutosubSquad } from "./fplRules";
 
 export interface Award {
   id: string;
@@ -25,7 +26,9 @@ const scoring = (manager: ManagerRow) =>
   manager.chip === "BB" ? manager.squad : manager.squad.filter((player) => player.starter);
 
 const benchPoints = (manager: ManagerRow) =>
-  manager.chip === "BB" ? 0 : manager.squad.filter((player) => !player.starter).reduce((sum, p) => sum + p.points + p.bonus, 0);
+  manager.chip === "BB" ? 0 : provisionalAutosubSquad(manager.squad, true)
+    .filter((player) => !player.starter)
+    .reduce((sum, p) => sum + p.points + p.bonus, 0);
 
 const netPoints = (manager: ManagerRow) => manager.gameweekPoints + manager.provisionalBonus - manager.hit;
 
