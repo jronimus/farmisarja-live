@@ -2056,7 +2056,7 @@ footer a { color:#c4c6d8; }
      menu it qualifies. */
   .toolbar-selects .player-picker { flex:1 1 100%; min-width:0; max-width:none; }
   /* Both moved into the caption under the toolbar. */
-  .toolbar-selects > .period-select:first-child,
+  .toolbar-selects > select.period-select,
   .ownership-readout { display:none; }
 
   /* Both toggles share the row evenly, name pushed left and switch right. 38px to match
@@ -4237,3 +4237,8 @@ footer .footer-separator { color:inherit; opacity:.72; }
 .ticker-shift,
 .ticker-shift s,
 .ticker-shift em { color:rgba(255,255,255,.6); }
+@media(max-width:800px){
+  .toolbar-selects:has(.comparison-open) .player-picker{flex:1 1 160px}
+  .toolbar-selects > .comparison-open{min-width:38px;width:38px;padding:0;flex:0 0 38px}
+  .comparison-open > span{display:none}
+}

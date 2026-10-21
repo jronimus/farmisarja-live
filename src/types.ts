@@ -75,6 +75,7 @@ export interface GameweekFixture {
 }
 
 export interface ManagerRow {
+  gameweekHistory?: Array<{ gameweek: number; month: string; points: number; hit: number }>;
   id: number;
   position: number;
   previousPosition: number;

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, ExternalLink, Globe, Medal, Search, TriangleAlert, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarDays, ChevronDown, ChevronRight, Clock3, ExternalLink, Globe, Medal, Scale, Search, TriangleAlert, X } from "lucide-react";
 import { demoData } from "./demoData";
 import { loadLiveDashboard } from "./services/liveDashboard";
 import { gameweekHandsOverAt, provisionalAutosubSquad } from "./services/fplRules";
@@ -14,6 +14,8 @@ import ShareCard, { type CardKind } from "./ShareCard";
 import PriceChanges from "./PriceChanges";
 import TeamNews from "./TeamNews";
 import Stats from "./Stats";
+import SquadComparisonModal from "./SquadComparison";
+import { pointsForPeriod } from "./services/periodScores";
 import Sources from "./Sources";
 import Ticker from "./Ticker";
 import { estimateRank, loadRankCurve, type RankCurve } from "./services/liveRank";
@@ -717,6 +719,7 @@ export default function App() {
   // Two pages, no router: Pages serves this from a subpath, and the hash survives that
   // without any server rewrite.
   const [view, setView] = useState<View>(() => viewFromHash());
+  const [comparisonOpen, setComparisonOpen] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(demoMode ? null : 101);
   const [sort, setSort] = useState<SortKey>("position");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
@@ -884,12 +887,23 @@ export default function App() {
         {!startersOnly && selected.benched > 0 && <> · <b>{selected.benched}</b> {t.onBench}</>}</>
       : null;
 
+  const periodScores = useMemo(() => new Map(liveManagers.map((manager) => [manager.id, pointsForPeriod(manager, period, data.gameweek)])), [liveManagers, period, data.gameweek]);
+  const periodRanks = useMemo(() => {
+    const scores = [...periodScores.values()].filter((value): value is number => value !== null);
+    return new Map(liveManagers.map((manager) => { const score = periodScores.get(manager.id); return [manager.id, score == null ? null : 1 + scores.filter((other) => other > score).length]; }));
+  }, [liveManagers, periodScores]);
   const managers = useMemo(() => [...liveManagers].sort((a, b) => {
+    if (period !== "total" && (sort === "position" || sort === "totalPoints")) {
+      const av = periodScores.get(a.id), bv = periodScores.get(b.id);
+      if (av == null) return bv == null ? 0 : 1;
+      if (bv == null) return -1;
+      return (av - bv) * (sort === "position" ? direction === "asc" ? -1 : 1 : direction === "asc" ? 1 : -1);
+    }
     // A gameweek in progress has no settled form behind it yet, so the series can be empty.
     const aValue = sort === "form" ? a.form.reduce((sum, value) => sum + value, 0) / Math.max(1, a.form.length) : a[sort];
     const bValue = sort === "form" ? b.form.reduce((sum, value) => sum + value, 0) / Math.max(1, b.form.length) : b[sort];
     return (aValue - bValue) * (direction === "asc" ? 1 : -1);
-  }), [liveManagers, direction, sort]);
+  }), [liveManagers, direction, sort, period, periodScores]);
 
   const awardStats = useMemo(() => {
     const captainScores = liveManagers.map((manager) => captainDisplay(manager, autosubs).points);
@@ -950,7 +964,8 @@ export default function App() {
   // Finnish sets a space before the percent sign; English does not.
   const percent = (value: number) => language === "fi" ? `${Math.round(value)} %` : `${Math.round(value)}%`;
   const monthLabel = (month: string) => { const name = monthFormatter.format(new Date(`${month}-01T12:00:00Z`)); return name.charAt(0).toUpperCase() + name.slice(1); };
-  const headers: Array<[string, SortKey | null, string?]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form", t.formNote], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [t.total, "totalPoints"]];
+  const periodLabel = period === "total" ? t.total : monthLabel(period);
+  const headers: Array<[string, SortKey | null, string?]> = [[t.position, "position"], [t.manager, null], [t.captain, "captainPoints"], [t.transfers, null], [t.seasonTransfers, "seasonTransfers"], [t.chips, null], [t.teamValue, "teamValue"], [t.benchPoints, "benchPointsBeforeGw"], [t.form, "form", t.formNote], [t.gwPoints, "gameweekPoints"], [t.progress, "upcoming"], [periodLabel, "totalPoints"]];
   /**
    * What the phone offers to sort by. Not the column list: "Yhteensä" orders the table
    * exactly as "Sija" already does, since league position is the season total, and "Vire"
@@ -972,7 +987,7 @@ export default function App() {
   const columnLabel: Record<SortKey, string> = {
     position: t.position, captainPoints: t.captain, gameweekPoints: t.gwPoints, upcoming: t.progress,
     teamValue: t.teamValue, benchPointsBeforeGw: t.benchPoints, seasonTransfers: t.transfers,
-    totalPoints: t.total, overallRank: "OR", form: t.form,
+    totalPoints: periodLabel, overallRank: "OR", form: t.form,
   };
   const gameweekFixtures = data.fixtures ?? [];
   const liveFixtures = gameweekFixtures.filter((fixture) => fixture.status === "live");
@@ -1055,7 +1070,7 @@ export default function App() {
       : <>
       <div className="toolbar">
         <div className="toolbar-selects">
-          <select className="period-select" value={period} onChange={(event) => setPeriod(event.target.value)} aria-label={language === "fi" ? "Valitse ajanjakso" : "Select period"}>
+          <select className="period-select" value={period} onChange={(event) => { setPeriod(event.target.value); setSort("position"); setDirection("asc"); }} aria-label={language === "fi" ? "Valitse ajanjakso" : "Select period"}>
             <option value="total">Total</option>
             {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
           </select>
@@ -1072,6 +1087,7 @@ export default function App() {
             />
             {picking && <span className="ownership-readout">{highlightSentence()}</span>}
           </>}
+          <button type="button" className="period-select comparison-open" aria-haspopup="dialog" aria-label={language === "fi" ? "Vertaa" : "Compare"} title={language === "fi" ? "Vertaa" : "Compare"} onClick={() => setComparisonOpen(true)}><Scale size={17} aria-hidden="true" /><span>{language === "fi" ? "Vertaa" : "Compare"}</span></button>
         </div>
         <div className="toolbar-toggles">
           <StateToggle label={t.details} checked={mobileDetails} onChange={setMobileDetails} className="details-toggle" />
@@ -1093,7 +1109,7 @@ export default function App() {
           <label className={`caption-pick ${!picking && period !== "total" ? "chosen" : ""}`}>
             <CalendarDays aria-hidden="true" />
             <i>{t.month}</i>
-            <select value={period} disabled={!!picking} onChange={(event) => setPeriod(event.target.value)} aria-label={t.month}>
+            <select value={period} disabled={!!picking} onChange={(event) => { setPeriod(event.target.value); setSort("position"); setDirection("asc"); }} aria-label={t.month}>
               <option value="total">Total</option>
               {data.activeMonths.map((month) => <option value={month} key={month}>{monthLabel(month)}</option>)}
             </select>
@@ -1129,7 +1145,7 @@ export default function App() {
             <b>{t.position}</b><b>{t.manager}</b>
             {/* Sorted, the card carries one figure, so the head names that column rather
                 than the two it replaced. */}
-            {sort === "position" ? <><b>GW</b><b>{t.total}</b></> : <b className="head-sorted">{columnLabel[sort]}</b>}
+            {sort === "position" ? <><b>GW</b><b>{periodLabel}</b></> : <b className="head-sorted">{columnLabel[sort]}</b>}
           </div>
           {managers.map((manager) => {
             const open = expanded === manager.id;
@@ -1174,7 +1190,7 @@ export default function App() {
              */
             const sortMeta = data.rosterOnly ? null : (() => {
               // No label where it would only repeat the column heading above the figure.
-              const totalNow = number.format(manager.totalPoints + manager.provisionalBonus - manager.hit);
+              const totalNow = periodScores.get(manager.id) == null ? "—" : number.format(periodScores.get(manager.id)!);
               // Sorting replaces the gameweek and season figures with one column, so where
               // the sort has nothing of its own to add, this line hands those two back.
               if (sort === "captainPoints") return <><i>GW</i><b>{displayedGwPoints}</b><i>{t.total}</i><b>{totalNow}</b></>;
@@ -1197,7 +1213,7 @@ export default function App() {
             })();
             return <div className={`manager-block ${open ? "open" : ""} ${data.rosterOnly ? "roster-only" : ""} ${picked.owns ? "owns-picked" : ""} ${picked.captains ? "captains-picked" : ""} ${picked.benched ? "benches-picked" : ""}`} key={manager.id}>
               <div className="manager-row" onClick={() => setExpanded(open ? null : manager.id)}>
-                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{manager.position}</strong>{!data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && shownRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${estimated ? "~" : ""}${number.format(shownRank)} · ${rankTitle}`}>OR {estimated ? "~" : ""}{compactRank(shownRank)}</small>}</div>
+                <div className="position-cell"><button aria-label="Expand squad">{open ? <ChevronDown /> : <ChevronRight />}</button><strong>{period === "total" ? manager.position : periodRanks.get(manager.id) ?? "—"}</strong>{period === "total" && !data.rosterOnly && <Movement current={manager.position} previous={manager.previousPosition} />}{!data.rosterOnly && shownRank > 0 && hasSeasonPoints && <small className={`position-or ${rankClass}`} title={`OR ${estimated ? "~" : ""}${number.format(shownRank)} · ${rankTitle}`}>OR {estimated ? "~" : ""}{compactRank(shownRank)}</small>}</div>
                 <div className="manager-cell"><a className={picked.owns ? "picked-name" : ""} href={`https://fantasy.premierleague.com/entry/${manager.id}/event/${data.gameweek}`} onClick={(event) => event.stopPropagation()} target="_blank" rel="noreferrer">{manager.teamName}</a><span>{manager.managerName}</span>{!data.rosterOnly && <span className="mobile-captain"><b className={manager.chip === "TC" ? "triple" : ""}>C</b><strong className={picked.captains ? "picked-name" : ""}>{captain.name}</strong><em>{captain.points} pts</em></span>}{sortMeta && <span className="mobile-sort-meta">{sortMeta}</span>}{/* The tilde is the whole disclaimer. A rank read off a sample is not FPL's number and
                     must not be printed as though it were. */}
                   {!data.rosterOnly && shownRank > 0 && hasSeasonPoints && <small className={rankClass} title={rankTitle}>OR {estimated ? "~" : ""}{number.format(shownRank)}</small>}</div>
@@ -1237,7 +1253,7 @@ export default function App() {
                 </div>
                 <div className={`points-cell ${gwAward ? "award-cell" : ""} ${metric("gameweekPoints")}`} data-label={t.gwPoints}><span className={`gw-score ${manager.chip ? `has-chip ${chipClass(manager.chip)}` : ""} ${gwMedalRank ? `has-medal medal-rank-${gwMedalRank}` : ""}`}>{gwMedalRank && <Medal aria-label={language === "fi" ? `Kierroksen ${gwMedalRank}. paras` : `Gameweek rank ${gwMedalRank}`} />}<strong>{displayedGwPoints}</strong>{manager.chip && <b>{manager.chip}</b>}</span><span className={`points-formula ${manager.hit > 0 ? "" : "empty"}`}>{manager.hit > 0 ? <>({manager.gameweekPoints + manager.provisionalBonus} <b>− {manager.hit}</b> = {displayedGwPoints})</> : " "}</span></div>
                 <div className={`progress-cell ${metric("upcoming")}`} data-label={t.progress}>{!data.rosterOnly && (progress.finished === progress.total && progress.live === 0 ? <strong className={data.pointsFinalized ? "is-final" : "is-provisional"}>{data.pointsFinalized ? t.fixtureFinal : t.fixtureProvisional}</strong> : <><span className="progress-summary">({progress.finished}/{progress.total})</span>{progress.live > 0 && <small><b>{progress.live}</b> LIVE</small>}</>)}</div>
-                <div className="total-cell" data-label={t.total}><strong>{number.format(manager.totalPoints + manager.provisionalBonus - manager.hit)}</strong></div>
+                <div className="total-cell" data-label={period === "total" ? t.total : monthLabel(period)}><strong>{periodScores.get(manager.id) == null ? "—" : number.format(periodScores.get(manager.id)!)}</strong></div>
               </div>
               {open && (data.rosterOnly
                 ? <div className="squad-panel squad-unavailable">{language === "fi" ? "Pelaajat tulevat näkyviin, kun peliviikon deadline on sulkeutunut." : "Players will appear after the gameweek deadline has passed."}</div>
@@ -1247,6 +1263,7 @@ export default function App() {
         </div>
       </section>}
     </>}</main>
+    {comparisonOpen && <SquadComparisonModal data={data} language={language} onClose={() => setComparisonOpen(false)} />}
     <footer>
       <span>Official FPL data</span>
       {liveReady && <span>{t.updated}: {updatedLabel}</span>}

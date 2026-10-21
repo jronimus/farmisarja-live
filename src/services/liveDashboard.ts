@@ -278,6 +278,10 @@ async function managerRow(
     previousPosition: standing.last_rank,
     teamName: standing.entry_name,
     managerName: standing.player_name || `${entry.player_first_name} ${entry.player_last_name}`.trim(),
+    gameweekHistory: history.current.filter((row) => row.event <= event.id).map((row) => ({
+      gameweek: row.event, month: bootstrap.events.find((week) => week.id === row.event)?.deadline_time.slice(0, 7) ?? "",
+      points: row.points, hit: row.event_transfers_cost,
+    })),
     gameweekPoints,
     provisionalBonus: 0,
     totalPoints: Math.max(currentHistory.total_points + hit, pointsBeforeGameweek + gameweekPoints),
