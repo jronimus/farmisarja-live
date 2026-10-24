@@ -1,4 +1,10 @@
 import type { ManagerRow, SquadPlayer } from "../types";
+import { provisionalAutosubSquad } from "./fplRules";
+
+/** Use the same effective eleven and armband as the main table. */
+export function comparisonManagers(managers: ManagerRow[], autosubs: boolean): ManagerRow[] {
+  return managers.map((manager) => ({ ...manager, squad: provisionalAutosubSquad(manager.squad, autosubs) }));
+}
 
 export interface ComparisonPlayer {
   player: SquadPlayer;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareSquads } from "./squadComparison";
+import { compareSquads, comparisonManagers } from "./squadComparison";
 import { demoData } from "../demoData";
 
 describe("squad comparison", () => {
@@ -22,5 +22,23 @@ describe("squad comparison", () => {
   });
   it("does not invent players for empty squads", () => {
     expect(compareSquads([{ ...base, squad: [] }])).toEqual([]);
+  });
+  it("compares the live eleven, restores late appearances and honours the table's autosub switch", () => {
+    const squad = Array.from({ length: 15 }, (_, i) => ({ ...player, id: i + 1, squadPosition: i + 1,
+      position: (i === 0 || i === 11 ? "GK" : i < 4 ? "DEF" : i < 9 || i === 12 ? "MID" : "FWD") as typeof player.position,
+      starter: i < 11, state: "upcoming" as const, minutes: 0, captain: i === 8, viceCaptain: i === 9 }));
+    squad[8] = { ...squad[8], state: "live" as typeof squad[number]["state"] };
+    const manager = { ...base, squad };
+    const effective = comparisonManagers([manager], true);
+    const rows = compareSquads(effective, true);
+    expect(rows.some((row) => row.player.id === 9)).toBe(false);
+    expect(rows.some((row) => row.player.id === 13)).toBe(true);
+    expect(rows.find((row) => row.player.id === 10)?.picks.get(base.id)?.captain).toBe(true);
+    expect(manager.squad[8].starter).toBe(true);
+    expect(compareSquads(comparisonManagers([manager], false), true).some((row) => row.player.id === 9)).toBe(true);
+    squad[8].minutes = 1;
+    const restored = compareSquads(comparisonManagers([manager], true), true);
+    expect(restored.find((row) => row.player.id === 9)?.player.captain).toBe(true);
+    expect(restored.some((row) => row.player.id === 13)).toBe(false);
   });
 });

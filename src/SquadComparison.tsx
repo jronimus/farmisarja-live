@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Plus, X } from "lucide-react";
-import { compareSquads } from "./services/squadComparison";
+import { compareSquads, comparisonManagers } from "./services/squadComparison";
 import type { DashboardData, Language, ManagerRow, SquadPlayer } from "./types";
 import "./comparison.css";
 
 const multiplier = (p: SquadPlayer, m: ManagerRow) => p.captain ? m.chip === "TC" ? 3 : 2 : 1;
 
-export default function SquadComparisonModal({ data, language, onClose }: { data: DashboardData; language: Language; onClose: () => void }) {
+export default function SquadComparisonModal({ data, language, autosubs, onClose }: { data: DashboardData; language: Language; autosubs: boolean; onClose: () => void }) {
   const fi = language === "fi";
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
@@ -16,7 +16,7 @@ export default function SquadComparisonModal({ data, language, onClose }: { data
   const [onlyDifferences, setOnlyDifferences] = useState(false);
   const [starters, setStarters] = useState(true);
   const [ownershipOrder, setOwnershipOrder] = useState(false);
-  const teams = ids.map((id) => data.managers.find((m) => m.id === id)).filter((m): m is ManagerRow => Boolean(m));
+  const teams = comparisonManagers(ids.map((id) => data.managers.find((m) => m.id === id)).filter((m): m is ManagerRow => Boolean(m)), autosubs);
   const rows = compareSquads(teams, starters);
   const shared = new Map(rows.map((row) => [row.player.id, row.picks.size]));
   const owners = new Map(rows.map((row) => [row.player.id, teams.filter((team) => row.picks.has(team.id)).map((team) => team.teamName).join(" · ")]));
@@ -79,7 +79,7 @@ export default function SquadComparisonModal({ data, language, onClose }: { data
             </section>;
           })}
         </div>}
-      <footer className="comparison-modal-footer"><div className="comparison-ownership-legend" aria-label={fi ? "Omistajamäärien värit" : "Ownership colours"}>{ownershipCounts.map((count) => <span key={count} data-owners={count}><i />{count}/{teams.length}{count === teams.length ? fi ? " kaikilla" : " all" : ""}</span>)}<small>{fi ? "Samat valinnat himmennetty" : "Identical picks faded"}</small></div><span>{fi ? "P = penkki · Kapteenikerroin mukana · Julkaistut valinnat" : "B = bench · Captain multiplier included · Published picks"}</span></footer>
+      <footer className="comparison-modal-footer"><div className="comparison-ownership-legend" aria-label={fi ? "Omistajamäärien värit" : "Ownership colours"}>{ownershipCounts.map((count) => <span key={count} data-owners={count}><i />{count}/{teams.length}{count === teams.length ? fi ? " kaikilla" : " all" : ""}</span>)}<small>{fi ? "Samat valinnat himmennetty" : "Identical picks faded"}</small></div><span>{fi ? "P = penkki · Kapteenikerroin mukana · " : "B = bench · Captain multiplier included · "}{autosubs ? fi ? "Aut. vaihdot päällä" : "Autosubs on" : fi ? "Julkaistut valinnat" : "Published picks"}</span></footer>
     </div>
   </div>, document.body);
 }

@@ -1263,7 +1263,7 @@ export default function App() {
         </div>
       </section>}
     </>}</main>
-    {comparisonOpen && <SquadComparisonModal data={data} language={language} onClose={() => setComparisonOpen(false)} />}
+    {comparisonOpen && <SquadComparisonModal data={{ ...data, managers: liveManagers }} language={language} autosubs={autosubs} onClose={() => setComparisonOpen(false)} />}
     <footer>
       <span>Official FPL data</span>
       {liveReady && <span>{t.updated}: {updatedLabel}</span>}
