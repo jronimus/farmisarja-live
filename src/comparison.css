@@ -1,4 +1,5 @@
 .period-select.comparison-open{display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;background-image:none;padding-right:14px;white-space:nowrap}
+.comparison-head-actions .comparison-add-mobile,.comparison-label-short{display:none}
 .comparison-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;background:#020d14b5;backdrop-filter:blur(5px)}
 .comparison-modal{color:#20283b;background:#eceef7;border:1px solid #c9ddd650;border-radius:16px;width:min(1180px,100%);max-height:calc(100dvh - 40px);display:flex;flex-direction:column;box-shadow:0 24px 100px #0008;overflow:hidden;outline:none}
 .comparison-modal-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px 12px;flex-shrink:0}.comparison-modal-header h2{display:flex;align-items:center;gap:12px;font-size:18px;letter-spacing:-.03em;margin:0}.comparison-modal-header h2 span{font-size:10px;letter-spacing:.04em;background:#dce2ed;color:#5d657b;padding:5px 7px;border-radius:5px}
@@ -53,3 +54,16 @@
 .comparison-ownership-legend small{font-size:inherit;color:#727c8d}
 @media(max-width:800px){.period-select.comparison-open{justify-content:center}}
 @media(max-width:650px){.comparison-player .comparison-owned{padding:3px 2px;font-size:8px}.comparison-ownership-legend{gap:7px}}
+/* Keep mobile controls on one row and reclaim the separate add-team row. */
+@media(max-width:650px){
+  .comparison-head-actions .comparison-add-mobile{display:grid;background:#daebe1;color:#26704f}
+  .comparison-add-mobile:disabled{opacity:.4}
+  .comparison-toolbar>.comparison-add,.comparison-label-full{display:none}
+  .comparison-label-short{display:inline}
+  .comparison-toolbar{padding:0 12px 7px;flex-wrap:nowrap}
+  .comparison-options{width:100%;justify-content:space-between;flex-wrap:nowrap;gap:6px}
+  .comparison-options label{font-size:clamp(9px,2.6vw,11px);gap:4px;min-height:30px}
+  .comparison-options input{width:13px;height:13px;flex-shrink:0}
+  .comparison-modal-header{padding:10px 12px 5px}
+  .comparison-modal-header h2{font-size:14px}
+}
