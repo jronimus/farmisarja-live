@@ -3,7 +3,14 @@ import { provisionalAutosubSquad } from "./fplRules";
 
 /** Use the same effective eleven and armband as the main table. */
 export function comparisonManagers(managers: ManagerRow[], autosubs: boolean): ManagerRow[] {
-  return managers.map((manager) => ({ ...manager, squad: provisionalAutosubSquad(manager.squad, autosubs) }));
+  return managers.map((manager) => {
+    const squad = provisionalAutosubSquad(manager.squad, autosubs);
+    const scoring = manager.chip === "BB" ? squad : squad.filter((player) => player.starter);
+    const points = scoring.reduce((sum, player) => sum + (player.points + player.bonus)
+      * (player.captain ? manager.chip === "TC" ? 3 : 2 : 1), 0);
+    const gained = Math.max(0, points - manager.gameweekPoints);
+    return { ...manager, squad, gameweekPoints: manager.gameweekPoints + gained, totalPoints: manager.totalPoints + gained };
+  });
 }
 
 export interface ComparisonPlayer {

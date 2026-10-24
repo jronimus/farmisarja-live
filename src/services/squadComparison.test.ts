@@ -26,11 +26,14 @@ describe("squad comparison", () => {
   it("compares the live eleven, restores late appearances and honours the table's autosub switch", () => {
     const squad = Array.from({ length: 15 }, (_, i) => ({ ...player, id: i + 1, squadPosition: i + 1,
       position: (i === 0 || i === 11 ? "GK" : i < 4 ? "DEF" : i < 9 || i === 12 ? "MID" : "FWD") as typeof player.position,
-      starter: i < 11, state: "upcoming" as const, minutes: 0, captain: i === 8, viceCaptain: i === 9 }));
+      starter: i < 11, state: "upcoming" as const, minutes: 0, points: 0, bonus: 0, captain: i === 8, viceCaptain: i === 9 }));
     squad[8] = { ...squad[8], state: "live" as typeof squad[number]["state"] };
-    const manager = { ...base, squad };
+    squad[12].points = 3;
+    const manager = { ...base, chip: "", gameweekPoints: 0, totalPoints: 100, squad };
     const effective = comparisonManagers([manager], true);
     const rows = compareSquads(effective, true);
+    expect(effective[0]).toMatchObject({ gameweekPoints: 3, totalPoints: 103 });
+    expect(comparisonManagers([manager], false)[0]).toMatchObject({ gameweekPoints: 0, totalPoints: 100 });
     expect(rows.some((row) => row.player.id === 9)).toBe(false);
     expect(rows.some((row) => row.player.id === 13)).toBe(true);
     expect(rows.find((row) => row.player.id === 10)?.picks.get(base.id)?.captain).toBe(true);

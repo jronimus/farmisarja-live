@@ -7,7 +7,7 @@ import "./comparison.css";
 
 const multiplier = (p: SquadPlayer, m: ManagerRow) => p.captain ? m.chip === "TC" ? 3 : 2 : 1;
 
-export default function SquadComparisonModal({ data, language, autosubs, onClose }: { data: DashboardData; language: Language; autosubs: boolean; onClose: () => void }) {
+export default function SquadComparisonModal({ data, language, autosubs: initialAutosubs, onClose }: { data: DashboardData; language: Language; autosubs: boolean; onClose: () => void }) {
   const fi = language === "fi";
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
@@ -16,6 +16,7 @@ export default function SquadComparisonModal({ data, language, autosubs, onClose
   const [onlyDifferences, setOnlyDifferences] = useState(false);
   const [starters, setStarters] = useState(true);
   const [ownershipOrder, setOwnershipOrder] = useState(false);
+  const [autosubs, setAutosubs] = useState(initialAutosubs);
   const teams = comparisonManagers(ids.map((id) => data.managers.find((m) => m.id === id)).filter((m): m is ManagerRow => Boolean(m)), autosubs);
   const rows = compareSquads(teams, starters);
   const shared = new Map(rows.map((row) => [row.player.id, row.picks.size]));
@@ -53,6 +54,7 @@ export default function SquadComparisonModal({ data, language, autosubs, onClose
       <div className="comparison-toolbar"><div className="comparison-options">
         <label><input type="checkbox" checked={onlyDifferences} onChange={(e) => setOnlyDifferences(e.target.checked)} />{fi ? "Vain erot" : "Differences only"}</label>
         <label><input type="checkbox" checked={starters} onChange={(e) => setStarters(e.target.checked)} />{fi ? "Vain avaus" : "Starters only"}</label>
+        <label><input type="checkbox" checked={autosubs} onChange={(e) => setAutosubs(e.target.checked)} />{fi ? "Aut. vaihdot" : "Autosubs"}</label>
         <label><input type="checkbox" checked={ownershipOrder} onChange={(e) => setOwnershipOrder(e.target.checked)} />{fi ? "Vähiten omistetut ensin" : "Least owned first"}</label></div>
         <button className="comparison-add" type="button" disabled={!available.length} onClick={() => available[0] && setIds([...ids, available[0].id])}><Plus size={14} />{fi ? "Lisää joukkue" : "Add team"}</button></div>
       {data.dataPending ? <p className="comparison-empty">{fi ? "Kokoonpanoja odotetaan." : "Waiting for squads."}</p> :
