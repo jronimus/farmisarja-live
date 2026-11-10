@@ -1,0 +1,276 @@
+import type { PriceMarket, PriceProjection, PriceRow } from "../types";
+
+/**
+ * Price changes come from FPL itself. Since 2026-27 the bootstrap carries
+ * `price_change_percent`, three `price_change_projections`, a lock time and a calibration
+ * flag per player, and `game_config.settings.price_change_deadlines` for the clock. None
+ * of this is modelled here and none of it should be: an own estimate can only disagree
+ * with the official numbers, the same conclusion the provisional-bonus work reached.
+ */
+
+export interface PriceElement {
+  id: number;
+  web_name: string;
+  team: number;
+  element_type: number;
+  now_cost: number;
+  cost_change_start: number;
+  selected_by_percent: string;
+  transfers_in_event: number;
+  transfers_out_event: number;
+  price_change_percent: string | number;
+  price_change_projections: Array<{ offset: number; projected_percent: string | number; likelihood: number }>;
+  price_change_locked_until: string | null;
+  price_change_calibrating: boolean;
+}
+
+const positions = ["GK", "DEF", "MID", "FWD"] as const;
+
+/**
+ * Percentage points per hour.
+ *
+ * FPL does not publish a rate — `price_change_hourly_rate` is a transfer count, not a
+ * percentage — but two projections exactly a day apart do give one. Checked against
+ * LiveFPL's own per-hour column on the same players: 1.67 against 1.76, 1.93 against
+ * 2.11, 2.38 against 2.28. Close, and from the official numbers rather than a model.
+ */
+export function perHourFromProjections(projections: PriceProjection[]): number {
+  const tomorrow = projections.find((entry) => entry.offset === 1);
+  const dayAfter = projections.find((entry) => entry.offset === 2);
+  if (!tomorrow || !dayAfter) return 0;
+  return (dayAfter.percent - tomorrow.percent) / 24;
+}
+
+/** Hours until the progress reaches 100, or null when it is going nowhere. */
+export function hoursToChange(progress: number, perHour: number): number | null {
+  if (perHour === 0) return null;
+  const remaining = (progress >= 0 ? 100 : -100) - progress;
+  // A rate pulling the other way never gets there.
+  if (Math.sign(remaining) !== Math.sign(perHour)) return null;
+  return remaining / perHour;
+}
+
+export type Outlook = {
+  deadline: string;
+  direction: "rise" | "fall";
+  /** An adjacent change that is close enough to be possible too, if there is one. */
+  couldBe: { deadline: string; sooner: boolean } | null;
+} | null;
+
+/**
+ * How near the line counts as too near to state a night flatly, in percentage points of
+ * progress at that change.
+ *
+ * The margin is in points and not in hours because an hour of slack is worth a different
+ * distance to every player: at 0.9 an hour it is 0.9 points and at 2.4 an hour it is 2.4.
+ * Points are what decides the outcome — the meter either reads 100 at 02:00 or it does
+ * not — and they are the quantity the rest of this column already runs on.
+ *
+ * Five of them is about what the rate itself is worth over a night. It is derived from two
+ * FPL projections a day apart, and against LiveFPL's own column it ran 5–10 % out (1.67
+ * against 1.76, 1.93 against 2.11, 2.38 against 2.28); over the seventeen hours to a change
+ * at one or two points an hour that is 1.7 to 3.4 points before any real movement in the
+ * transfer flow. Five is a rate a third off over what is left of the window. Ten would be
+ * a rate that had stopped being the same number.
+ */
+export const BORDERLINE_POINTS = 5;
+
+/**
+ * Progress this rate lands on at a given moment, which is what a change is decided on.
+ *
+ * Exported because the table prints it as well as sorting by it: the outlook sentence says
+ * which night, and this is the number that sentence was read off.
+ */
+export function projectedAt(row: Pick<PriceRow, "progress" | "perHour">, deadline: string, now: number): number {
+  return row.progress + row.perHour * ((Date.parse(deadline) - now) / 3_600_000);
+}
+
+/** Name changes relative to the next published change, independent of local midnight. */
+export function daysUntilChangeDay(deadline: string, now: number, deadlines: string[]): number {
+  const future = [...deadlines].filter((time) => Date.parse(time) > now).sort((a, b) => Date.parse(a) - Date.parse(b));
+  return Math.max(0, future.indexOf(deadline));
+}
+
+/**
+ * When this player's price actually changes: the first published deadline after the moment
+ * his progress reaches 100.
+ *
+ * This used to read FPL's own projections and label them today/tomorrow/2 days by their
+ * offset, which is what FPL's page does and it is wrong twice over. A projection offset is
+ * a day from now, not a change time, so a player already past 100 was called "today" when
+ * the next change is at 02:00 tomorrow; and a player the per-hour column put 22 hours away
+ * was called "tomorrow" even though 22 hours from now is past tomorrow's 02:00 and his
+ * change is the night after. The column now follows the same arithmetic as the column
+ * beside it — progress and rate give the hour, the published deadline list gives the day —
+ * so the two can no longer disagree.
+ *
+ * Past the end of that list there is no day to name: FPL publishes three deadlines, and a
+ * rate extrapolated further than that is a guess about a time nobody has announced.
+ */
+export function outlookFor(
+  row: Pick<PriceRow, "progress" | "perHour">,
+  deadlines: string[],
+  now: number,
+): Outlook {
+  // Already over the line: the rate no longer matters, the next deadline takes him.
+  const hours = Math.abs(row.progress) >= 100 ? 0 : hoursToChange(row.progress, row.perHour);
+  if (hours === null) return null;
+  const crossing = now + hours * 3_600_000;
+  deadlines = [...deadlines].filter((entry) => Date.parse(entry) > now).sort((a, b) => Date.parse(a) - Date.parse(b));
+  const index = deadlines.findIndex((entry) => Date.parse(entry) > crossing);
+  if (index < 0) return null;
+  const deadline = deadlines[index];
+  const direction = (row.progress !== 0 ? row.progress : row.perHour) > 0 ? "rise" : "fall";
+
+  // A night stated flatly when the projection lands a point or two either side of the line
+  // claims a precision the rate does not have. The change before this one may still take
+  // him, or this one may not — and both are the same margin read from opposite sides.
+  const earlier = index > 0 ? deadlines[index - 1] : null;
+  if (earlier && Math.abs(projectedAt(row, earlier, now)) >= 100 - BORDERLINE_POINTS) {
+    return { deadline, direction, couldBe: { deadline: earlier, sooner: true } };
+  }
+  const later = deadlines[index + 1] ?? null;
+  if (later && Math.abs(projectedAt(row, deadline, now)) < 100 + BORDERLINE_POINTS) {
+    return { deadline, direction, couldBe: { deadline: later, sooner: false } };
+  }
+  return { deadline, direction, couldBe: null };
+}
+
+export function buildPriceMarket(
+  elements: PriceElement[],
+  teams: Array<{ id: number; short_name: string; code: number }>,
+  deadlines: string[],
+  gameweekDeadline: string | null = null,
+): PriceMarket {
+  const teamById = new Map(teams.map((team) => [team.id, team]));
+  const players = elements.map((element): PriceRow => {
+    const projections: PriceProjection[] = (element.price_change_projections ?? []).map((entry) => ({
+      offset: entry.offset,
+      percent: Number(entry.projected_percent),
+      likelihood: entry.likelihood,
+    }));
+    const team = teamById.get(element.team);
+    return {
+      id: element.id,
+      name: element.web_name,
+      club: team?.short_name ?? "—",
+      clubCode: team?.code ?? 0,
+      position: positions[element.element_type - 1] ?? "MID",
+      cost: element.now_cost / 10,
+      costChangeStart: element.cost_change_start / 10,
+      ownership: Number(element.selected_by_percent),
+      netTransfers: element.transfers_in_event - element.transfers_out_event,
+      progress: Number(element.price_change_percent),
+      projections,
+      perHour: perHourFromProjections(projections),
+      lockedUntil: element.price_change_locked_until,
+      calibrating: element.price_change_calibrating,
+    };
+  });
+  return { deadlines, gameweekDeadline, players };
+}
+
+/**
+ * The last change before the gameweek deadline — the far end of the week this page is
+ * about. Everything past it is next week's squad, not this one's.
+ *
+ * FPL's published list already stops there: on 25 Aug it carried exactly the three changes
+ * left before GW2's Friday deadline, the last of them at 02:00 that same Friday. The
+ * gameweek deadline is still checked rather than assumed, because a list that grows past
+ * it would otherwise stretch the week silently.
+ */
+export function lastChangeBeforeDeadline(market: PriceMarket): string | null {
+  const within = market.gameweekDeadline
+    ? market.deadlines.filter((entry) => Date.parse(entry) < Date.parse(market.gameweekDeadline as string))
+    : market.deadlines;
+  return within[within.length - 1] ?? null;
+}
+
+/**
+ * Close enough to be worth saying, but not close enough to name a night.
+ *
+ * A player who is not reaching 100 at any published change can still be nearly there by
+ * the last one before the deadline, and that is a different fact from nothing happening —
+ * it is the difference between a squad that is safe until Friday and one that may not be.
+ * The threshold is the same `BORDERLINE_POINTS` off the line as everything else here, so
+ * the sentence only appears when the rate has to hold rather than improve.
+ *
+ * It is a guess and reads as one, and it is only made for a player already going the way
+ * his rate pulls. One who has turned around would otherwise be projected straight through
+ * zero and out the far side: 40 % falling at 2.5 an hour comes to −122 in three days, and
+ * the page would announce a fall for a player whose meter is still on the way up. This is
+ * the same rule `hoursToChange` applies, for the same reason.
+ */
+export function maybeThisWeek(
+  row: Pick<PriceRow, "progress" | "perHour">,
+  market: PriceMarket,
+  now: number,
+): "rise" | "fall" | null {
+  const cutoff = lastChangeBeforeDeadline(market);
+  if (!cutoff || row.perHour === 0) return null;
+  const hours = (Date.parse(cutoff) - now) / 3_600_000;
+  if (hours <= 0) return null;
+  if (row.progress !== 0 && Math.sign(row.progress) !== Math.sign(row.perHour)) return null;
+  const projected = row.progress + row.perHour * hours;
+  if (Math.abs(projected) < 100 - BORDERLINE_POINTS) return null;
+  return projected > 0 ? "rise" : "fall";
+}
+
+/**
+ * The prediction column as one signed number: rising soonest at the top, falling soonest at
+ * the bottom, nothing much happening in the middle.
+ *
+ * This is the progress column's own rule applied to a different quantity — the signed
+ * value, always. Ranking by *when* alone was tried first and is wrong for the same reason
+ * ranking progress by distance from nothing was: it put *Nousee tänään* and *Laskee
+ * tänään* at the same height, so the two rows you most want at the ends of the sort were
+ * interleaved in one block, and both ends of the column held the same calm rows.
+ *
+ * The scale is tiers, spaced far enough apart that none can reach into the next:
+ *
+ *   1350–2000  a named change, later nights lower, ties broken by how far past the line
+ *              the projection lands — two players changing the same night are not equally
+ *              sure of it
+ *     295–300  near enough to hedge
+ *        1–96  going nowhere this week, by how near the line it still gets
+ *           0  locked or calibrating, which have no direction to be sorted onto and belong
+ *              at neither end
+ */
+export function outlookRank(row: PriceRow, market: PriceMarket, now: number): number {
+  if (row.lockedUntil || row.calibrating) return 0;
+  const direction = (row.progress !== 0 ? row.progress : row.perHour) > 0 ? 1 : -1;
+  const outlook = outlookFor(row, market.deadlines, now);
+  if (outlook) {
+    const hours = (Date.parse(outlook.deadline) - now) / 3_600_000;
+    const margin = Math.abs(projectedAt(row, outlook.deadline, now)) - 100;
+    return direction * (2000 - hours * 10 + Math.min(Math.max(margin, 0), 99) / 100);
+  }
+  const cutoff = lastChangeBeforeDeadline(market);
+  const projected = Math.min(cutoff ? Math.abs(projectedAt(row, cutoff, now)) : Math.abs(row.progress), 99);
+  return direction * (maybeThisWeek(row, market, now) ? 200 + projected : 1 + projected);
+}
+
+/** The next change FPL has published, or null once its list runs out. */
+export function nextPriceDeadline(market: PriceMarket | undefined, now: number): string | null {
+  if (!market) return null;
+  return market.deadlines.find((deadline) => new Date(deadline).getTime() > now) ?? null;
+}
+
+export type NightGroup = "risers" | "fallers" | "maybeRisers" | "maybeFallers";
+
+/** The next change only; the same borderline window as the prediction column. */
+export function nightSummary(market: PriceMarket, now: number): Record<NightGroup, PriceRow[]> {
+  const groups: Record<NightGroup, PriceRow[]> = { risers: [], fallers: [], maybeRisers: [], maybeFallers: [] };
+  const next = nextPriceDeadline(market, now);
+  if (!next) return groups;
+  for (const row of market.players) {
+    if (row.lockedUntil || row.calibrating) continue;
+    const outlook = outlookFor(row, market.deadlines, now);
+    if (!outlook || (outlook.deadline !== next && outlook.couldBe?.deadline !== next)) continue;
+    const uncertain = outlook.deadline !== next || Boolean(outlook.couldBe && !outlook.couldBe.sooner);
+    const key: NightGroup = outlook.direction === "rise" ? uncertain ? "maybeRisers" : "risers" : uncertain ? "maybeFallers" : "fallers";
+    groups[key].push(row);
+  }
+  for (const rows of Object.values(groups)) rows.sort((a, b) => Math.abs(projectedAt(b, next, now)) - Math.abs(projectedAt(a, next, now)));
+  return groups;
+}

@@ -1,0 +1,620 @@
+import type { DashboardData, FixtureStatCategory, FixtureStatEntry, FixtureStatKey, FixtureStatus, GameweekFixture, ManagerRow, PlayerState, SquadPlayer } from "../types";
+import { buildPriceMarket } from "./priceChanges";
+import type { PlayerNews, PlayerStat } from "../types";
+import { nextGameweekFreeTransfers, usedChipsForHalf } from "./fplRules";
+
+const configuredApi = import.meta.env.VITE_FPL_API_URL?.replace(/\/$/, "");
+const leagueId = import.meta.env.VITE_FPL_LEAGUE_ID || "200068";
+
+async function api<T>(workerPath: string, officialPath: string): Promise<T> {
+  const url = configuredApi ? `${configuredApi}${workerPath}` : `/fpl-api${officialPath}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`FPL request failed: ${response.status} ${workerPath}`);
+  return response.json() as Promise<T>;
+}
+
+// Completed-round browsing is on demand, shared between visits, and never polled.
+const archiveRequests = new Map<string, Promise<unknown>>();
+async function archiveApi<T>(workerPath: string, officialPath: string): Promise<T> {
+  const key = `farmisarja-archive-v1:${new Date().getUTCFullYear()}:${workerPath}`;
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (saved && Date.now() - saved.at < 86400000) return saved.data as T;
+  } catch { /* Storage is optional. */ }
+  if (archiveRequests.has(key)) return archiveRequests.get(key) as Promise<T>;
+  const pending = api<T>(workerPath, officialPath).then(data => {
+    try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), data })); } catch { /* Memory still deduplicates reads. */ }
+    return data;
+  });
+  archiveRequests.set(key, pending);
+  try { return await pending; } catch (error) { archiveRequests.delete(key); throw error; }
+}
+
+interface EventData { id: number; deadline_time: string; finished: boolean; data_checked: boolean; is_current: boolean; is_next: boolean; average_entry_score?: number; }
+interface Element {
+  id: number; code: number; web_name: string; team: number; element_type: number; now_cost: number; selected_by_percent: string;
+  // FPL publishes its own price-change progress; see services/priceChanges.ts.
+  cost_change_start: number; transfers_in_event: number; transfers_out_event: number;
+  price_change_percent: string; price_change_locked_until: string | null; price_change_calibrating: boolean;
+  price_change_projections: Array<{ offset: number; projected_percent: string; likelihood: number }>;
+  // FPL's own season figures, carried through for the statistics page. Strings, all of them:
+  // the bootstrap sends every decimal as text.
+  total_points: number; event_points: number; form: string; points_per_game: string;
+  minutes: number; starts: number; goals_scored: number; assists: number; clean_sheets: number;
+  goals_conceded: number; own_goals: number; penalties_saved: number; penalties_missed: number;
+  yellow_cards: number; red_cards: number; saves: number; bonus: number; bps: number;
+  influence: string; creativity: string; threat: string; ict_index: string;
+  expected_goals: string; expected_assists: string; expected_goal_involvements: string;
+  expected_goals_conceded: string; defensive_contribution: number;
+  clearances_blocks_interceptions: number; recoveries: number; tackles: number;
+  dreamteam_count: number; value_season: string;
+  penalties_order: number | null; corners_and_indirect_freekicks_order: number | null;
+  direct_freekicks_order: number | null;
+  // Availability, as FPL states it; see services/playerNews.ts for what the letters mean.
+  status: string; chance_of_playing_next_round: number | null; news: string; news_added: string | null;
+  scout_news_link?: string;
+}
+interface Team { id: number; short_name: string; code: number; name?: string; strength?: number; }
+interface Bootstrap { events: EventData[]; elements: Element[]; teams: Team[]; game_config?: { settings?: { price_change_deadlines?: string[] } }; }
+interface FixtureStatSide { value: number; element: number }
+interface FixtureStatBlock { identifier: string; a: FixtureStatSide[]; h: FixtureStatSide[] }
+interface Fixture { id: number; event: number | null; kickoff_time: string; team_h: number; team_a: number; team_h_score: number | null; team_a_score: number | null; minutes: number; started: boolean; finished: boolean; finished_provisional: boolean; team_h_difficulty: number; team_a_difficulty: number; stats?: FixtureStatBlock[]; }
+interface LiveElement { id: number; stats: { total_points: number; minutes: number; bonus: number } & NonNullable<SquadPlayer["liveStats"]>; explain: NonNullable<SquadPlayer["pointBreakdown"]>; }
+interface LeagueStanding { entry: number; rank: number; last_rank: number; entry_name: string; player_name: string; total: number; }
+interface NewEntry { entry: number; entry_name: string; player_first_name: string; player_last_name: string; }
+interface LeagueResponse {
+  league: { name: string };
+  standings: { results: LeagueStanding[]; has_next: boolean };
+  new_entries: { results: NewEntry[]; has_next: boolean };
+}
+interface EntryData { player_first_name: string; player_last_name: string; summary_overall_rank: number; }
+interface Pick { element: number; position: number; multiplier: number; is_captain: boolean; is_vice_captain: boolean; }
+interface EventHistory { event: number; points: number; total_points: number; overall_rank: number; value: number; event_transfers: number; event_transfers_cost: number; points_on_bench: number; }
+interface PicksResponse { active_chip: string | null; entry_history: EventHistory; picks: Pick[]; }
+interface HistoryResponse { current: EventHistory[]; chips: Array<{ name: string; event: number }>; }
+interface Transfer {
+  element_in: number; element_out: number; event: number; time: string;
+  /** What was paid and what was received, in tenths. Only the buy side is kept here. */
+  element_in_cost?: number; element_out_cost?: number;
+}
+
+const chipName = (name: string | null | undefined) => ({ wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "TC" }[name ?? ""]);
+const positionName = (type: number): SquadPlayer["position"] => (["GK", "DEF", "MID", "FWD"] as const)[type - 1] ?? "MID";
+
+function fixtureState(fixture: Fixture): PlayerState {
+  // finished_provisional marks full time; finished follows later when FPL confirms the data.
+  if (fixture.finished || fixture.finished_provisional) return "finished";
+  if (fixture.started) return "live";
+  return "upcoming";
+}
+
+// FPL publishes bonus while a match is still running, so only its own flags say whether a result
+// is settled: finished_provisional is full time, finished is the confirmed result.
+function fixtureStatus(fixture: Fixture): FixtureStatus {
+  if (!fixture.started) return "upcoming";
+  if (!fixture.finished_provisional) return "live";
+  return fixture.finished ? "final" : "provisional";
+}
+
+// The order the categories render in: a 2-column grid fills goals/assists, bonus/cards,
+// bps/def. contribution, saves/penalties row by row, with own goals — rare enough that it
+// would unbalance the grid — appended on its own row when it happens.
+const CATEGORY_ORDER: FixtureStatKey[] = ["goals", "assists", "bonus", "cards", "bps", "defCon", "saves", "penalties", "ownGoals"];
+
+interface FixturePlayer { photoCode?: number; name: string; club: string; position: SquadPlayer["position"] }
+
+function fixtureStats(fixture: Fixture, players: Map<number, FixturePlayer>): FixtureStatCategory[] | undefined {
+  if (!fixture.stats?.length) return undefined;
+  const byKey = new Map<FixtureStatKey, FixtureStatEntry[]>();
+  const push = (key: FixtureStatKey, side: FixtureStatSide[], variant?: FixtureStatEntry["variant"]) => {
+    if (!side.length) return;
+    const entries = byKey.get(key) ?? [];
+    for (const { element, value } of side) {
+      const player = players.get(element);
+      // Only defCon reads the position back out, to check the entry against his threshold.
+      if (player) entries.push({ id: element, photoCode: player.photoCode, name: player.name, club: player.club, value, variant, position: key === "defCon" ? player.position : undefined });
+    }
+    byKey.set(key, entries);
+  };
+  for (const block of fixture.stats) {
+    const sides = [...block.h, ...block.a];
+    switch (block.identifier) {
+      case "goals_scored": push("goals", sides); break;
+      case "own_goals": push("ownGoals", sides); break;
+      case "assists": push("assists", sides); break;
+      case "bonus": push("bonus", sides); break;
+      case "bps": push("bps", sides); break;
+      case "defensive_contribution": push("defCon", sides); break;
+      case "saves": push("saves", sides); break;
+      case "yellow_cards": push("cards", sides, "yellow"); break;
+      case "red_cards": push("cards", sides, "red"); break;
+      case "penalties_saved": push("penalties", sides, "saved"); break;
+      case "penalties_missed": push("penalties", sides, "missed"); break;
+    }
+  }
+  const categories = CATEGORY_ORDER
+    .filter((key) => byKey.has(key))
+    .map((key) => ({ key, entries: [...byKey.get(key)!].sort((a, b) => b.value - a.value) }));
+  return categories.length ? categories : undefined;
+}
+
+function gameweekFixtures(fixtures: Fixture[], teams: Map<number, Team>, players: Map<number, FixturePlayer>): GameweekFixture[] {
+  return [...fixtures]
+    .sort((a, b) => (a.kickoff_time ?? "").localeCompare(b.kickoff_time ?? ""))
+    .map((fixture) => ({
+      id: fixture.id,
+      kickoff: fixture.kickoff_time,
+      home: teams.get(fixture.team_h)?.short_name ?? "UNK",
+      homeName: teams.get(fixture.team_h)?.name,
+      awayName: teams.get(fixture.team_a)?.name,
+      away: teams.get(fixture.team_a)?.short_name ?? "UNK",
+      homeScore: fixture.team_h_score,
+      awayScore: fixture.team_a_score,
+      minutes: fixture.minutes,
+      status: fixtureStatus(fixture),
+      stats: fixtureStats(fixture, players),
+    }));
+}
+
+function rankMovement(rows: EventHistory[]): number[] {
+  return rows.map((row, index) => {
+    if (index === 0) return 0;
+    const previous = rows[index - 1].overall_rank;
+    return row.overall_rank < previous ? 1 : row.overall_rank > previous ? -1 : 0;
+  });
+}
+
+function playerDetails(element: Element, teams: Map<number, Team>, eventFixtures: Fixture[], gamesPlayed: Map<number, number>, live?: LiveElement): SquadPlayer {
+  const playerFixtures = eventFixtures.filter((fixture) => fixture.team_h === element.team || fixture.team_a === element.team);
+  const firstFixture = playerFixtures[0];
+  const isHome = firstFixture?.team_h === element.team;
+  const opponentId = firstFixture ? (isHome ? firstFixture.team_a : firstFixture.team_h) : undefined;
+  const states = playerFixtures.map((fixture) => ({ state: fixtureState(fixture) }));
+  const state = states.some((item) => item.state === "live") ? "live" : states.length > 0 && states.every((item) => item.state === "finished") ? "finished" : "upcoming";
+  return {
+    id: element.id,
+    squadPosition: 0,
+    name: element.web_name,
+    club: teams.get(element.team)?.short_name ?? "UNK",
+    clubCode: element.team,
+    photoCode: element.code,
+    opponent: opponentId ? teams.get(opponentId)?.short_name ?? "—" : "—",
+    venue: isHome ? "H" : "A",
+    position: positionName(element.element_type),
+    points: live?.stats.total_points ?? 0,
+    // Live scores already carry the bonus FPL has published for the fixture.
+    bonus: 0,
+    pointBreakdown: live?.explain,
+    liveStats: live?.stats,
+    minutes: live?.stats.minutes ?? 0,
+    cost: element.now_cost / 10,
+    ownership: Number(element.selected_by_percent) || 0,
+    status: element.status,
+    chance: element.chance_of_playing_next_round,
+    news: element.news,
+    newsAt: element.news_added,
+    starts: element.starts,
+    teamGames: gamesPlayed.get(element.team) ?? 0,
+    difficulty: firstFixture ? (isHome ? firstFixture.team_h_difficulty : firstFixture.team_a_difficulty) : undefined,
+    kickoff: firstFixture?.kickoff_time,
+    state,
+    fixtures: states.length ? states : undefined,
+    starter: false,
+  };
+}
+
+async function managerRow(
+  standing: LeagueStanding,
+  event: EventData,
+  bootstrap: Bootstrap,
+  fixtures: Fixture[],
+  liveById: Map<number, LiveElement>,
+  historical = false,
+): Promise<ManagerRow | null> {
+  const read = historical ? archiveApi : api;
+  const id = standing.entry;
+  let entry: EntryData;
+  let picks: PicksResponse;
+  let history: HistoryResponse;
+  let transfers: Transfer[];
+  try {
+    [entry, picks, history, transfers] = await Promise.all([
+      read<EntryData>(`/entry/${id}`, `/entry/${id}/`),
+      read<PicksResponse>(`/entry/${id}/event/${event.id}/picks`, `/entry/${id}/event/${event.id}/picks/`),
+      read<HistoryResponse>(`/entry/${id}/history`, `/entry/${id}/history/`),
+      read<Transfer[]>(`/entry/${id}/transfers`, `/entry/${id}/transfers/`),
+    ]);
+  } catch {
+    return null;
+  }
+
+  history = { ...history, current: history.current.filter(row => row.event <= event.id), chips: history.chips.filter(chip => chip.event <= event.id) };
+  transfers = transfers.filter(transfer => transfer.event <= event.id);
+  const elements = new Map(bootstrap.elements.map((element) => [element.id, element]));
+  const teams = new Map(bootstrap.teams.map((team) => [team.id, team]));
+  const gamesPlayed = teamGamesPlayed(fixtures);
+
+  /**
+   * What this squad paid for each of its players, in tenths — the number FPL's selling
+   * price is worked out from, and the one number about a squad that FPL does not publish.
+   *
+   * It is reconstructed rather than read. `/entry/{id}/event/{gw}/picks/` carries no
+   * purchase price at all; only the manager's own authenticated `my-team` endpoint does.
+   * But the transfer log carries `element_in_cost` for every player bought since the
+   * season began, and anyone still in the squad who was never bought was in the original
+   * fifteen, whose price then is today's minus everything it has moved since.
+   *
+   * Transfers are walked oldest first, so a player bought, sold and bought again is worth
+   * what he cost the last time. Free hit gameweeks are skipped: that squad is handed back
+   * at the deadline, so what was paid during it was never paid at all.
+   */
+  const freeHitEvents = new Set(history.chips.filter((chip) => chip.name === "freehit").map((chip) => chip.event));
+  const paidFor = new Map<number, number>();
+  for (const transfer of [...transfers].sort((a, b) => a.time.localeCompare(b.time))) {
+    if (freeHitEvents.has(transfer.event) || transfer.element_in_cost === undefined) continue;
+    paidFor.set(transfer.element_in, transfer.element_in_cost);
+    paidFor.delete(transfer.element_out);
+  }
+  const eventFixtures = fixtures.filter((fixture) => fixture.event === event.id);
+  const squad: SquadPlayer[] = picks.picks.map((pick) => {
+    const element = elements.get(pick.element)!;
+    return {
+      ...playerDetails(element, teams, eventFixtures, gamesPlayed, liveById.get(element.id)),
+      ...(historical ? { state: "finished" as const, status: "a", chance: null, news: "" } : {}),
+      squadPosition: pick.position,
+      purchasePrice: (paidFor.get(element.id) ?? (element.now_cost - element.cost_change_start)) / 10,
+      starter: pick.position <= 11,
+      captain: pick.is_captain,
+      viceCaptain: pick.is_vice_captain,
+    };
+  });
+
+  const activeChip = chipName(picks.active_chip);
+  const usedChips = usedChipsForHalf(history.chips, event.id);
+  const currentHistory = history.current.find((row) => row.event === event.id) ?? picks.entry_history;
+  const earlierHistory = history.current.filter((row) => row.event < event.id);
+  // Form is a series of settled results. FPL leaves the stored points of a live gameweek at
+  // their last processed value, so a running gameweek in this series both disagrees with the
+  // live GW column beside it and reads as a collapse until the stored value catches up. The
+  // current gameweek joins the series once the event is finished.
+  const formRows = (event.finished ? history.current : earlierHistory).slice(-5);
+  const captain = squad.find((player) => player.captain);
+  const currentTransfers = transfers.filter((transfer) => transfer.event === event.id).sort((a, b) => a.time.localeCompare(b.time));
+  const transferRows = currentTransfers.map((transfer) => ({
+    outId: transfer.element_out,
+    inId: transfer.element_in,
+    out: elements.get(transfer.element_out)?.web_name ?? "—",
+    in: elements.get(transfer.element_in)?.web_name ?? "—",
+    outPoints: liveById.get(transfer.element_out)?.stats.total_points ?? 0,
+    inPoints: liveById.get(transfer.element_in)?.stats.total_points ?? 0,
+  }));
+  const previousHistory = history.current.filter((row) => row.event < event.id).at(-1);
+  const hit = currentHistory.event_transfers_cost ?? 0;
+  // FPL leaves the stored entry points at their last processed value during live matches, so the
+  // gameweek total is composed from the live element scores and the stored value is used only
+  // once it catches up, which is when it also carries autosubs and confirmed bonus.
+  const livePicksPoints = picks.picks.reduce((sum, pick) => sum + (liveById.get(pick.element)?.stats.total_points ?? 0) * pick.multiplier, 0);
+  const gameweekPoints = historical ? currentHistory.points : Math.max(currentHistory.points + hit, livePicksPoints);
+  const pointsBeforeGameweek = earlierHistory.reduce((sum, row) => sum + row.points, 0);
+  let wildcardPreviousTeamPoints: number | undefined;
+  if ((activeChip === "WC" || activeChip === "FH") && event.id > 1) {
+    try {
+      const previousPicks = await read<PicksResponse>(`/entry/${id}/event/${event.id - 1}/picks`, `/entry/${id}/event/${event.id - 1}/picks/`);
+      wildcardPreviousTeamPoints = previousPicks.picks
+        .filter((pick) => pick.multiplier > 0)
+        .reduce((sum, pick) => sum + (liveById.get(pick.element)?.stats.total_points ?? 0) * pick.multiplier, 0);
+    } catch {
+      wildcardPreviousTeamPoints = undefined;
+    }
+  }
+
+  return {
+    id,
+    position: standing.rank,
+    previousPosition: standing.last_rank,
+    teamName: standing.entry_name,
+    managerName: standing.player_name || `${entry.player_first_name} ${entry.player_last_name}`.trim(),
+    gameweekHistory: history.current.filter((row) => row.event <= event.id).map((row) => ({
+      gameweek: row.event, month: bootstrap.events.find((week) => week.id === row.event)?.deadline_time.slice(0, 7) ?? "",
+      points: row.points, hit: row.event_transfers_cost,
+    })),
+    gameweekPoints,
+    provisionalBonus: 0,
+    totalPoints: historical ? currentHistory.total_points + hit : Math.max(currentHistory.total_points + hit, pointsBeforeGameweek + gameweekPoints),
+    overallRank: historical ? currentHistory.overall_rank : entry.summary_overall_rank || currentHistory.overall_rank || 0,
+    // Net of hits, like the figure the table prints, so the two can simply be compared.
+    rankedPoints: currentHistory.total_points,
+    // 0 means there is no previous rank. Falling back to this gameweek's stored rank
+    // compared the live figure against the stale one and called the gap movement: in GW1
+    // a manager got a green pill or no pill at all depending only on which of the two
+    // numbers FPL had refreshed last.
+    previousOverallRank: previousHistory?.overall_rank ?? 0,
+    captain: captain?.name ?? "—",
+    captainPoints: captain ? captain.points * Math.max(1, picks.picks.find((pick) => pick.element === captain.id)?.multiplier ?? 1) : 0,
+    transfers: transferRows,
+    hit,
+    chip: activeChip,
+    availableChips: ["WC", "FH", "BB", "TC"],
+    usedChips,
+    freeTransfersAfter: nextGameweekFreeTransfers(history.current, history.chips, event.id),
+    wildcardPreviousTeamPoints,
+    seasonTransfers: history.current.reduce((sum, row) => sum + row.event_transfers, 0),
+    seasonHitPoints: history.current.reduce((sum, row) => sum + row.event_transfers_cost, 0),
+    benchPointsBeforeGw: earlierHistory.reduce((sum, row) => sum + row.points_on_bench, 0),
+    teamValue: currentHistory.value / 10,
+    previousTeamValue: (previousHistory?.value ?? currentHistory.value) / 10,
+    finished: squad.filter((player) => player.state === "finished").length,
+    live: squad.filter((player) => player.state === "live").length,
+    upcoming: squad.filter((player) => player.state === "upcoming").length,
+    form: formRows.map((row) => row.points),
+    formGameweeks: formRows.map((row) => row.event),
+    formRankMovement: rankMovement(formRows),
+    squad,
+  };
+}
+
+/** FPL's own season figures, in the shape the statistics page reads. */
+export function buildPlayerStats(elements: Element[]): PlayerStat[] {
+  const decimal = (value: string | number | null | undefined) => Number(value) || 0;
+  return elements.map((element) => ({
+    id: element.id,
+    totalPoints: element.total_points,
+    eventPoints: element.event_points,
+    form: decimal(element.form),
+    pointsPerGame: decimal(element.points_per_game),
+    minutes: element.minutes,
+    starts: element.starts,
+    goals: element.goals_scored,
+    assists: element.assists,
+    cleanSheets: element.clean_sheets,
+    goalsConceded: element.goals_conceded,
+    ownGoals: element.own_goals,
+    penaltiesSaved: element.penalties_saved,
+    penaltiesMissed: element.penalties_missed,
+    yellowCards: element.yellow_cards,
+    redCards: element.red_cards,
+    saves: element.saves,
+    bonus: element.bonus,
+    bps: element.bps,
+    influence: decimal(element.influence),
+    creativity: decimal(element.creativity),
+    threat: decimal(element.threat),
+    ictIndex: decimal(element.ict_index),
+    expectedGoals: decimal(element.expected_goals),
+    expectedAssists: decimal(element.expected_assists),
+    expectedGoalInvolvements: decimal(element.expected_goal_involvements),
+    expectedGoalsConceded: decimal(element.expected_goals_conceded),
+    defensiveContribution: element.defensive_contribution,
+    clearancesBlocksInterceptions: element.clearances_blocks_interceptions,
+    recoveries: element.recoveries,
+    tackles: element.tackles,
+    dreamteamCount: element.dreamteam_count,
+    valueSeason: decimal(element.value_season),
+    transfersInEvent: element.transfers_in_event,
+    transfersOutEvent: element.transfers_out_event,
+    penaltiesOrder: element.penalties_order,
+    cornersOrder: element.corners_and_indirect_freekicks_order,
+    freekicksOrder: element.direct_freekicks_order,
+  }));
+}
+
+/** How many league games each club has actually finished, which a start count is read against. */
+export function teamGamesPlayed(fixtures: Fixture[]): Map<number, number> {
+  const played = new Map<number, number>();
+  for (const fixture of fixtures) {
+    if (!fixture.finished) continue;
+    for (const team of [fixture.team_h, fixture.team_a]) played.set(team, (played.get(team) ?? 0) + 1);
+  }
+  return played;
+}
+
+export async function loadLiveDashboard(requestedGameweek?: number): Promise<DashboardData | null> {
+  const read = requestedGameweek === undefined ? api : archiveApi;
+  const [bootstrap, fixtures, league] = await Promise.all([
+    read<Bootstrap>("/bootstrap-static", "/bootstrap-static/"),
+    read<Fixture[]>("/fixtures", "/fixtures/"),
+    read<LeagueResponse>("/league", `/leagues-classic/${leagueId}/standings/?page_standings=1&page_new_entries=1`),
+  ]);
+
+  // FPL's own price-change numbers ride along on the bootstrap that is already loaded, so
+  // the price page costs no extra request and refreshes on the same tick as the table.
+  // A form figure means nothing without something to measure it against, and FPL publishes
+  // exactly that: the average score of every entry in the game, gameweek by gameweek.
+  const gameweekAverages = Object.fromEntries(bootstrap.events
+    .filter((entry) => (entry.average_entry_score ?? 0) > 0)
+    .map((entry) => [entry.id, entry.average_entry_score as number]));
+
+  const prices = buildPriceMarket(
+    bootstrap.elements,
+    bootstrap.teams,
+    bootstrap.game_config?.settings?.price_change_deadlines ?? [],
+    bootstrap.events.find((item) => new Date(item.deadline_time).getTime() > Date.now())?.deadline_time ?? null,
+  );
+  const event = requestedGameweek === undefined ? bootstrap.events.find((item) => item.is_current) ?? bootstrap.events.find((item) => item.is_next) : bootstrap.events.find(item => item.id === requestedGameweek && (item.finished || item.data_checked));
+  if (!event) return null;
+  // Not `is_next`: FPL leaves that on the gameweek after the current one, which is the same
+  // thing here, but by id it stays right through the handover if FPL ever moves the flags
+  // early.
+  const following = bootstrap.events.find((item) => item.id === event.id + 1);
+  const startedMonths = [...new Set(bootstrap.events.filter((item) => (item.id <= event.id && (item.finished || Date.now() >= new Date(item.deadline_time).getTime()))).map((item) => item.deadline_time.slice(0, 7)))];
+  const eventFixtures = fixtures.filter((fixture) => fixture.event === event.id);
+  const teamsById = new Map(bootstrap.teams.map((team) => [team.id, team]));
+  const playersById = new Map(bootstrap.elements.map((element) => [element.id, { photoCode: element.code, name: element.web_name, club: teamsById.get(element.team)?.short_name ?? "UNK", position: positionName(element.element_type) }]));
+  const fixtureList = gameweekFixtures(eventFixtures, teamsById, playersById);
+  const rosterManagers = (): ManagerRow[] => league.new_entries.results.map((entry) => ({
+      id: entry.entry,
+      position: 1,
+      previousPosition: 1,
+      teamName: entry.entry_name,
+      managerName: `${entry.player_first_name} ${entry.player_last_name}`.trim(),
+      gameweekPoints: 0,
+      provisionalBonus: 0,
+      totalPoints: 0,
+      overallRank: 0,
+      rankedPoints: 0,
+      previousOverallRank: 0,
+      captain: "—",
+      captainPoints: 0,
+      transfers: [],
+      hit: 0,
+      availableChips: [],
+      usedChips: [],
+      seasonTransfers: 0,
+      seasonHitPoints: 0,
+      benchPointsBeforeGw: 0,
+      teamValue: 0,
+      previousTeamValue: 0,
+      finished: 0,
+      live: 0,
+      upcoming: 0,
+      form: [],
+      formGameweeks: [],
+      formRankMovement: [],
+      squad: [],
+    }));
+  const deadlinePassed = Date.now() >= new Date(event.deadline_time).getTime();
+  if (!league.standings.results.length && league.new_entries?.results.length && !deadlinePassed) {
+    const managers = rosterManagers();
+    return {
+      leagueName: league.league.name,
+      gameweek: event.id,
+      deadline: event.deadline_time,
+      updatedAt: new Date().toISOString(),
+      isPreview: true,
+      rosterOnly: true,
+      pointsFinalized: false,
+      activeMonths: startedMonths,
+      fixtures: fixtureList,
+      managers,
+      gameweekAverages,
+      prices,
+    };
+  }
+  if (!league.standings.results.length && !league.new_entries?.results.length) return null;
+  const pendingDashboard = (): DashboardData => ({
+    leagueName: league.league.name,
+    gameweek: event.id,
+    deadline: event.deadline_time,
+    nextEvent: following ? { gameweek: following.id, deadline: following.deadline_time } : undefined,
+    updatedAt: new Date().toISOString(),
+    isPreview: false,
+    dataPending: true,
+    pointsFinalized: false,
+    activeMonths: startedMonths,
+    fixtures: fixtureList,
+    managers: rosterManagers(),
+    gameweekAverages,
+    prices,
+  });
+  let liveById: Map<number, LiveElement>;
+  try {
+    const live = await read<{ elements: LiveElement[] }>(`/event/${event.id}/live`, `/event/${event.id}/live/`);
+    liveById = new Map(live.elements.map((element) => [element.id, element]));
+  } catch {
+    // FPL answers 5xx while it rebuilds the gameweek around the deadline. Wait instead of failing.
+    return pendingDashboard();
+  }
+  const standings = league.standings.results.length ? league.standings.results : league.new_entries.results.map((entry) => ({
+    entry: entry.entry,
+    rank: 1,
+    last_rank: 1,
+    entry_name: entry.entry_name,
+    player_name: `${entry.player_first_name} ${entry.player_last_name}`.trim(),
+    total: 0,
+  }));
+  const rows = await Promise.all(standings.map((standing) => managerRow(standing, event, bootstrap, fixtures, liveById, requestedGameweek !== undefined)));
+  if (rows.some((row) => row === null)) {
+    if (requestedGameweek !== undefined) throw new Error("Historical squads unavailable");
+    return pendingDashboard();
+  }
+  const gamesPlayed = teamGamesPlayed(fixtures);
+  const managerRows = rows.filter((row): row is ManagerRow => row !== null);
+  if (requestedGameweek !== undefined) {
+    const rank = (score: (row: ManagerRow) => number) => {
+      const sorted = [...managerRows].sort((a,b) => score(b) - score(a) || a.seasonTransfers - b.seasonTransfers || a.id - b.id);
+      const ranks = new Map<number, number>();
+      sorted.forEach((row,index) => { const previous = sorted[index-1]; ranks.set(row.id, previous && score(previous) === score(row) && previous.seasonTransfers === row.seasonTransfers ? ranks.get(previous.id)! : index+1); });
+      return ranks;
+    };
+    const positions = rank(row => row.totalPoints - row.hit);
+    const previous = rank(row => row.totalPoints - row.hit - (row.gameweekPoints - row.hit));
+    managerRows.forEach(row => { row.position = positions.get(row.id)!; row.previousPosition = event.id === 1 ? row.position : previous.get(row.id)!; });
+  }
+  return {
+    leagueName: league.league.name,
+    gameweek: event.id,
+    deadline: event.deadline_time,
+    nextEvent: following ? { gameweek: following.id, deadline: following.deadline_time } : undefined,
+    updatedAt: new Date().toISOString(),
+    isPreview: false,
+    // Every fixture confirmed is the signal, not `event.data_checked`.
+    //
+    // For 2026-27 FPL confirms a gameweek's fixtures together, at 09:00 UK the morning
+    // after the last of them, and flips `finished` on each. The event's own
+    // `data_checked` follows later — on 25 Aug every GW1 fixture read `finished: true`
+    // while the event still read `data_checked: false`, so the header said ALUSTAVA over a
+    // fixture list that said VAHVISTETTU on every line, and FPL's own page had already
+    // moved on. A gameweek whose every fixture is confirmed cannot have its points change,
+    // which is exactly what this label claims. `data_checked` is still trusted when it is
+    // set, so the state can only ever settle earlier and never regress.
+    pointsFinalized: event.data_checked
+      || (fixtureList.length > 0 && fixtureList.every((fixture) => fixture.status === "final")),
+    activeMonths: startedMonths,
+    fixtures: fixtureList,
+    planningFixtures: fixtures.filter((fixture) => fixture.event !== null && fixture.event > event.id && fixture.event <= event.id + 8).map((fixture) => ({
+      gameweek: fixture.event!, home: teamsById.get(fixture.team_h)?.short_name ?? "UNK", away: teamsById.get(fixture.team_a)?.short_name ?? "UNK",
+      homeDifficulty: fixture.team_h_difficulty, awayDifficulty: fixture.team_a_difficulty, kickoff: fixture.kickoff_time,
+    })),
+    managers: managerRows,
+    gameweekAverages,
+    prices,
+    playerNews: buildPlayerNews(bootstrap.elements, teamsById, teamGamesPlayed(fixtures), managerRows),
+    fixtureKickoffs: Object.fromEntries(fixtures.filter(fixture=>fixture.event !== null && fixture.event<=event.id).map(fixture=>[fixture.id,fixture.kickoff_time])),
+    clubStrength: Object.fromEntries(bootstrap.teams.map(team => [team.short_name, team.strength ?? 3])),
+    playerStats: buildPlayerStats(bootstrap.elements),
+    players: bootstrap.elements.map((element) => playerDetails(element, teamsById, eventFixtures, gamesPlayed, liveById.get(element.id))),
+  };
+}
+
+/**
+ * Everything FPL has to say about availability, with this league's exposure attached.
+ *
+ * The exposure is the reason the page exists. FPL's own list is 118 players long and says
+ * nothing about which of them anybody here is starting on Saturday; that half of the
+ * sentence is ours and cannot be got anywhere else.
+ */
+export function buildPlayerNews(
+  elements: Element[],
+  teamsById: Map<number, Team>,
+  gamesPlayed: Map<number, number>,
+  managers: ManagerRow[],
+): PlayerNews[] {
+  const owners = new Map<number, PlayerNews["owners"]>();
+  for (const manager of managers) {
+    for (const player of manager.squad) {
+      owners.set(player.id, [...(owners.get(player.id) ?? []), {
+        managerId: manager.id,
+        teamName: manager.teamName,
+        starter: player.starter,
+        captain: Boolean(player.captain),
+      }]);
+    }
+  }
+  return elements.map((element): PlayerNews => ({
+    id: element.id,
+    name: element.web_name,
+    club: teamsById.get(element.team)?.short_name ?? "UNK",
+    position: positionName(element.element_type),
+    cost: element.now_cost / 10,
+    ownership: Number(element.selected_by_percent) || 0,
+    status: element.status,
+    chance: element.chance_of_playing_next_round,
+    news: element.news ?? "",
+    newsAt: element.news_added,
+    link: element.scout_news_link || undefined,
+    starts: element.starts,
+    minutes: element.minutes,
+    teamGames: gamesPlayed.get(element.team) ?? 0,
+    owners: owners.get(element.id) ?? [],
+  }));
+}

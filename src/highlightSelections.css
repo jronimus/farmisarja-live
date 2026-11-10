@@ -1,0 +1,80 @@
+.highlight-selection-pills { display:flex; flex:1 1 240px; align-items:center; flex-wrap:nowrap; gap:6px; min-width:0; min-height:34px; }
+.highlight-selection-pill { display:inline-flex; align-items:center; gap:6px; padding:5px 6px 5px 8px; border:1px solid color-mix(in srgb,var(--selection-color) 45%,#fff); border-radius:20px; background:color-mix(in srgb,var(--selection-color) 12%,#fff); color:var(--selection-color); font-size:10px; }
+.highlight-selection-pill > i { width:8px; height:8px; border-radius:50%; background:var(--selection-color); flex-shrink:0; }
+.highlight-selection-pill button { display:grid; place-items:center; width:20px; height:20px; padding:0; border:0; border-radius:50%; background:transparent; color:inherit; cursor:pointer; }
+.highlight-selection-pill button:hover { background:#0001; }
+.highlight-selection-clear { padding:6px 8px; border:1px solid #ffffff35; border-radius:7px; background:#ffffff12; color:#edf0f7; font-size:10px; font-weight:700; white-space:nowrap; cursor:pointer; }
+.highlight-selection-clear:hover { background:#ffffff25; }
+.highlight-selection-clear:focus-visible { outline:2px solid #fff; outline-offset:2px; }
+.manager-selection-mark { display:inline-flex; align-items:center; justify-content:center; flex:none; width:15px; height:15px; border:2px solid var(--selection-color); border-radius:50%; color:#fff; font-size:8px; font-weight:900; line-height:1; }
+.manager-selection-mark.owned { width:auto; min-width:20px; height:20px; padding:0 2px; font-size:10px; border-radius:20px; }
+.manager-selection-mark.captain { gap:3px; border-radius:999px; }
+.manager-selection-mark.captain::before { content:"C"; display:grid; place-items:center; flex:none; width:14px; height:14px; padding:0; border-radius:50%; background:#111; color:#fff; font-size:8px; line-height:1; font-weight:900; }
+.manager-selection-mark.triple::before { content:"TC"; }
+.selection-points-list { display:flex; flex:0 1 auto; min-width:0; gap:5px; align-items:center; padding:2px 0; overflow-x:auto; scrollbar-width:none; }
+.manager-cell .selection-points-total { display:inline-flex; flex:none; gap:3px; align-items:baseline; font-size:12px; color:#27354a; white-space:nowrap; }
+.selection-points-total small { font-size:9px; color:#69778b; }
+.manager-selection-mark.benched { gap:2px; }
+.live-selection-count { font-size:10px; font-weight:800; color:#14734c; white-space:nowrap; }
+.highlight-live-pill { padding:7px 10px; border-radius:16px; background:#d8f0e3; color:#146343; font-size:11px; font-weight:800; }
+.highlight-selection-clear { border-radius:16px; padding:7px 10px; }
+.live-players-toggle[aria-pressed="true"] { background:#d8f0e3; color:#146343; }
+.player-picker-mode-row { display:flex; align-items:center; gap:7px; }
+.player-picker-live { padding:7px 12px; border:1px solid #b7cabe; border-radius:8px; background:#e1ece5; color:#246346; font-size:11px; font-weight:800; cursor:pointer; }
+.player-picker-live[aria-pressed="true"] { background:#177149; color:#fff; }
+.player-picker-reset { display:grid; place-items:center; flex:none; width:24px; height:24px; padding:0; border:0; border-radius:6px; background:#ffffff80; color:#46546c; cursor:pointer; }
+.player-picker-reset:disabled { opacity:.25; cursor:default; }
+/* Reserve the played column for status; marks sit below it without resizing rows. */
+.manager-row .progress-cell { position:relative; overflow:visible; }
+.progress-cell > .manager-selection-marks { position:absolute; top:calc(50% - 3px); inset-inline:8px -8px; display:flex; flex-wrap:wrap; align-items:center; align-content:flex-start; gap:3px; min-width:0; height:43px; }
+.progress-cell .manager-selection-mark.owned { min-width:16px; height:16px; padding:0 2px; border-width:1px; font-size:9px; }
+.progress-cell .selection-points-total { display:inline-flex; flex:none; align-items:baseline; justify-content:center; gap:3px; height:20px; box-sizing:border-box; padding:2px 6px; border-radius:999px; background:#dedaf0; color:#30295f; font-size:12px; font-weight:900; line-height:16px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.progress-cell .selection-points-total small { font-size:9px; font-weight:800; color:#514978; }
+.progress-cell .manager-selection-mark.benched svg { width:12px; height:12px; }
+.demo-notice { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:10px 24px; background:#e5dafa; color:#30294f; font-size:12px; }
+.demo-notice strong { white-space:nowrap; }
+.demo-notice a { margin-left:auto; color:inherit; text-decoration:underline; }
+@media(max-width:800px) {
+  .manager-row .progress-cell { grid-column:3 / 5; }
+  .progress-cell > .manager-selection-marks { max-width:100%; }
+  .demo-notice { padding:10px 16px; font-size:11px; }
+}
+.highlight-selected-items { display:flex; flex:0 1 auto; align-items:center; gap:6px; min-width:0; overflow-x:auto; scrollbar-width:none; }
+.highlight-selected-items > * { flex:none; }
+.highlight-selection-clear { flex:none; }
+.manager-selection-mark.owned { background:var(--selection-color); }
+.manager-selection-mark.owned.benched { border:0; border-radius:0; background:transparent; color:var(--selection-color); }
+.manager-selection-mark.benched svg { width:15px; height:15px; }
+.manager-selection-mark.missing { opacity:.3; background:transparent; }
+.player.player-picked[style] { border-color:var(--selection-color,var(--pick)); box-shadow:0 0 0 2px var(--selection-color,var(--pick)),0 8px 20px #0002; }
+.toolbar:has(.highlight-selection-pills) { gap:12px; flex-wrap:wrap; }
+.toolbar .toolbar-selects { flex:0 0 auto; max-width:100%; flex-wrap:nowrap; }
+.toolbar .toolbar-selects > .comparison-open { min-width:0; width:auto; padding-inline:12px; gap:6px; display:inline-flex; align-items:center; justify-content:center; }
+@media(max-width:800px) {
+  .highlight-selection-pills { order:4; flex-basis:100%; }
+  .toolbar .toolbar-selects { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); flex:1 1 100%; width:100%; }
+  .toolbar .toolbar-selects .player-picker { grid-column:1 / -1; width:100%; max-width:none; }
+  .toolbar .toolbar-selects > .comparison-open { flex:1 1 120px; width:auto; padding:0 9px; }
+  .toolbar .toolbar-selects > .comparison-open > span { display:inline; font-size:10px; }
+  .toolbar .toolbar-selects > .comparison-open:only-of-type { grid-column:1 / -1; }
+  .manager-selection-mark { width:13px; height:13px; }
+}
+
+/* Status and the two reserved badge lines share a fixed-size column. */
+.selection-measure { position:absolute; visibility:hidden; pointer-events:none; display:flex; gap:3px; width:max-content; height:0; overflow:hidden; }
+.selection-overflow { flex:none; color:#536078; font-size:10px; font-weight:800; white-space:nowrap; line-height:18px; }
+.manager-row .progress-cell .progress-summary { white-space:nowrap; font-size:11px; }
+.manager-row .progress-summary > small { display:inline; font-size:9px; color:#14734c; font-weight:900; white-space:nowrap; }
+@media(min-width:801px) {
+  .progress-cell:has(.manager-selection-marks) > :is(.progress-summary,strong) { transform:translateY(-22px); }
+}
+@media(max-width:800px) {
+  .progress-cell:has(.manager-selection-marks)::before { visibility:hidden; }
+  .progress-cell > .manager-selection-marks { top:3px; inset-inline:4px 0; height:43px; }
+  .progress-cell:has(.manager-selection-marks) > .progress-summary,
+  .progress-cell:has(.manager-selection-marks) > strong { position:absolute; top:-10px; left:4px; }
+  .manager-row .progress-cell .progress-summary { font-size:10px; }
+  .manager-row .progress-summary > small { font-size:8px; }
+}
+
+.manager-row .progress-summary.progress-stacked > small { display:block; margin-top:3px; }
